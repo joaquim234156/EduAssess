@@ -13,6 +13,9 @@ namespace EduAssess.Routes.UserRoutes
             route.MapPost("register",
                 async(UserRequest req, AppDbContext context) =>
                 {
+                    if (!MiniValidation.MiniValidator.TryValidate(req, out var errors))
+                        return Results.BadRequest(errors);
+
                     var existingUser = await context.Users.FirstOrDefaultAsync(u => u.Email == req.email);
                     if (existingUser != null)
                         return Results.BadRequest(new { message = "User already exists" });
