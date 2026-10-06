@@ -4,7 +4,7 @@
     {
         public UserModel(string email, string password)
         {
-            Id = Guid.NewGuid();
+            Id = Guid.NewGuid();    
             Email = email;
             Password = password;
             Ativa = true;
