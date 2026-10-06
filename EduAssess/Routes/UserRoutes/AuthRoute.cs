@@ -39,7 +39,7 @@ namespace EduAssess.Routes.UserRoutes
             route.MapGet("users",
                 async (AppDbContext context) =>
                 {
-                    var users = await context.Users.Where(u => u.Ativa == true).ToListAsync();
+                    var users = await context.Users.Where(u => u.Ativa == true).Select(u => new UserResponseDTO(u.Id, u.Email, u.Ativa)).ToListAsync();
                     return Results.Ok(users);
                 }
             );
