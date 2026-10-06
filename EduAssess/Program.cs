@@ -1,21 +1,5 @@
-using System.Security.Claims;
-using System.Text;
-using System.Threading.RateLimiting;
-using EduAssess.Application.Interfaces;
-using EduAssess.Application.Routes;
-using EduAssess.Application.Services;
-using EduAssess.Components;
-using EduAssess.Converters;
 using EduAssess.Data;
-using EduAssess.Models.Local;
-using EduAssess.Web;
-using Microsoft.AspNetCore.Authentication;
-using Microsoft.AspNetCore.Authentication.Cookies;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.AspNetCore.Localization;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.IdentityModel.Tokens;
-using Microsoft.OpenApi.Models;
+using EduAssess.Routes.UserRoutes;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -162,28 +146,8 @@ builder.Services.AddScoped<IMatriculaService, MatriculaService>();
 builder.Services.AddScoped<ITurmaService, TurmaService>();
 
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen(c =>
-{
-    c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
-    {
-        Name = "Authorization",
-        Type = SecuritySchemeType.Http,
-        Scheme = "bearer",
-        BearerFormat = "JWT",
-        In = ParameterLocation.Header,
-        Description = "Insira o token JWT abaixo (obtido em POST /auth/login):"
-    });
-    c.AddSecurityRequirement(new OpenApiSecurityRequirement
-    {
-        {
-            new OpenApiSecurityScheme
-            {
-                Reference = new OpenApiReference { Type = ReferenceType.SecurityScheme, Id = "Bearer" }
-            },
-            Array.Empty<string>()
-        }
-    });
-});
+builder.Services.AddSwaggerGen();
+builder.Services.AddDbContext<AppDbContext>();
 
 var app = builder.Build();
 
@@ -197,10 +161,9 @@ if (!app.Environment.IsDevelopment())
     app.UseHttpsRedirection();
 }
 
-app.UseRequestLocalization(new RequestLocalizationOptions()
-    .SetDefaultCulture("pt-BR")
-    .AddSupportedCultures("pt-BR")
-    .AddSupportedUICultures("pt-BR"));
+app.AuthRoutes();
+
+app.UseHttpsRedirection();
 
 app.UseStaticFiles();
 
