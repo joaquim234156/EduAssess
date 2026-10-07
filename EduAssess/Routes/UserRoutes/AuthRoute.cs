@@ -83,8 +83,8 @@ namespace EduAssess.Routes.UserRoutes
                         return Results.NotFound(new { message = "User not found" });
                     if (!user.Ativa)
                         return Results.NotFound(new { message = "User not found" });
-
-                    return Results.Ok(user);
+                    var userNow = new UserResponseDTO(user.Id, user.Email, user.Ativa);
+                    return Results.Ok(userNow);
                 }
             ).RequireAuthorization();
 
