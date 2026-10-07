@@ -2,16 +2,16 @@
 
 namespace EduAssess.Models.UserModel
 {
-    public record UserRequest(
+    public record UserRequestPut(
         [Required(ErrorMessage = "O Email é obrigatório.")]
         [MaxLength(150, ErrorMessage = "O Email deve ter no máximo 150 caracteres.")]
         [EmailAddress(ErrorMessage = "O Email informado não é válido.")]
         string email,
-        [Required(ErrorMessage = "A Senha é obrigatório")]
-        [MinLength(8, ErrorMessage = "A Senha deve ter no mínimo 8 caracteres.")]
-        [MaxLength(250, ErrorMessage = "A Senha deve ter no máximo 250 caracteres.")]
-        string password,
 
-        UserRole role = UserRole.User
+        UserRole role,
+
+        [MinLength(8, ErrorMessage = "A Senha deve ter no mínimo 8 caracteres.")]
+        string? password = null
+
     );
 }
