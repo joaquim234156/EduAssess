@@ -33,7 +33,8 @@ builder.Services.AddAuthentication(options =>
 
 builder.Services.AddAuthorization(options =>
 {
-    options.AddPolicy("AdminOnly", policy => policy.RequireRole("Admin"));
+    // O nome da política agora é "Admin"
+    options.AddPolicy("Admin", policy => policy.RequireRole("Admin"));
 });
 
 builder.Services.AddControllers();
@@ -44,11 +45,11 @@ builder.Services.AddSwaggerGen(c =>
     c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
     {
         Name = "Authorization",
-        Type = SecuritySchemeType.ApiKey,
-        Scheme = "Bearer",
+        Type = SecuritySchemeType.Http,
+        Scheme = "bearer",
         BearerFormat = "JWT",
         In = ParameterLocation.Header,
-        Description = "Insira o token JWT desta forma: Bearer {seu_token}"
+        Description = "Insira o token JWT abaixo:"
     });
     c.AddSecurityRequirement(new OpenApiSecurityRequirement
     {
