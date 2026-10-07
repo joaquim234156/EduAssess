@@ -1,6 +1,8 @@
 using EduAssess.Data;
+using EduAssess.Models.UserModel;
 using EduAssess.Routes.UserRoutes;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Internal;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
@@ -240,22 +242,26 @@ app.UseAntiforgery();
 
 app.MapControllers();
 
-app.AuthRoutes();
-app.CursosRoutes();
-app.MatriculaRoutes();
-app.TurmaRoutes();
-app.DisciplinaRoutes();
-app.NotaRoutes();
-app.QuestaoRoutes();
-
-if (appMode != "ApiOnly")
+using (var scope = app.Services.CreateScope())
 {
-    app.UiAuthRoutes();
-    app.MapRazorComponents<App>()
-        .AddInteractiveServerRenderMode();
-}
+    var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
-await DatabaseInitializer.InitializeAsync(app.Services);
+    // Garante que o banco de dados e as migrations foram aplicados
+    context.Database.Migrate();
+
+    // Se não existir nenhum usuário registrado, cria o Admin padrão
+    if (!context.Users.Any())
+    {
+        var adminUser = new UserModel(
+            email: "admin@eduassess.com",
+            password: "Admin1234", // Troque por uma senha forte
+            role: UserRole.Admin
+        );
+
+        context.Users.Add(adminUser);
+        context.SaveChanges();
+    }
+}
 
 app.Run();
 
