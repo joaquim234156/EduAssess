@@ -17,7 +17,7 @@ namespace EduAssess.Migrations
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "8.0.31");
 
-            modelBuilder.Entity("EduAssess.Models.UserModel", b =>
+            modelBuilder.Entity("EduAssess.Models.UserModel.UserModel", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -30,9 +30,12 @@ namespace EduAssess.Migrations
                         .IsRequired()
                         .HasColumnType("TEXT");
 
-                    b.Property<string>("Password")
+                    b.Property<string>("PasswordHash")
                         .IsRequired()
                         .HasColumnType("TEXT");
+
+                    b.Property<int>("Role")
+                        .HasColumnType("INTEGER");
 
                     b.HasKey("Id");
 
