@@ -1,5 +1,6 @@
 ﻿using EduAssess.Data;
 using EduAssess.Models.UserModel;
+using EduAssess.Services;
 using Microsoft.EntityFrameworkCore;
 
 namespace EduAssess.Routes.UserRoutes
@@ -11,7 +12,7 @@ namespace EduAssess.Routes.UserRoutes
             var route = app.MapGroup("auth");
 
             route.MapPost("register",
-                async(UserRequest req, AppDbContext context) =>
+                async(UserRequest req, AppDbContext context, IConfiguration config) =>
                 {
                     if (!MiniValidation.MiniValidator.TryValidate(req, out var errors))
                         return Results.BadRequest(errors);
@@ -19,25 +20,41 @@ namespace EduAssess.Routes.UserRoutes
                     var existingUser = await context.Users.FirstOrDefaultAsync(u => u.Email == req.email);
                     if (existingUser != null)
                         return Results.BadRequest(new { message = "User already exists" });
-                    
+
+                    // Gerando o token para o novo usuário registrado
+
                     var user = new UserModel(req.email, req.password);
                     await context.Users.AddAsync(user);
                     await context.SaveChangesAsync();
+
+                    var secret = config.GetValue<string>("JwtSettings:Secret");
+                    var token = TokenService.GenerateToken(user, secret!);
 
                     return Results.Ok(new { message = "Usuário cadastrado com sucesso!", user.Id, user.Email });
                 }
             );
 
             route.MapPost("login",
-                async (UserRequest req, AppDbContext context) =>
+                async (UserRequest req, AppDbContext context, IConfiguration config) =>
                 {
-                    var user = await context.Users.FirstOrDefaultAsync(u => u.Email == req.email && u.Password == req.password);
-                    if (user == null)
+                    var user = await context.Users.FirstOrDefaultAsync(u => u.Email == req.email && u.Ativa == true);
+                    if (user == null || !user.VerifyPassword(req.password))
                         return Results.Unauthorized();
 
-                    return Results.Ok(new { message = "Login successful", user.Id, user.Email });
-                }
-            );
+                    bool isValidPassword = user.VerifyPassword(req.password);
+                    if (!isValidPassword)
+                        return Results.Unauthorized();
+
+                    var secret = config.GetValue<string>("JwtSettings:Secret");
+                    var token = TokenService.GenerateToken(user, secret!);
+
+                    return Results.Ok(new 
+                    {
+                        message = "Login successful",
+                        user = new { user.Id, user.Email, user.Role },
+                        token
+                    });
+                });
 
             route.MapGet("users",
                 async (AppDbContext context) =>
@@ -45,7 +62,7 @@ namespace EduAssess.Routes.UserRoutes
                     var users = await context.Users.Where(u => u.Ativa == true).Select(u => new UserResponseDTO(u.Id, u.Email, u.Ativa)).ToListAsync();
                     return Results.Ok(users);
                 }
-            );
+            ).RequireAuthorization("AdminOnly");
 
             route.MapGet("users/{id:guid}",
                 async (Guid id, AppDbContext context) =>
@@ -58,21 +75,32 @@ namespace EduAssess.Routes.UserRoutes
                     var userNow = new UserResponseDTO(user.Id, user.Email, user.Ativa);
                     return Results.Ok(userNow);
                 }
-            );
+            ).RequireAuthorization();
 
             route.MapPut("users/{id:guid}",
-                async (Guid id, UserRequest req, AppDbContext context) =>
+                async (Guid id, UserRequestPut req, AppDbContext context) =>
                 {
+                    if (!MiniValidation.MiniValidator.TryValidate(req, out var errors))
+                        return Results.BadRequest(errors);
+
                     var user = await context.Users.FindAsync(id);
-                    if (user == null)
+                    if (user == null || !user.Ativa)
                         return Results.NotFound(new { message = "User not found" });
 
-                    user.Update(req.email, req.password);
+                    var emailExists = await context.Users.AnyAsync(u => u.Email == req.email && u.Id != id);
+                    if (emailExists)
+                        return Results.BadRequest(new { message = "Email is already in use by another account." });
+
+                    user.Update(req.email, req.role, req.password);
 
                     await context.SaveChangesAsync();
-                    return Results.Ok(new { message = "User updated successfully", user.Id, user.Email });
+                    return Results.Ok(new
+                    {
+                        message = "User updated successfully",
+                        user = new { user.Id, user.Email, user.Role }
+                    });
                 }
-            );
+            ).RequireAuthorization("AdminOnly");
 
             route.MapDelete("users/{id:guid}",
                 async (Guid id, AppDbContext context) =>
