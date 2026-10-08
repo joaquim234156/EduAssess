@@ -1,4 +1,6 @@
-﻿namespace EduAssess.Models.CursoModel
+﻿using System;
+
+namespace EduAssess.Models.CursoModel
 {
     public class CursoModel
     {

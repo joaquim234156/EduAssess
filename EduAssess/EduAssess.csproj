@@ -24,7 +24,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="Models\CursoModel\" />
     <Folder Include="Models\MatriculaModel\" />
     <Folder Include="Models\TurmaModel\" />
   </ItemGroup>
