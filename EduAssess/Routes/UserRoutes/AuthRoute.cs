@@ -21,21 +21,32 @@ namespace EduAssess.Routes.UserRoutes
                     if (existingUser != null)
                         return Results.BadRequest(new { message = "User already exists" });
 
+                    bool isFirstUser = !await context.Users.AnyAsync();
+
+                    UserRole assignedRole = isFirstUser ? UserRole.Admin : req.role;
+
                     // Gerando o token para o novo usuário registrado
 
-                    var user = new UserModel(req.email, req.password);
+                    var user = new UserModel(req.email, req.password, assignedRole);
                     await context.Users.AddAsync(user);
                     await context.SaveChangesAsync();
 
                     var secret = config.GetValue<string>("JwtSettings:Secret");
                     var token = TokenService.GenerateToken(user, secret!);
 
-                    return Results.Ok(new { message = "Usuário cadastrado com sucesso!", user.Id, user.Email });
+                    return Results.Ok(new 
+                    {
+                        message = isFirstUser
+                        ? "Primeiro usuário cadastrado com sucesso como Administrador!"
+                        : "Usuário cadastrado com sucesso!",
+                        user = new { user.Id, user.Email, Role = user.Role.ToString() },
+                        token
+                    });
                 }
             );
 
             route.MapPost("login",
-                async (UserRequest req, AppDbContext context, IConfiguration config) =>
+                async (LoginRequest req, AppDbContext context, IConfiguration config) =>
                 {
                     var user = await context.Users.FirstOrDefaultAsync(u => u.Email == req.email && u.Ativa == true);
                     if (user == null || !user.VerifyPassword(req.password))
@@ -62,7 +73,7 @@ namespace EduAssess.Routes.UserRoutes
                     var users = await context.Users.Where(u => u.Ativa == true).Select(u => new UserResponseDTO(u.Id, u.Email, u.Ativa)).ToListAsync();
                     return Results.Ok(users);
                 }
-            ).RequireAuthorization("AdminOnly");
+            ).RequireAuthorization("Admin");
 
             route.MapGet("users/{id:guid}",
                 async (Guid id, AppDbContext context) =>
@@ -100,7 +111,7 @@ namespace EduAssess.Routes.UserRoutes
                         user = new { user.Id, user.Email, user.Role }
                     });
                 }
-            ).RequireAuthorization("AdminOnly");
+            ).RequireAuthorization("Admin");
 
             route.MapDelete("users/{id:guid}",
                 async (Guid id, AppDbContext context) =>
