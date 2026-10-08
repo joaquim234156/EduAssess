@@ -55,7 +55,18 @@ namespace EduAssess.Migrations
                     b.Property<bool>("Ativa")
                         .HasColumnType("INTEGER");
 
+                    b.Property<string>("Cpf")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("DataNascimento")
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("Email")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Name")
                         .IsRequired()
                         .HasColumnType("TEXT");
 
@@ -65,6 +76,10 @@ namespace EduAssess.Migrations
 
                     b.Property<int>("Role")
                         .HasColumnType("INTEGER");
+
+                    b.Property<string>("Telefone")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
 
                     b.HasKey("Id");
 
