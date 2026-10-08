@@ -51,7 +51,7 @@ namespace EduAssess.Routes.CursosRoutes
                     }
                 });
             });
-            route.MapPut("delete/{id:guid}",
+            route.MapDelete("delete/{id:guid}",
             async (Guid id, CursosRequest req, AppDbContext context) =>
             {
                 var curso = await context.Cursos.FindAsync(id);
