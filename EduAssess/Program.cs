@@ -1,6 +1,7 @@
 using EduAssess.Data;
 using EduAssess.Models.UserModel;
 using EduAssess.Routes.UserRoutes;
+using EduAssess.Routes.CursosRoutes;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Internal;
@@ -78,6 +79,8 @@ if (app.Environment.IsDevelopment())
 }
 
 app.AuthRoutes();
+
+app.MapCursosRoutes();
 
 app.UseHttpsRedirection();
 

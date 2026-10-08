@@ -17,6 +17,35 @@ namespace EduAssess.Migrations
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "8.0.31");
 
+            modelBuilder.Entity("EduAssess.Models.CursoModel.CursoModel", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("Ativo")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Descricao")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("DuracaoEmAnos")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Nome")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Professor")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("Cursos");
+                });
+
             modelBuilder.Entity("EduAssess.Models.UserModel.UserModel", b =>
                 {
                     b.Property<Guid>("Id")
