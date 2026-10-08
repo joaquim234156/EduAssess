@@ -1,4 +1,5 @@
 ﻿using System.Data;
+using System.Globalization;
 
 namespace EduAssess.Models.UserModel
 {
@@ -15,10 +16,14 @@ namespace EduAssess.Models.UserModel
 
         protected UserModel() { }
 
-        public UserModel(string email, string password, UserRole role = UserRole.User)
+        public UserModel(string name,string email,string cpf, string tel, DateTime dataNascimento, string password, UserRole role = UserRole.User)
         {
             Id = Guid.NewGuid();
+            Name = name;
             Email = email;
+            Cpf = cpf;
+            Telefone = tel;
+            DataNascimento = dataNascimento;
             Role = role;
             PasswordHash = BCrypt.Net.BCrypt.HashPassword(password);
             
@@ -26,20 +31,41 @@ namespace EduAssess.Models.UserModel
         }
 
         public Guid Id { get; init; }
+        public string Name { get; set; }
         public string Email { get; private set; }
+        public string Cpf { get; set; }
+        public string Telefone { get; set; }
+        public DateTime DataNascimento { get; set; }
         public string PasswordHash { get; private set; }
         public UserRole Role { get; private set; }
         public bool Ativa { get; private set; }
 
-        public void Update(string email, UserRole role, string? newPassword = null)
+        public void Update(string name, string email)
         {
+            Name = name;
+            Email = email;
+        }
+
+        public void UpdateAdmin(string name ,string email, UserRole role)
+        {
+            Name = name;
             Email = email;
             Role = role;
+        }
 
-            if (!string.IsNullOrWhiteSpace(newPassword))
+        public void UpdatePassword(string newPassword, string? confirmPassword)
+        {
+            if (string.IsNullOrWhiteSpace(newPassword) || string.IsNullOrWhiteSpace(confirmPassword))
             {
-                PasswordHash = BCrypt.Net.BCrypt.HashPassword(newPassword);
+                throw new ArgumentException("A nova senha e a confirmação não podem estar vazias.");
             }
+
+            if (newPassword != confirmPassword)
+            {
+                throw new ArgumentException("A nova senha e a confirmação de senha não coincidem.");
+            }
+
+            PasswordHash = BCrypt.Net.BCrypt.HashPassword(newPassword);
         }
 
         public bool VerifyPassword(string password)

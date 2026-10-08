@@ -2,7 +2,7 @@
 
 namespace EduAssess.Models.UserModel
 {
-    public record UserRequestPut(
+    public record UserRequestPutDetails(
         [Required(ErrorMessage = "O Nome é obrigatório.")]
         [StringLength(100, MinimumLength = 3, ErrorMessage = "O nome deve ter entre 3 e 120 caracteres.")]
         string name,
@@ -17,7 +17,9 @@ namespace EduAssess.Models.UserModel
         [RegularExpression(@"^\d{10,11}$", ErrorMessage = "O telefone deve conter entre 10 e 11 dígitos numéricos (DDD + Número).")]
         string tel,
         [Required(ErrorMessage = "A data de nascimento é obrigatório.")]
-        DateTime dataNascimento
+        DateTime dataNascimento,
+
+        UserRole role = UserRole.User
 
     );
 }
