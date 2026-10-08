@@ -1,33 +1,31 @@
-using System.Globalization;
+﻿using System.Globalization;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
 namespace EduAssess.Converters;
 
-/// <summary>
-/// Lê datas no formato dd/MM/yyyy (preferencial) ou ISO yyyy-MM-dd e escreve sempre dd/MM/yyyy.
-/// </summary>
-public class DateOnlyPtBrJsonConverter : JsonConverter<DateOnly>
+public class DateTimePtBrJsonConverter : JsonConverter<DateTime>
 {
     private const string Format = "dd/MM/yyyy";
 
-    public override DateOnly Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+    public override DateTime Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
     {
         var dateString = reader.GetString();
 
-        if (!string.IsNullOrWhiteSpace(dateString))
+        if (DateTime.TryParseExact(dateString, Format, CultureInfo.InvariantCulture, DateTimeStyles.None, out var date))
         {
-            if (DateOnly.TryParseExact(dateString, Format, CultureInfo.InvariantCulture, DateTimeStyles.None, out var exact))
-                return exact;
-
-            if (DateOnly.TryParseExact(dateString, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var iso))
-                return iso;
+            return DateTime.SpecifyKind(date, DateTimeKind.Utc);
         }
 
-        throw new JsonException($"Formato de data inválido. Use {Format} ou yyyy-MM-dd.");
+        if (DateTime.TryParse(dateString, out var fallbackDate))
+        {
+            return DateTime.SpecifyKind(fallbackDate, DateTimeKind.Utc);
+        }
+
+        throw new JsonException($"Formato de data inválido. Use {Format}.");
     }
 
-    public override void Write(Utf8JsonWriter writer, DateOnly value, JsonSerializerOptions options)
+    public override void Write(Utf8JsonWriter writer, DateTime value, JsonSerializerOptions options)
     {
         writer.WriteStringValue(value.ToString(Format, CultureInfo.InvariantCulture));
     }

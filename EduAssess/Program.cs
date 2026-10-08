@@ -1,7 +1,8 @@
+using EduAssess.Converters;
 using EduAssess.Data;
 using EduAssess.Models.UserModel;
-using EduAssess.Routes.UserRoutes;
 using EduAssess.Routes.CursosRoutes;
+using EduAssess.Routes.UserRoutes;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Internal;
@@ -12,6 +13,11 @@ using System.Text;
 var builder = WebApplication.CreateBuilder(args);
 
 var key = builder.Configuration.GetValue<string>("JwtSettings:Secret");
+
+builder.Services.ConfigureHttpJsonOptions(options =>
+{
+    options.SerializerOptions.Converters.Add(new DateTimePtBrJsonConverter());
+});
 
 // Configuração do Scheme de Autenticação JWT
 builder.Services.AddAuthentication(options =>
@@ -218,29 +224,11 @@ if (!app.Environment.IsDevelopment())
 }
 
 app.AuthRoutes();
-
 app.MapCursosRoutes();
 
 app.UseHttpsRedirection();
 
-app.UseStaticFiles();
-
-if (appMode != "App")
-{
-    app.UseSwagger();
-    app.UseSwaggerUI(c =>
-    {
-        c.RoutePrefix = "swagger";
-        c.SwaggerEndpoint("/swagger/v1/swagger.json", "v1");
-    });
-}
-
-// Páginas 404 do painel (a API continua respondendo com status puro).
-app.UseWhen(context => !ApiPaths.IsApi(context.Request.Path) && appMode != "ApiOnly",
-    branch => branch.UseStatusCodePagesWithReExecute("/nao-encontrado"));
-
 app.UseAuthentication();
-app.UseRateLimiter();
 app.UseAuthorization();
 app.UseAntiforgery();
 
@@ -257,7 +245,11 @@ using (var scope = app.Services.CreateScope())
     if (!context.Users.Any())
     {
         var adminUser = new UserModel(
+            name: "Admin",
             email: "admin@eduassess.com",
+            cpf: "000.000.000-00",
+            tel: "(00) 0000-0000",
+            dataNascimento: new DateTime(1990, 1, 1, 0, 0, 0, DateTimeKind.Utc),
             password: "Admin1234", // Troque por uma senha forte
             role: UserRole.Admin
         );

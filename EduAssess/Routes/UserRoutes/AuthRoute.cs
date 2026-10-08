@@ -1,7 +1,10 @@
 ﻿using EduAssess.Data;
 using EduAssess.Models.UserModel;
 using EduAssess.Services;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Data;
+using System.Security.Claims;
 
 namespace EduAssess.Routes.UserRoutes
 {
@@ -12,22 +15,24 @@ namespace EduAssess.Routes.UserRoutes
             var route = app.MapGroup("auth");
 
             route.MapPost("register",
-                async(UserRequest req, AppDbContext context, IConfiguration config) =>
+                async(RegisterRequest req, AppDbContext context, IConfiguration config) =>
                 {
                     if (!MiniValidation.MiniValidator.TryValidate(req, out var errors))
                         return Results.BadRequest(errors);
 
-                    var existingUser = await context.Users.FirstOrDefaultAsync(u => u.Email == req.email);
-                    if (existingUser != null)
-                        return Results.BadRequest(new { message = "User already exists" });
+                    if (req.password != req.confirmPassword)
+                        return Results.BadRequest(new { message = "A senha e a confirmação de senha não coincidem." });
+
+                    if (await context.Users.AnyAsync(u => u.Email == req.email))
+                        return Results.BadRequest(new { message = "E-mail já cadastrado." });
 
                     bool isFirstUser = !await context.Users.AnyAsync();
-
                     UserRole assignedRole = isFirstUser ? UserRole.Admin : req.role;
 
                     // Gerando o token para o novo usuário registrado
 
-                    var user = new UserModel(req.email, req.password, assignedRole);
+                    var user = new UserModel(req.name, req.email, req.cpf, req.tel, req.dataNascimento, req.password, assignedRole);
+
                     await context.Users.AddAsync(user);
                     await context.SaveChangesAsync();
 
@@ -70,7 +75,7 @@ namespace EduAssess.Routes.UserRoutes
             route.MapGet("users",
                 async (AppDbContext context) =>
                 {
-                    var users = await context.Users.Where(u => u.Ativa == true).Select(u => new UserResponseDTO(u.Id, u.Email, u.Ativa)).ToListAsync();
+                    var users = await context.Users.Where(u => u.Ativa == true).Select(u => new UserResponseDTO(u.Id, u.Name, u.Email, u.Cpf, u.Telefone, u.DataNascimento, u.Ativa)).ToListAsync();
                     return Results.Ok(users);
                 }
             ).RequireAuthorization("Admin");
@@ -83,13 +88,45 @@ namespace EduAssess.Routes.UserRoutes
                         return Results.NotFound(new { message = "User not found" });
                     if (!user.Ativa)
                         return Results.NotFound(new { message = "User not found" });
-                    var userNow = new UserResponseDTO(user.Id, user.Email, user.Ativa);
+                    var userNow = new UserResponseDTO(user.Id, user.Name, user.Email, user.Cpf, user.Telefone, user.DataNascimento, user.Ativa);
                     return Results.Ok(userNow);
                 }
             ).RequireAuthorization();
 
-            route.MapPut("users/{id:guid}",
-                async (Guid id, UserRequestPut req, AppDbContext context) =>
+            route.MapPut("users/{id:guid}/update",
+                async (Guid id, UserRequestPut req, AppDbContext context, ClaimsPrincipal userLogado) =>
+                {
+                    if (!MiniValidation.MiniValidator.TryValidate(req, out var errors))
+                        return Results.BadRequest(errors);
+
+                    var currentUserId = userLogado.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                    var isAdmin = userLogado.IsInRole("Admin");
+
+                    if (!isAdmin && currentUserId != id.ToString())
+                    {
+                        return Results.Forbid();
+                    }
+
+                    var user = await context.Users.FindAsync(id);
+                    if (user == null || !user.Ativa)
+                        return Results.NotFound(new { message = "User not found" });
+
+                    if (await context.Users.AnyAsync(u => u.Email == req.email))
+                        return Results.BadRequest(new { message = "E-mail já cadastrado." });
+
+                    user.Update(req.email, req.name);
+
+                    await context.SaveChangesAsync();
+                    return Results.Ok(new
+                    {
+                        message = "User updated successfully",
+                        user = new { user.Id, user.Email, user.Role }
+                    });
+                }
+            ).RequireAuthorization();
+
+            route.MapPut("users/{id:guid}/updateAdmin",
+                async (Guid id, UserRequestPutDetails req, AppDbContext context) =>
                 {
                     if (!MiniValidation.MiniValidator.TryValidate(req, out var errors))
                         return Results.BadRequest(errors);
@@ -98,11 +135,10 @@ namespace EduAssess.Routes.UserRoutes
                     if (user == null || !user.Ativa)
                         return Results.NotFound(new { message = "User not found" });
 
-                    var emailExists = await context.Users.AnyAsync(u => u.Email == req.email && u.Id != id);
-                    if (emailExists)
-                        return Results.BadRequest(new { message = "Email is already in use by another account." });
+                    if (await context.Users.AnyAsync(u => u.Email == req.email))
+                        return Results.BadRequest(new { message = "E-mail já cadastrado." });
 
-                    user.Update(req.email, req.role, req.password);
+                    user.UpdateAdmin(req.name, req.email, req.role);
 
                     await context.SaveChangesAsync();
                     return Results.Ok(new
@@ -112,6 +148,34 @@ namespace EduAssess.Routes.UserRoutes
                     });
                 }
             ).RequireAuthorization("Admin");
+
+            route.MapPut("users/{id:guid}/UpdatePassword",
+                async (Guid id, PasswordRequest req, AppDbContext context, ClaimsPrincipal userLogado) =>
+                {
+                    if (!MiniValidation.MiniValidator.TryValidate(req, out var errors))
+                        return Results.BadRequest(errors);
+
+                    var currentUserId = userLogado.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+                    if (currentUserId != id.ToString())
+                    {
+                        return Results.Forbid();
+                    }
+
+                    var user = await context.Users.FindAsync(id);
+                    if (user == null || !user.Ativa)
+                        return Results.NotFound(new { message = "User not found" });
+
+                    user.UpdatePassword(req.password, req.confirmPassword);
+
+                    await context.SaveChangesAsync();
+                    return Results.Ok(new
+                    {
+                        message = "User updated successfully",
+                        user = new { user.Id, user.Email, user.Role }
+                    });
+                }
+            ).RequireAuthorization();
 
             route.MapDelete("users/{id:guid}",
                 async (Guid id, AppDbContext context) =>
