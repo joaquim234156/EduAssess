@@ -6,6 +6,6 @@
         string Email,
         string CPF,
         string Telefone,
-        DateOnly DataNascimento,
+        DateTime DataNascimento,
         bool Ativa);
 }

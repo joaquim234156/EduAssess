@@ -1,8 +1,8 @@
 using EduAssess.Converters;
 using EduAssess.Data;
+using EduAssess.EduAssess.Aplication.Routes.CursosRoutes;
+using EduAssess.EduAssess.Aplication.Routes.UserRoutes;
 using EduAssess.Models.UserModel;
-using EduAssess.Routes.CursosRoutes;
-using EduAssess.Routes.UserRoutes;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Internal;

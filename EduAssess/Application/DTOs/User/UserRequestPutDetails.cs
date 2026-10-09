@@ -1,4 +1,4 @@
-﻿using EduAssess.Models.Local;
+﻿using EduAssess.Models.UserModel;
 using System.ComponentModel.DataAnnotations;
 
 namespace EduAssess.EduAssess.Aplication.DTOs.User
@@ -18,7 +18,7 @@ namespace EduAssess.EduAssess.Aplication.DTOs.User
         [RegularExpression(@"^\d{10,11}$", ErrorMessage = "O telefone deve conter entre 10 e 11 dígitos numéricos (DDD + Número).")]
         string tel,
         [Required(ErrorMessage = "A data de nascimento é obrigatório.")]
-        DateOnly dataNascimento,
+        DateTime dataNascimento,
 
         UserRole role = UserRole.User
 
