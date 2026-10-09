@@ -1,8 +1,7 @@
 using EduAssess.Converters;
 using EduAssess.Data;
-using EduAssess.EduAssess.Aplication.Routes.CursosRoutes;
-using EduAssess.EduAssess.Aplication.Routes.UserRoutes;
-using EduAssess.Models.UserModel;
+using EduAssess.Application.Routes;
+using EduAssess.Models;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Internal;
@@ -109,7 +108,7 @@ using (var scope = app.Services.CreateScope())
             email: "admin@eduassess.com",
             cpf: "000.000.000-00",
             tel: "(00) 0000-0000",
-            dataNascimento: new DateTime(1990, 1, 1, 0, 0, 0, DateTimeKind.Utc),
+            dataNascimento: DateOnly.FromDateTime(new DateTime(1990, 1, 1, 0, 0, 0, DateTimeKind.Utc)),
             password: "Admin1234", // Troque por uma senha forte
             role: UserRole.Admin
         );

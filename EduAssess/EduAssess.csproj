@@ -25,6 +25,7 @@
 
   <ItemGroup>
     <Folder Include="Application\DTOs\Matricula\" />
+    <Folder Include="Application\DTOs\Nota\" />
     <Folder Include="Application\DTOs\Turma\" />
   </ItemGroup>
 

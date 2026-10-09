@@ -19,7 +19,7 @@ namespace EduAssess.Models
             Matriculas = new List<MatriculaModel>();
         }
 
-        public UserModel(string name, string email, string cpf, string tel, DateTime dataNascimento, string password, UserRole role = UserRole.User)
+        public UserModel(string name, string email, string cpf, string tel, DateOnly dataNascimento, string password, UserRole role = UserRole.User)
         {
             Id = Guid.NewGuid();
             Name = name;
@@ -39,7 +39,7 @@ namespace EduAssess.Models
         public string Email { get; private set; }
         public string Cpf { get; set; }
         public string Telefone { get; set; }
-        public DateTime DataNascimento { get; set; }
+        public DateOnly DataNascimento { get; set; }
         public string PasswordHash { get; private set; }
         public UserRole Role { get; private set; }
         public bool Ativa { get; private set; }
@@ -74,7 +74,7 @@ namespace EduAssess.Models
             PasswordHash = BCrypt.Net.BCrypt.HashPassword(newPassword);
         }
 
-        public bool VerifyPassword(string password)
+        public bool VerifyPassword(string password) 
         {
             return BCrypt.Net.BCrypt.Verify(password, PasswordHash);
         }

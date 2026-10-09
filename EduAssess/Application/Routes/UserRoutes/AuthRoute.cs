@@ -7,7 +7,7 @@ using Microsoft.EntityFrameworkCore;
 using System.Data;
 using System.Security.Claims;
 
-namespace EduAssess.EduAssess.Aplication.Routes.UserRoutes
+namespace EduAssess.Application.Routes
 {
     public static class AuthRoute
     {
