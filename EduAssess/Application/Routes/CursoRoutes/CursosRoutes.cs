@@ -3,7 +3,7 @@ using EduAssess.Data;
 using EduAssess.Models;
 using Microsoft.EntityFrameworkCore;
 
-namespace EduAssess.EduAssess.Aplication.Routes.CursosRoutes
+namespace EduAssess.Application.Routes
 {
     public static class CursosRoutes
     {

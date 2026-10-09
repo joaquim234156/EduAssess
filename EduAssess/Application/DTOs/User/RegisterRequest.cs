@@ -18,7 +18,7 @@ namespace EduAssess.EduAssess.Aplication.DTOs.User
         [RegularExpression(@"^\d{10,11}$", ErrorMessage = "O telefone deve conter entre 10 e 11 dígitos numéricos (DDD + Número).")]
         string tel,
         [Required(ErrorMessage = "A data de nascimento é obrigatório.")]
-        DateTime dataNascimento,
+        DateOnly dataNascimento,
         [Required(ErrorMessage = "A Senha é obrigatório")]
         [MinLength(8, ErrorMessage = "A Senha deve ter no mínimo 8 caracteres.")]
         [MaxLength(250, ErrorMessage = "A Senha deve ter no máximo 250 caracteres.")]
