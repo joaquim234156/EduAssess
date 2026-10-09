@@ -1,7 +1,8 @@
 ﻿using System.Data;
 using System.Globalization;
+using System.Text.Json.Serialization;
 
-namespace EduAssess.Models.UserModel
+namespace EduAssess.Models
 {
     public enum UserRole
     {
@@ -13,10 +14,12 @@ namespace EduAssess.Models.UserModel
     }
     public class UserModel
     {
+        protected UserModel()
+        {
+            Matriculas = new List<MatriculaModel>();
+        }
 
-        protected UserModel() { }
-
-        public UserModel(string name,string email,string cpf, string tel, DateTime dataNascimento, string password, UserRole role = UserRole.User)
+        public UserModel(string name, string email, string cpf, string tel, DateTime dataNascimento, string password, UserRole role = UserRole.User)
         {
             Id = Guid.NewGuid();
             Name = name;
@@ -26,8 +29,9 @@ namespace EduAssess.Models.UserModel
             DataNascimento = dataNascimento;
             Role = role;
             PasswordHash = BCrypt.Net.BCrypt.HashPassword(password);
-            
             Ativa = true;
+
+            Matriculas = new List<MatriculaModel>();
         }
 
         public Guid Id { get; init; }
@@ -40,13 +44,15 @@ namespace EduAssess.Models.UserModel
         public UserRole Role { get; private set; }
         public bool Ativa { get; private set; }
 
+        public ICollection<MatriculaModel> Matriculas { get; private set; }
+
         public void Update(string name, string email)
         {
             Name = name;
             Email = email;
         }
 
-        public void UpdateAdmin(string name ,string email, UserRole role)
+        public void UpdateAdmin(string name, string email, UserRole role)
         {
             Name = name;
             Email = email;

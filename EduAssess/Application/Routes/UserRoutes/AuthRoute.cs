@@ -1,7 +1,7 @@
 ﻿using EduAssess.Data;
 using EduAssess.EduAssess.Aplication.DTOs.User;
 using EduAssess.EduAssess.Aplication.Services;
-using EduAssess.Models.UserModel;
+using EduAssess.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Data;
