@@ -24,11 +24,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="Application\DTOs\Curso\" />
     <Folder Include="Application\DTOs\Matricula\" />
     <Folder Include="Application\DTOs\Turma\" />
-    <Folder Include="Models\MatriculaModel\" />
-    <Folder Include="Models\TurmaModel\" />
   </ItemGroup>
 
 </Project>

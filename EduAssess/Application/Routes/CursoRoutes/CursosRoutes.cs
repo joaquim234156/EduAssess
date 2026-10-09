@@ -1,5 +1,6 @@
-﻿using EduAssess.Data;
-using EduAssess.Models.CursoModel;
+﻿using EduAssess.Application.DTOs.Curso;
+using EduAssess.Data;
+using EduAssess.Models;
 using Microsoft.EntityFrameworkCore;
 
 namespace EduAssess.EduAssess.Aplication.Routes.CursosRoutes
@@ -10,32 +11,32 @@ namespace EduAssess.EduAssess.Aplication.Routes.CursosRoutes
         {
             var route = app.MapGroup("cursos").WithTags("Cursos"); ;
             route.MapPost("create",
-                async (CursosRequest creq, AppDbContext context) =>
+                async (CursosRequest req, AppDbContext context) =>
                 {
-                    if (!MiniValidation.MiniValidator.TryValidate(creq, out var errors))
+                    if (!MiniValidation.MiniValidator.TryValidate(req, out var errors))
                         return Results.BadRequest(errors);
 
-                    var existingCurso = await context.Cursos.FirstOrDefaultAsync(c => c.Nome == creq.nome);
+                    var existingCurso = await context.Cursos.FirstOrDefaultAsync(c => c.Nome == req.nome);
                     if (existingCurso != null)
                         return Results.BadRequest(new { message = "Curso já existente" });
 
-                    var curso = new CursoModel(creq.nome, creq.descricao, creq.professor, creq.duracaoEmAnos);
-                    await context.Cursos.AddAsync(curso);
+                    var curso = new CursoModel(req.nome, req.descricao, req.professor, req.duracaoEmAnos);
+                    await context.AddAsync(curso);
                     await context.SaveChangesAsync();
 
                     return Results.Ok(new { message = "Curso criado com sucesso", cursoId = curso.Id });
                 });
             route.MapPut("update/{id:guid}",
-            async (Guid id, CursosRequest creq, AppDbContext context) =>
+            async (Guid id, CursosRequest req, AppDbContext context) =>
             {
-                if (!MiniValidation.MiniValidator.TryValidate(creq, out var errors))
+                if (!MiniValidation.MiniValidator.TryValidate(req, out var errors))
                     return Results.BadRequest(errors);
 
                 var curso = await context.Cursos.FindAsync(id);
                 if (curso == null || !curso.Ativo)
                     return Results.NotFound(new { message = "Curso não encontrado" });
 
-                curso.Update(creq.nome, creq.descricao, creq.professor, creq.duracaoEmAnos);
+                curso.Update(req.nome, req.descricao, req.professor, req.duracaoEmAnos);
                 await context.SaveChangesAsync();
                 return Results.Ok(new
                 {

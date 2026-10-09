@@ -1,6 +1,6 @@
 ﻿using System.ComponentModel.DataAnnotations;
 
-namespace EduAssess.Models.CursoModel
+namespace EduAssess.Application.DTOs.Curso
 {
     public record CursosRequest   (
         [Required(ErrorMessage = "O Nome do Curso é obrigatório!")]
