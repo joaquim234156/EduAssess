@@ -1,4 +1,4 @@
-﻿namespace EduAssess.Models.UserModel
+﻿namespace EduAssess.EduAssess.Aplication.DTOs.User
 {
     public record UserResponseDTO
         (Guid Id,

@@ -1,8 +1,9 @@
-﻿using System.ComponentModel.DataAnnotations;
+﻿using EduAssess.Models.UserModel;
+using System.ComponentModel.DataAnnotations;
 
-namespace EduAssess.Models.UserModel
+namespace EduAssess.EduAssess.Aplication.DTOs.User
 {
-    public record UserRequestPutDetails(
+    public record RegisterRequest(
         [Required(ErrorMessage = "O Nome é obrigatório.")]
         [StringLength(100, MinimumLength = 3, ErrorMessage = "O nome deve ter entre 3 e 120 caracteres.")]
         string name,
@@ -18,8 +19,15 @@ namespace EduAssess.Models.UserModel
         string tel,
         [Required(ErrorMessage = "A data de nascimento é obrigatório.")]
         DateTime dataNascimento,
+        [Required(ErrorMessage = "A Senha é obrigatório")]
+        [MinLength(8, ErrorMessage = "A Senha deve ter no mínimo 8 caracteres.")]
+        [MaxLength(250, ErrorMessage = "A Senha deve ter no máximo 250 caracteres.")]
+        string password,
+        [Required(ErrorMessage = "A Senha é obrigatório")]
+        [MinLength(8, ErrorMessage = "A Senha deve ter no mínimo 8 caracteres.")]
+        [MaxLength(250, ErrorMessage = "A Senha deve ter no máximo 250 caracteres.")]
+        string? confirmPassword = null,
 
         UserRole role = UserRole.User
-
     );
 }

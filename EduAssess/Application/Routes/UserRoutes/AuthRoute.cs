@@ -1,18 +1,19 @@
 ﻿using EduAssess.Data;
+using EduAssess.EduAssess.Aplication.DTOs.User;
+using EduAssess.EduAssess.Aplication.Services;
 using EduAssess.Models.UserModel;
-using EduAssess.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Data;
 using System.Security.Claims;
 
-namespace EduAssess.Routes.UserRoutes
+namespace EduAssess.EduAssess.Aplication.Routes.UserRoutes
 {
     public static class AuthRoute
     {
         public static void AuthRoutes(this WebApplication app)
         {
-            var route = app.MapGroup("auth");
+            var route = app.MapGroup("auth").WithTags("Autenticação"); ;
 
             route.MapPost("register",
                 async(RegisterRequest req, AppDbContext context, IConfiguration config) =>

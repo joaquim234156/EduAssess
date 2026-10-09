@@ -1,15 +1,14 @@
 ﻿using EduAssess.Data;
 using EduAssess.Models.CursoModel;
-using EduAssess.Services;
 using Microsoft.EntityFrameworkCore;
 
-namespace EduAssess.Routes.CursosRoutes
+namespace EduAssess.EduAssess.Aplication.Routes.CursosRoutes
 {
     public static class CursosRoutes
     {
         public static void MapCursosRoutes(this WebApplication app)
         {
-            var route = app.MapGroup("cursos");
+            var route = app.MapGroup("cursos").WithTags("Cursos"); ;
             route.MapPost("create",
                 async (CursosRequest creq, AppDbContext context) =>
                 {
