@@ -28,7 +28,22 @@ namespace EduAssess.Application.Routes
                         return Results.BadRequest(new { message = "E-mail já cadastrado." });
 
                     bool isFirstUser = !await context.Users.AnyAsync();
-                    UserRole assignedRole = isFirstUser ? UserRole.Admin : req.role;
+                    UserRole assignedRole;
+                    if (isFirstUser)
+                    {
+                        assignedRole = UserRole.Admin;
+                    }
+                    else
+                    {
+                        // Validar role enviada pelo cliente: não permitir Admin (0). Aceitar Professor, Gestor, Aluno ou User.
+                        if (!Enum.IsDefined(typeof(UserRole), req.role))
+                            return Results.BadRequest(new { message = "Role inválida." });
+
+                        if (req.role == UserRole.Admin)
+                            return Results.BadRequest(new { message = "Não é permitido registrar com role Admin." });
+
+                        assignedRole = req.role;
+                    }
 
                     // Gerando o token para o novo usuário registrado
 
