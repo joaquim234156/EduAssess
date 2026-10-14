@@ -51,7 +51,7 @@ namespace EduAssess.Routes.CursosRoutes
                     }
                 });
             });
-            route.MapDelete("delete/{id:guid}",
+            route.MapPut("delete/{id:guid}",
             async (Guid id, CursosRequest req, AppDbContext context) =>
             {
                 var curso = await context.Cursos.FindAsync(id);
@@ -62,24 +62,24 @@ namespace EduAssess.Routes.CursosRoutes
                 await context.SaveChangesAsync();
                 return Results.Ok(new { message = "Curso desativado com sucesso" });
             });
-            route.MapGet("get/{nome}",
-                async (string nome, AppDbContext context) =>
-                {
-                    var curso = await context.Cursos.FirstOrDefaultAsync(c => c.Nome == nome);
-                    if (curso == null || !curso.Ativo)
-                        return Results.Ok(new { message = "Curso não encontrado" });
-                    return Results.Ok(new {
-                        message = "curso encontrado com sucesso",
-                        curso = new
-                        {
-                            curso.Id,
-                            curso.Nome,
-                            curso.Descricao,
-                            curso.Professor,
-                            curso.DuracaoEmAnos
-                        }
+                route.MapGet("get/{id}",
+                    async (Guid id, AppDbContext context) =>
+                    {
+                        var curso = await context.Cursos.FirstOrDefaultAsync(c => c.Id == id);
+                        if (curso == null || !curso.Ativo)
+                            return Results.NotFound(new { message = "Curso não encontrado" });
+                        return Results.Ok(new {
+                            message = "curso encontrado com sucesso",
+                            curso = new
+                            {
+                                curso.Id,
+                                curso.Nome,
+                                curso.Descricao,
+                                curso.Professor,
+                                curso.DuracaoEmAnos
+                            }
+                        });
                     });
-                });
         }
 
     }

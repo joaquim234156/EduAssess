@@ -35,7 +35,8 @@ builder.Services.AddAuthentication(options =>
 builder.Services.AddAuthorization(options =>
 {
     // O nome da política agora é "Admin"
-    options.AddPolicy("Admin", policy => policy.RequireRole("Admin"));
+    options.AddPolicy("Admin", policy => policy.RequireRole("Admin", "Gestor"));
+    options.AddPolicy("Professor", policy => policy.RequireRole("Professor"));
 });
 
 builder.Services.AddControllers();
