@@ -63,8 +63,7 @@ namespace EduAssess.Application.Routes
                         user = new { user.Id, user.Email, Role = user.Role.ToString() },
                         token
                     });
-                }
-            );
+                });
 
             route.MapPost("login",
                 async (LoginRequest req, AppDbContext context, IConfiguration config) =>

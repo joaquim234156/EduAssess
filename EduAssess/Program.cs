@@ -8,6 +8,7 @@ using Microsoft.EntityFrameworkCore.Metadata.Internal;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using System.Text;
+using EduAssess.Routes.TurmaRoutes;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -96,6 +97,8 @@ if (app.Environment.IsDevelopment())
 
 app.AuthRoutes();
 app.CursosRoutes();
+app.MatriculaRoutes();
+app.TurmaRoutes();
 
 app.UseHttpsRedirection();
 
