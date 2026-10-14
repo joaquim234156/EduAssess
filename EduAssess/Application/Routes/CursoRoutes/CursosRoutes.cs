@@ -5,9 +5,9 @@ using Microsoft.EntityFrameworkCore;
 
 namespace EduAssess.Application.Routes
 {
-    public static class CursosRoutes
+    public static class CursosRoute
     {
-        public static void MapCursosRoutes(this WebApplication app)
+        public static void CursosRoutes(this WebApplication app)
         {
             var route = app.MapGroup("cursos").WithTags("Cursos"); ;
             route.MapPost("create",
@@ -61,6 +61,7 @@ namespace EduAssess.Application.Routes
                 await context.SaveChangesAsync();
                 return Results.Ok(new { message = "Curso desativado com sucesso" });
             });
+
             route.MapGet("get/{nome}",
                 async (string nome, AppDbContext context) =>
                 {
