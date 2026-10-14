@@ -1,34 +1,27 @@
-﻿namespace EduAssess.Models
+﻿using Microsoft.IdentityModel.Tokens;
+
+namespace EduAssess.Models
 {
     public class TurmaModel
     {
         protected TurmaModel() { }
-
-        public TurmaModel(int cursoId, string nome, string descricao)
+        public TurmaModel(string nome, Guid professorId, Guid cursoId)
         {
             Id = Guid.NewGuid();
+            ProfessorId = professorId;
             CursoId = cursoId;
+            Periodo = 1;
             Nome = nome;
-            Descricao = descricao;
-            Ativa = true;
+            Ativo = true;
         }
 
         public Guid Id { get; init; }
-        public int CursoId { get; set; }
-        public string Nome { get; set; }
-        public string Descricao { get; set; }
-        public bool Ativa { get; set; }
-
-        public void Update(int cursoId, string nome, string descricao)
-        {
-            CursoId = cursoId;
-            Nome = nome;
-            Descricao = descricao;
-        }
-
-        public void Disable()
-        {
-            Ativa = false;
-        }
+        public Guid ProfessorId { get; private set; }
+        public Guid CursoId { get; private set; }
+        public int Periodo { get; private set; } = 0;
+        public string Nome { get; private set; }
+        public bool Ativo { get; private set; }
+        public CursoModel Curso { get; private set; } = null!;
+        public UserModel Professor { get; private set; } = null!;
     }
 }
