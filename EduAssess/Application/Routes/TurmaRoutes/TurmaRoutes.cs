@@ -5,11 +5,11 @@ using Microsoft.EntityFrameworkCore;
 
 namespace EduAssess.Routes.TurmaRoutes
 {
-    public static class TurmaRoutes
+    public static class TurmaRoute
     {
-        public static void MapTurmaRoutes(this WebApplication app)
+        public static void TurmaRoutes(this WebApplication app)
         {
-            var route = app.MapGroup("turmas");
+            var route = app.MapGroup("turmas").WithTags("Turmas");
             route.MapPost("create",
                 async (TurmaRequest req, AppDbContext context) =>
                 {
@@ -22,7 +22,8 @@ namespace EduAssess.Routes.TurmaRoutes
                     await context.Turmas.AddAsync(turma);
                     await context.SaveChangesAsync();
                     return Results.Ok(new { message = "Turma criada com sucesso", turmaId = turma.Id });
-                }).RequireAuthorization("GestaoAcademica");
+                }).RequireAuthorization("GestaoAcademica", "Admin");
+
             route.MapGet("get/{id:guid}",
                 async (Guid id, AppDbContext context) =>
                 {

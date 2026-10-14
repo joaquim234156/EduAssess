@@ -130,5 +130,62 @@ namespace EduAssess
 
             app.Run();
         }
+    });
+});
+
+builder.Services.AddDbContext<AppDbContext>(options =>
+{
+    // Usa SQLite por padrão; se desejar outro provedor altere a connection string e o Use... correspondente
+    var conn = builder.Configuration.GetConnectionString("DefaultConnection") ?? "Data Source=eduassess.db";
+    options.UseSqlite(conn);
+});
+
+var app = builder.Build();
+
+if (app.Environment.IsDevelopment())
+{
+    app.UseSwagger();
+    app.UseSwaggerUI(c =>
+    {
+        // Define o Swagger UI como raiz da aplicação para abrir direto ao iniciar.
+        c.RoutePrefix = string.Empty; 
+        c.SwaggerEndpoint("/swagger/v1/swagger.json", "v1");
+    });
+}
+
+app.AuthRoutes();
+app.CursosRoutes();
+app.MatriculaRoutes();
+app.TurmaRoutes();
+
+app.UseHttpsRedirection();
+
+app.UseAuthentication();
+app.UseAuthorization();
+
+app.MapControllers();
+
+using (var scope = app.Services.CreateScope())
+{
+    var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+    // Garante que o banco de dados e as migrations foram aplicados
+    context.Database.Migrate(); 
+
+    // Se não existir nenhum usuário registrado, cria o Admin padrão
+    if (!context.Users.Any())
+    {
+        var adminUser = new UserModel(
+            name: "Admin",
+            email: "admin@eduassess.com",
+            cpf: "00000000000",
+            tel: "0000000000",
+            dataNascimento: DateOnly.FromDateTime(new DateTime(1990, 1, 1, 0, 0, 0, DateTimeKind.Utc)),
+            password: "Admin1234", // Troque por uma senha forte
+            role: UserRole.Admin
+        );
+
+        context.Users.Add(adminUser);
+        context.SaveChanges();
     }
 }

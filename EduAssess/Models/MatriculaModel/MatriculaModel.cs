@@ -22,7 +22,7 @@ namespace EduAssess.Models
         }
 
         public Guid Id { get; init; }
-        public Guid UsuarioId { get; private set; }
+        public Guid UsuarioId { get; set; }
         public Guid TurmaId { get; private set; }
         public DateTime DataMatricula { get; set; }
         public DateTime DataExpiracao { get; set; }
