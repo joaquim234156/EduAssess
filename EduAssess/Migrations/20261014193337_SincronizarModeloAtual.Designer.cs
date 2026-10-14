@@ -11,7 +11,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace EduAssess.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20261014183352_SincronizarModeloAtual")]
+    [Migration("20261014193337_SincronizarModeloAtual")]
     partial class SincronizarModeloAtual
     {
         /// <inheritdoc />
@@ -72,7 +72,7 @@ namespace EduAssess.Migrations
 
                     b.HasIndex("UsuarioId");
 
-                    b.ToTable("MatriculaModel");
+                    b.ToTable("Matriculas");
                 });
 
             modelBuilder.Entity("EduAssess.Models.NotaModel", b =>
@@ -98,7 +98,7 @@ namespace EduAssess.Migrations
 
                     b.HasIndex("MatriculaId");
 
-                    b.ToTable("NotaModel");
+                    b.ToTable("Notas");
                 });
 
             modelBuilder.Entity("EduAssess.Models.TurmaModel", b =>
@@ -145,7 +145,7 @@ namespace EduAssess.Migrations
                         .IsRequired()
                         .HasColumnType("TEXT");
 
-                    b.Property<DateOnly>("DataNascimento")
+                    b.Property<DateTime>("DataNascimento")
                         .HasColumnType("TEXT");
 
                     b.Property<string>("Email")
