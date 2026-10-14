@@ -362,10 +362,4 @@ MigrationBackup/
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
 /EduAssess/EduAssess.sqlite
-*.db
-*.db-shm
-*.db-wal
-
-# EduAssess: segredos e banco locais
-EduAssess/App_Data/
-*.sqlite*
+/.gitignore
