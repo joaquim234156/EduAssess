@@ -85,9 +85,7 @@ namespace EduAssess.Application.Routes
                 async (Guid id, AppDbContext context) =>
                 {
                     var user = await context.Users.FindAsync(id);
-                    if (user == null)
-                        return Results.NotFound(new { message = "User not found" });
-                    if (!user.Ativa)
+                    if (user == null || !user.Ativa)
                         return Results.NotFound(new { message = "User not found" });
                     var userNow = new UserResponseDTO(user.Id, user.Name, user.Email, user.Cpf, user.Telefone, user.DataNascimento, user.Ativa);
                     return Results.Ok(userNow);

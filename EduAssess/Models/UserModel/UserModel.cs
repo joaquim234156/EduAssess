@@ -29,6 +29,8 @@ namespace EduAssess.Models
             DataNascimento = dataNascimento;
             Role = role;
             PasswordHash = BCrypt.Net.BCrypt.HashPassword(password);
+            IdTurma = Guid.Empty;
+
             Ativa = true;
 
             Matriculas = new List<MatriculaModel>();
@@ -43,6 +45,7 @@ namespace EduAssess.Models
         public string PasswordHash { get; private set; }
         public UserRole Role { get; private set; }
         public bool Ativa { get; private set; }
+        public Guid IdTurma { get; private set; }
 
         public ICollection<MatriculaModel> Matriculas { get; private set; }
 
