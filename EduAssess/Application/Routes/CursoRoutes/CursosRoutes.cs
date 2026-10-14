@@ -1,42 +1,42 @@
-﻿using EduAssess.Data;
-using EduAssess.Models.CursoModel;
-using EduAssess.Services;
+﻿using EduAssess.Application.DTOs.Curso;
+using EduAssess.Data;
+using EduAssess.Models;
 using Microsoft.EntityFrameworkCore;
 
-namespace EduAssess.Routes.CursosRoutes
+namespace EduAssess.Application.Routes
 {
     public static class CursosRoutes
     {
         public static void MapCursosRoutes(this WebApplication app)
         {
-            var route = app.MapGroup("cursos");
+            var route = app.MapGroup("cursos").WithTags("Cursos"); ;
             route.MapPost("create",
-                async (CursosRequest creq, AppDbContext context) =>
+                async (CursosRequest req, AppDbContext context) =>
                 {
-                    if (!MiniValidation.MiniValidator.TryValidate(creq, out var errors))
+                    if (!MiniValidation.MiniValidator.TryValidate(req, out var errors))
                         return Results.BadRequest(errors);
 
-                    var existingCurso = await context.Cursos.FirstOrDefaultAsync(c => c.Nome == creq.nome);
+                    var existingCurso = await context.Cursos.FirstOrDefaultAsync(c => c.Nome == req.nome);
                     if (existingCurso != null)
                         return Results.BadRequest(new { message = "Curso já existente" });
 
-                    var curso = new CursoModel(creq.nome, creq.descricao, creq.professor, creq.duracaoEmAnos);
-                    await context.Cursos.AddAsync(curso);
+                    var curso = new CursoModel(req.nome, req.descricao, req.professor, req.duracaoEmAnos);
+                    await context.AddAsync(curso);
                     await context.SaveChangesAsync();
 
                     return Results.Ok(new { message = "Curso criado com sucesso", cursoId = curso.Id });
                 });
             route.MapPut("update/{id:guid}",
-            async (Guid id, CursosRequest creq, AppDbContext context) =>
+            async (Guid id, CursosRequest req, AppDbContext context) =>
             {
-                if (!MiniValidation.MiniValidator.TryValidate(creq, out var errors))
+                if (!MiniValidation.MiniValidator.TryValidate(req, out var errors))
                     return Results.BadRequest(errors);
 
                 var curso = await context.Cursos.FindAsync(id);
                 if (curso == null || !curso.Ativo)
                     return Results.NotFound(new { message = "Curso não encontrado" });
 
-                curso.Update(creq.nome, creq.descricao, creq.professor, creq.duracaoEmAnos);
+                curso.Update(req.nome, req.descricao, req.professor, req.duracaoEmAnos);
                 await context.SaveChangesAsync();
                 return Results.Ok(new
                 {
@@ -51,7 +51,7 @@ namespace EduAssess.Routes.CursosRoutes
                     }
                 });
             });
-            route.MapPut("delete/{id:guid}",
+            route.MapDelete("delete/{id:guid}",
             async (Guid id, CursosRequest req, AppDbContext context) =>
             {
                 var curso = await context.Cursos.FindAsync(id);
@@ -62,24 +62,24 @@ namespace EduAssess.Routes.CursosRoutes
                 await context.SaveChangesAsync();
                 return Results.Ok(new { message = "Curso desativado com sucesso" });
             });
-                route.MapGet("get/{id}",
-                    async (Guid id, AppDbContext context) =>
-                    {
-                        var curso = await context.Cursos.FirstOrDefaultAsync(c => c.Id == id);
-                        if (curso == null || !curso.Ativo)
-                            return Results.NotFound(new { message = "Curso não encontrado" });
-                        return Results.Ok(new {
-                            message = "curso encontrado com sucesso",
-                            curso = new
-                            {
-                                curso.Id,
-                                curso.Nome,
-                                curso.Descricao,
-                                curso.Professor,
-                                curso.DuracaoEmAnos
-                            }
-                        });
+            route.MapGet("get/{nome}",
+                async (string nome, AppDbContext context) =>
+                {
+                    var curso = await context.Cursos.FirstOrDefaultAsync(c => c.Nome == nome);
+                    if (curso == null || !curso.Ativo)
+                        return Results.Ok(new { message = "Curso não encontrado" });
+                    return Results.Ok(new {
+                        message = "curso encontrado com sucesso",
+                        curso = new
+                        {
+                            curso.Id,
+                            curso.Nome,
+                            curso.Descricao,
+                            curso.Professor,
+                            curso.DuracaoEmAnos
+                        }
                     });
+                });
         }
 
     }

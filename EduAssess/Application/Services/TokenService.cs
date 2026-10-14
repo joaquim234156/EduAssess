@@ -1,10 +1,10 @@
-﻿using EduAssess.Models.UserModel;
+﻿using EduAssess.Models;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
 
-namespace EduAssess.Services
+namespace EduAssess.EduAssess.Aplication.Services
 {
     public class TokenService
     {

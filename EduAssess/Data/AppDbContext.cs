@@ -1,6 +1,5 @@
 ﻿using EduAssess.Models.UserModel;
 using EduAssess.Models.CursoModel;
-using EduAssess.Models.TurmaModel;
 using Microsoft.EntityFrameworkCore;
 
 namespace EduAssess.Data
@@ -9,7 +8,6 @@ namespace EduAssess.Data
     {
         public DbSet<UserModel> Users { get; set; }
         public DbSet<CursoModel> Cursos { get; set; }
-        public DbSet<TurmaModel> Turmas { get; set; }
 
 
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)

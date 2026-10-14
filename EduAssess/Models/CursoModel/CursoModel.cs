@@ -1,9 +1,9 @@
-﻿using System;
-
-namespace EduAssess.Models.CursoModel
+﻿namespace EduAssess.Models
 {
     public class CursoModel
     {
+        protected CursoModel() { }
+
         public CursoModel(string nome, string descricao, string professor, int duracaoEmAnos)
         {
             Id = Guid.NewGuid();
