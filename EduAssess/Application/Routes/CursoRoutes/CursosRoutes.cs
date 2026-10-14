@@ -9,7 +9,7 @@ namespace EduAssess.Application.Routes
     {
         public static void CursosRoutes(this WebApplication app)
         {
-            var route = app.MapGroup("cursos").WithTags("Cursos"); ;
+            var route = app.MapGroup("cursos").WithTags("Cursos"); 
             route.MapPost("create",
                 async (CursosRequest req, AppDbContext context) =>
                 {
@@ -25,7 +25,7 @@ namespace EduAssess.Application.Routes
                     await context.SaveChangesAsync();
 
                     return Results.Ok(new { message = "Curso criado com sucesso", cursoId = curso.Id });
-                });
+                }).RequireAuthorization("GestaoAcademica"); ;
             route.MapPut("update/{id:guid}",
             async (Guid id, CursosRequest req, AppDbContext context) =>
             {
@@ -49,7 +49,7 @@ namespace EduAssess.Application.Routes
                         curso.DuracaoEmAnos
                     }
                 });
-            });
+            }).RequireAuthorization("GestaoAcademica"); ;
             route.MapDelete("delete/{id:guid}",
             async (Guid id, AppDbContext context) =>
             {
@@ -60,7 +60,7 @@ namespace EduAssess.Application.Routes
                 curso.Disable();
                 await context.SaveChangesAsync();
                 return Results.Ok(new { message = "Curso desativado com sucesso" });
-            });
+            }).RequireAuthorization("GestaoAcademica"); ;
 
             route.MapGet("get/{nome}",
                 async (string nome, AppDbContext context) =>

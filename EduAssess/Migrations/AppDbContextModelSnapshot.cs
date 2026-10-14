@@ -37,10 +37,6 @@ namespace EduAssess.Migrations
                         .IsRequired()
                         .HasColumnType("TEXT");
 
-                    b.Property<string>("Professor")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
                     b.HasKey("Id");
 
                     b.ToTable("Cursos");
@@ -108,23 +104,29 @@ namespace EduAssess.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("TEXT");
 
-                    b.Property<bool>("Ativa")
+                    b.Property<bool>("Ativo")
                         .HasColumnType("INTEGER");
 
-                    b.Property<int>("CursoId")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<string>("Descricao")
-                        .IsRequired()
+                    b.Property<Guid>("CursoId")
                         .HasColumnType("TEXT");
 
                     b.Property<string>("Nome")
                         .IsRequired()
                         .HasColumnType("TEXT");
 
+                    b.Property<int>("Periodo")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<Guid>("ProfessorId")
+                        .HasColumnType("TEXT");
+
                     b.HasKey("Id");
 
-                    b.ToTable("TurmaModel");
+                    b.HasIndex("CursoId");
+
+                    b.HasIndex("ProfessorId");
+
+                    b.ToTable("Turmas");
                 });
 
             modelBuilder.Entity("EduAssess.Models.UserModel", b =>
@@ -140,7 +142,7 @@ namespace EduAssess.Migrations
                         .IsRequired()
                         .HasColumnType("TEXT");
 
-                    b.Property<DateTime>("DataNascimento")
+                    b.Property<DateOnly>("DataNascimento")
                         .HasColumnType("TEXT");
 
                     b.Property<string>("Email")
@@ -198,6 +200,25 @@ namespace EduAssess.Migrations
                         .IsRequired();
 
                     b.Navigation("Matricula");
+                });
+
+            modelBuilder.Entity("EduAssess.Models.TurmaModel", b =>
+                {
+                    b.HasOne("EduAssess.Models.CursoModel", "Curso")
+                        .WithMany()
+                        .HasForeignKey("CursoId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("EduAssess.Models.UserModel", "Professor")
+                        .WithMany()
+                        .HasForeignKey("ProfessorId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Curso");
+
+                    b.Navigation("Professor");
                 });
 
             modelBuilder.Entity("EduAssess.Models.MatriculaModel", b =>
