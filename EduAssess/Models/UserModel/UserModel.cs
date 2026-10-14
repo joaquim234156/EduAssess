@@ -21,7 +21,8 @@ namespace EduAssess.Models.UserModel
             Email = email;
             Role = role;
             PasswordHash = BCrypt.Net.BCrypt.HashPassword(password);
-            
+            IdTurma = Guid.Empty;
+
             Ativa = true;
         }
 
@@ -30,6 +31,7 @@ namespace EduAssess.Models.UserModel
         public string PasswordHash { get; private set; }
         public UserRole Role { get; private set; }
         public bool Ativa { get; private set; }
+        public Guid IdTurma { get; private set; }
 
         public void Update(string email, UserRole role, string? newPassword = null)
         {
