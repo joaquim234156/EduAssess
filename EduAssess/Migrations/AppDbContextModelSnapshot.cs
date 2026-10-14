@@ -17,7 +17,7 @@ namespace EduAssess.Migrations
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "8.0.31");
 
-            modelBuilder.Entity("EduAssess.Models.CursoModel.CursoModel", b =>
+            modelBuilder.Entity("EduAssess.Models.CursoModel", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -46,7 +46,7 @@ namespace EduAssess.Migrations
                     b.ToTable("Cursos");
                 });
 
-            modelBuilder.Entity("EduAssess.Models.UserModel.UserModel", b =>
+            modelBuilder.Entity("EduAssess.Models.MatriculaModel", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -55,7 +55,99 @@ namespace EduAssess.Migrations
                     b.Property<bool>("Ativa")
                         .HasColumnType("INTEGER");
 
+                    b.Property<DateTime>("DataExpiracao")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("DataMatricula")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("TurmaId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("UsuarioId")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TurmaId");
+
+                    b.HasIndex("UsuarioId");
+
+                    b.ToTable("Matriculas");
+                });
+
+            modelBuilder.Entity("EduAssess.Models.NotaModel", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("DataLancamento")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Descricao")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("MatriculaId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<decimal>("Valor")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("MatriculaId");
+
+                    b.ToTable("Notas");
+                });
+
+            modelBuilder.Entity("EduAssess.Models.TurmaModel", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("Ativa")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("CursoId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Descricao")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Nome")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("Turmas");
+                });
+
+            modelBuilder.Entity("EduAssess.Models.UserModel", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("Ativa")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Cpf")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateOnly>("DataNascimento")
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("Email")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Name")
                         .IsRequired()
                         .HasColumnType("TEXT");
 
@@ -66,9 +158,53 @@ namespace EduAssess.Migrations
                     b.Property<int>("Role")
                         .HasColumnType("INTEGER");
 
+                    b.Property<string>("Telefone")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
                     b.HasKey("Id");
 
                     b.ToTable("Users");
+                });
+
+            modelBuilder.Entity("EduAssess.Models.MatriculaModel", b =>
+                {
+                    b.HasOne("EduAssess.Models.TurmaModel", "Turma")
+                        .WithMany()
+                        .HasForeignKey("TurmaId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("EduAssess.Models.UserModel", "Usuario")
+                        .WithMany("Matriculas")
+                        .HasForeignKey("UsuarioId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Turma");
+
+                    b.Navigation("Usuario");
+                });
+
+            modelBuilder.Entity("EduAssess.Models.NotaModel", b =>
+                {
+                    b.HasOne("EduAssess.Models.MatriculaModel", "Matricula")
+                        .WithMany("Notas")
+                        .HasForeignKey("MatriculaId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Matricula");
+                });
+
+            modelBuilder.Entity("EduAssess.Models.MatriculaModel", b =>
+                {
+                    b.Navigation("Notas");
+                });
+
+            modelBuilder.Entity("EduAssess.Models.UserModel", b =>
+                {
+                    b.Navigation("Matriculas");
                 });
 #pragma warning restore 612, 618
         }
