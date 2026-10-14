@@ -25,9 +25,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="Application\DTOs\Matricula\" />
-    <Folder Include="Application\DTOs\Nota\" />
-    <Folder Include="Application\Routes\TurmaRoutes\" />
+    <Folder Include="Models\MatriculaModel\" />
   </ItemGroup>
 
 </Project>
