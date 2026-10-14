@@ -15,7 +15,7 @@ var key = builder.Configuration.GetValue<string>("JwtSettings:Secret");
 
 builder.Services.ConfigureHttpJsonOptions(options =>
 {
-    options.SerializerOptions.Converters.Add(new DateTimePtBrJsonConverter());
+    options.SerializerOptions.Converters.Add(new DateOnlyPtBrJsonConverter());
 });
 
 // Configuração do Scheme de Autenticação JWT
@@ -74,7 +74,12 @@ builder.Services.AddSwaggerGen(c =>
     });
 });
 
-builder.Services.AddDbContext<AppDbContext>();
+builder.Services.AddDbContext<AppDbContext>(options =>
+{
+    // Usa SQLite por padrão; se desejar outro provedor altere a connection string e o Use... correspondente
+    var conn = builder.Configuration.GetConnectionString("DefaultConnection") ?? "Data Source=eduassess.db";
+    options.UseSqlite(conn);
+});
 
 var app = builder.Build();
 
@@ -85,7 +90,7 @@ if (app.Environment.IsDevelopment())
 }
 
 app.AuthRoutes();
-app.MapCursosRoutes();
+app.CursosRoutes();
 
 app.UseHttpsRedirection();
 
@@ -99,7 +104,7 @@ using (var scope = app.Services.CreateScope())
     var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
     // Garante que o banco de dados e as migrations foram aplicados
-    context.Database.Migrate();
+    context.Database.Migrate(); 
 
     // Se não existir nenhum usuário registrado, cria o Admin padrão
     if (!context.Users.Any())
@@ -107,8 +112,8 @@ using (var scope = app.Services.CreateScope())
         var adminUser = new UserModel(
             name: "Admin",
             email: "admin@eduassess.com",
-            cpf: "000.000.000-00",
-            tel: "(00) 0000-0000",
+            cpf: "00000000000",
+            tel: "0000000000",
             dataNascimento: DateOnly.FromDateTime(new DateTime(1990, 1, 1, 0, 0, 0, DateTimeKind.Utc)),
             password: "Admin1234", // Troque por uma senha forte
             role: UserRole.Admin
