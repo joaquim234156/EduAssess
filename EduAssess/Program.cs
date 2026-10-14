@@ -22,7 +22,7 @@ namespace EduAssess
 
             builder.Services.ConfigureHttpJsonOptions(options =>
             {
-                options.SerializerOptions.Converters.Add(new DateTimePtBrJsonConverter());
+                options.SerializerOptions.Converters.Add(new DateOnlyPtBrJsonConverter());
             });
 
             // Configuração do Scheme de Autenticação JWT
@@ -93,7 +93,7 @@ namespace EduAssess
             }
 
             app.AuthRoutes();
-            app.MapCursosRoutes();
+            app.CursosRoutes();
 
             app.UseHttpsRedirection();
 

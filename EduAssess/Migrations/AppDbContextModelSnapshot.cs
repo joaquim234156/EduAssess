@@ -142,7 +142,7 @@ namespace EduAssess.Migrations
                         .IsRequired()
                         .HasColumnType("TEXT");
 
-                    b.Property<DateTime>("DataNascimento")
+                    b.Property<DateOnly>("DataNascimento")
                         .HasColumnType("TEXT");
 
                     b.Property<string>("Email")
