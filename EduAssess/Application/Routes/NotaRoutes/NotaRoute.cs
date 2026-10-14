@@ -1,6 +1,6 @@
 ﻿namespace EduAssess.Application.Routes
 {
-    public class NotaRoutes
+    public class NotaRoute
     {
     }
 }
