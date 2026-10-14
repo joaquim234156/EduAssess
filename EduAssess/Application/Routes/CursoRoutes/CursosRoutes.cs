@@ -20,7 +20,7 @@ namespace EduAssess.Application.Routes
                     if (existingCurso != null)
                         return Results.BadRequest(new { message = "Curso já existente" });
 
-                    var curso = new CursoModel(req.nome, req.descricao, req.professor, req.duracaoEmAnos);
+                    var curso = new CursoModel(req.nome, req.descricao, req.duracaoEmAnos);
                     await context.AddAsync(curso);
                     await context.SaveChangesAsync();
 
@@ -36,7 +36,7 @@ namespace EduAssess.Application.Routes
                 if (curso == null || !curso.Ativo)
                     return Results.NotFound(new { message = "Curso não encontrado" });
 
-                curso.Update(req.nome, req.descricao, req.professor, req.duracaoEmAnos);
+                curso.Update(req.nome, req.descricao, req.duracaoEmAnos);
                 await context.SaveChangesAsync();
                 return Results.Ok(new
                 {
@@ -46,13 +46,12 @@ namespace EduAssess.Application.Routes
                         curso.Id,
                         curso.Nome,
                         curso.Descricao,
-                        curso.Professor,
                         curso.DuracaoEmAnos
                     }
                 });
             });
             route.MapDelete("delete/{id:guid}",
-            async (Guid id, CursosRequest req, AppDbContext context) =>
+            async (Guid id, AppDbContext context) =>
             {
                 var curso = await context.Cursos.FindAsync(id);
                 if (curso == null || !curso.Ativo)
@@ -75,7 +74,6 @@ namespace EduAssess.Application.Routes
                             curso.Id,
                             curso.Nome,
                             curso.Descricao,
-                            curso.Professor,
                             curso.DuracaoEmAnos
                         }
                     });
