@@ -86,7 +86,12 @@ var app = builder.Build();
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
-    app.UseSwaggerUI();
+    app.UseSwaggerUI(c =>
+    {
+        // Define o Swagger UI como raiz da aplicação para abrir direto ao iniciar.
+        c.RoutePrefix = string.Empty; 
+        c.SwaggerEndpoint("/swagger/v1/swagger.json", "v1");
+    });
 }
 
 app.AuthRoutes();

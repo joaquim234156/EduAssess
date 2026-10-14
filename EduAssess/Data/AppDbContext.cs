@@ -12,6 +12,9 @@ namespace EduAssess.Data
 
         public DbSet<UserModel> Users { get; set; } = null!;
         public DbSet<CursoModel> Cursos { get; set; } = null!;
+        public DbSet<TurmaModel> Turmas { get; set; } = null!;
+        public DbSet<MatriculaModel> Matriculas { get; set; } = null!;
+        public DbSet<NotaModel> Notas { get; set; } = null!;
 
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
