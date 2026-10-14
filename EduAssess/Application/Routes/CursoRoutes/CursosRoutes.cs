@@ -5,9 +5,9 @@ using Microsoft.EntityFrameworkCore;
 
 namespace EduAssess.Application.Routes
 {
-    public static class CursosRoutes
+    public static class CursosRoute
     {
-        public static void MapCursosRoutes(this WebApplication app)
+        public static void CursosRoutes(this WebApplication app)
         {
             var route = app.MapGroup("cursos").WithTags("Cursos"); ;
             route.MapPost("create",
@@ -51,8 +51,8 @@ namespace EduAssess.Application.Routes
                     }
                 });
             });
-            route.MapPut("delete/{id:guid}",
-            async (Guid id, CursosRequest req, AppDbContext context) =>
+            route.MapDelete("delete/{id:guid}",
+            async (Guid id, AppDbContext context) =>
             {
                 var curso = await context.Cursos.FindAsync(id);
                 if (curso == null || !curso.Ativo)
@@ -62,23 +62,23 @@ namespace EduAssess.Application.Routes
                 await context.SaveChangesAsync();
                 return Results.Ok(new { message = "Curso desativado com sucesso" });
             });
-                route.MapGet("get/{id}",
-                    async (Guid id, AppDbContext context) =>
-                    {
-                        var curso = await context.Cursos.FirstOrDefaultAsync(c => c.Id == id);
-                        if (curso == null || !curso.Ativo)
-                            return Results.NotFound(new { message = "Curso não encontrado" });
-                        return Results.Ok(new {
-                            message = "curso encontrado com sucesso",
-                            curso = new
-                            {
-                                curso.Id,
-                                curso.Nome,
-                                curso.Descricao,
-                                curso.Professor,
-                                curso.DuracaoEmAnos
-                            }
-                        });
+
+            route.MapGet("get/{nome}",
+                async (string nome, AppDbContext context) =>
+                {
+                    var curso = await context.Cursos.FirstOrDefaultAsync(c => c.Nome == nome);
+                    if (curso == null || !curso.Ativo)
+                        return Results.Ok(new { message = "Curso não encontrado" });
+                    return Results.Ok(new {
+                        message = "curso encontrado com sucesso",
+                        curso = new
+                        {
+                            curso.Id,
+                            curso.Nome,
+                            curso.Descricao,
+                            curso.Professor,
+                            curso.DuracaoEmAnos
+                        }
                     });
         }
 

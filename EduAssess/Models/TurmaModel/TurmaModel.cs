@@ -1,33 +1,32 @@
-﻿namespace EduAssess.Models.TurmaModel
+﻿namespace EduAssess.Models
 {
     public class TurmaModel
     {
-        public TurmaModel(string nome, Guid cursoId, Guid professorId, int periodoEmSemestre)
+        protected TurmaModel() { }
+
+        public TurmaModel(int cursoId, string nome, string descricao)
         {
             Id = Guid.NewGuid();
             Nome = nome;
-            CursoId = cursoId;
-            ProfessorId = professorId;
-            PeriodoEmSemestre = periodoEmSemestre;
-            Ativo = true;
-            
+            Descricao = descricao;
+            Ativa = true;
         }
+
         public Guid Id { get; init; }
-        public string Nome { get; private set; }
-        public Guid CursoId { get; private set; }
-        public Guid ProfessorId { get; private set; }
-        public int  PeriodoEmSemestre { get; private set; }
-        public bool Ativo { get; private set; }
-        public void Update(string nome, Guid cursoId, Guid professorId, int periodoEmSemestre)
+        public int CursoId { get; set; }
+        public string Nome { get; set; }
+        public string Descricao { get; set; }
+        public bool Ativa { get; set; }
+
+        public void Update(int cursoId, string nome, string descricao)
         {
-            Nome = nome;
             CursoId = cursoId;
-            ProfessorId = professorId;
-            PeriodoEmSemestre = periodoEmSemestre;
+            Nome = nome;
+            Descricao = descricao;
         }
         public void Disable()
         {
-            Ativo = false;
+            Ativa = false;
         }
     }
 }

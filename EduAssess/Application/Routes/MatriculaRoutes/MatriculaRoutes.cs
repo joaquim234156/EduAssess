@@ -1,4 +1,4 @@
-﻿namespace EduAssess.Application.Routes.MatriculaRoutes
+﻿namespace EduAssess.Application.Routes
 {
     public class MatriculaRoutes
     {

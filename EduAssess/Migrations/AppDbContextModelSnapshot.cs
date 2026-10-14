@@ -73,7 +73,7 @@ namespace EduAssess.Migrations
 
                     b.HasIndex("UsuarioId");
 
-                    b.ToTable("Matriculas");
+                    b.ToTable("MatriculaModel");
                 });
 
             modelBuilder.Entity("EduAssess.Models.NotaModel", b =>
@@ -99,7 +99,7 @@ namespace EduAssess.Migrations
 
                     b.HasIndex("MatriculaId");
 
-                    b.ToTable("Notas");
+                    b.ToTable("NotaModel");
                 });
 
             modelBuilder.Entity("EduAssess.Models.TurmaModel", b =>
@@ -124,7 +124,7 @@ namespace EduAssess.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Turmas");
+                    b.ToTable("TurmaModel");
                 });
 
             modelBuilder.Entity("EduAssess.Models.UserModel", b =>
@@ -140,11 +140,14 @@ namespace EduAssess.Migrations
                         .IsRequired()
                         .HasColumnType("TEXT");
 
-                    b.Property<DateOnly>("DataNascimento")
+                    b.Property<DateTime>("DataNascimento")
                         .HasColumnType("TEXT");
 
                     b.Property<string>("Email")
                         .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("IdTurma")
                         .HasColumnType("TEXT");
 
                     b.Property<string>("Name")
