@@ -1,8 +1,8 @@
 ﻿using System.ComponentModel.DataAnnotations;
 
-namespace EduAssess.Models.TurmaModel
+namespace EduAssess.Application.DTOs.Turma
 {
-    public record TurmaRequest(
+    public record TurmaRequestDetails(
         [Required(ErrorMessage = "O Nome da Turma é obrigatório.")]
         [MaxLength(150, ErrorMessage = "O Nome da Turma deve ter no máximo 150 caracteres.")]
         string nome,
