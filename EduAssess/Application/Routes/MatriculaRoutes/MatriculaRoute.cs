@@ -1,9 +1,6 @@
-using EduAssess.Application.DTOs.Matricula;
-using EduAssess.Application.Interfaces;
+﻿using EduAssess.Application.DTOs.Matricula;
 using EduAssess.Data;
 using EduAssess.Models;
-using EduAssess.Models.Local;
-using Microsoft.EntityFrameworkCore;
 
 namespace EduAssess.Application.Routes
 {
@@ -11,94 +8,63 @@ namespace EduAssess.Application.Routes
     {
         public static void MatriculaRoutes(this WebApplication app)
         {
-            var route = app.MapGroup("/matricula").WithTags("Matriculas");
+            var route = app.MapGroup("/matricula");
 
-            route.MapPost("register",
-                async (MatriculaRequest req, AppDbContext context, IMatriculaService matriculaService) =>
-                {
-                    if (!MiniValidation.MiniValidator.TryValidate(req, out var errors))
-                        return Results.BadRequest(errors);
-
-                    if (!await context.Users.AnyAsync(u => u.Id == req.usuarioId && u.Ativa && u.Role == UserRole.Aluno))
-                        return Results.BadRequest(new { message = "Selecione um aluno ativo." });
-                    if (!await context.Turmas.AnyAsync(t => t.Id == req.turmaId && t.Ativa))
-                        return Results.BadRequest(new { message = "Selecione uma turma ativa." });
-                    if (await context.Matriculas.AnyAsync(m => m.UsuarioId == req.usuarioId && m.TurmaId == req.turmaId && m.Ativa))
-                        return Results.Conflict(new { message = "Este aluno já está matriculado nesta turma." });
-
-                    var matricula = await matriculaService.CriarMatriculaAsync(req);
-
-                    var turmaAtiva = await context.Turmas.AnyAsync(turma =>
-                        turma.Id == req.turmaId && turma.Ativo);
-                    if (!turmaAtiva)
-                        return Results.BadRequest(new { message = "A turma informada não existe ou está inativa." });
-
-                    var matricula = await matriculaService.CriarMatriculaAsync(req);
-                    return Results.Ok(new
-                    {
-                        message = "Matrícula registrada com sucesso",
-                        matricula = new { matricula.Id, matricula.UsuarioId, matricula.TurmaId, matricula.DataMatricula }
-                    });
-                }).RequireAuthorization("Admin");
-
-            route.MapGet("matriculas",
-            async (IMatriculaService matriculaService) =>
+            route.MapPost("/create", async (MatriculaRequest req, AppDbContext context) =>
             {
-                var matriculas = await matriculaService.ListarMatriculasAsync();
-                return Results.Ok(matriculas);
-            }).RequireAuthorization("Gestao");
+                if (!MiniValidation.MiniValidator.TryValidate(req, out var errors))
+                    return Results.BadRequest(errors);
+                var aluno = await context.Alunos.FindAsync(req.alunoId);
+                if (aluno == null)
+                    return Results.NotFound(new { message = "Aluno não encontrado" });
+                var curso = await context.Cursos.FindAsync(req.cursoId);
+                if (curso == null || !curso.Ativo)
+                    return Results.NotFound(new { message = "Curso não encontrado" });
+                var matricula = new MatriculaModel(aluno.Id, curso.Id);
+                await context.AddAsync(matricula);
+                await context.SaveChangesAsync();
+                return Results.Ok(new { message = "Matrícula criada com sucesso", matriculaId = matricula.Id });
+            });
 
-
-            route.MapDelete("end/{id:guid}",
-                async (Guid id, AppDbContext context) =>
+            route.MapGet("/get/{id:guid}", async (Guid id, AppDbContext context) =>
+            {
+                var matricula = await context.Matriculas
+                    .Include(m => m.Aluno)
+                    .Include(m => m.Curso)
+                    .FirstOrDefaultAsync(m => m.Id == id);
+                if (matricula == null)
+                    return Results.NotFound(new { message = "Matrícula não encontrada" });
+                return Results.Ok(new
                 {
-                    var matricula = await context.Matriculas.FindAsync(id);
-                    if (matricula == null || !matricula.Ativa)
-                        return Results.NotFound(new { message = "Matrícula não encontrada" });
+                    matricula.Id,
+                    Aluno = new { matricula.Aluno.Id, matricula.Aluno.Nome },
+                    Curso = new { matricula.Curso.Id, matricula.Curso.Nome },
+                    matricula.DataMatricula
+                });
+            });
 
-                    matricula.Disable();
-                    await context.SaveChangesAsync();
-                    return Results.Ok(new { message = "Matrícula encerrada com sucesso" });
-                }).RequireAuthorization("Gestao");
+            route.MapDelete("/delete/{id:guid}", async (Guid id, AppDbContext context) =>
+            {
+                var matricula = await context.Matriculas.FindAsync(id);
+                if (matricula == null)
+                    return Results.NotFound(new { message = "Matrícula não encontrada" });
+                context.Matriculas.Remove(matricula);
+                await context.SaveChangesAsync();
+                return Results.Ok(new { message = "Matrícula removida com sucesso" });
+            });
 
-            route.MapGet("matricula/{id:Guid}",
-               async (Guid id, IMatriculaService matriculaService) =>
-               {
-                   var matricula = await matriculaService.ObterMatriculaPorIdAsync(id);
-                   if (matricula == null)
-                   {
-                       return Results.NotFound(new { message = "Matrícula não encontrada" });
-                   }
-                   return Results.Ok(matricula);
-               }).RequireAuthorization("Admin");
-
-            route.MapPut("matricula/{id:Guid}",
-                async (Guid id, MatriculaRequestPut req, IMatriculaService matriculaService) =>
-                {
-                    if (!MiniValidation.MiniValidator.TryValidate(req, out var errors))
-                        return Results.BadRequest(errors);
-                    var updatedMatricula = await matriculaService.AtualizarMatriculaAsync(id, req);
-                    if (updatedMatricula == null)
-                    {
-                        return Results.NotFound(new { message = "Matrícula não encontrada" });
-                    }
-                    return Results.Ok(new
-                    {
-                        message = "Matrícula atualizada com sucesso",
-                        matricula = new { updatedMatricula.Id, updatedMatricula.UsuarioId, updatedMatricula.TurmaId, updatedMatricula.DataMatricula }
-                    });
-                }).RequireAuthorization("Admin");
-
-            route.MapDelete("matricula/{id:Guid}",
-                async (Guid id, IMatriculaService matriculaService) =>
-                {
-                    var deleted = await matriculaService.DeletarMatriculaAsync(id);
-                    if (!deleted)
-                    {
-                        return Results.NotFound(new { message = "Matrícula não encontrada" });
-                    }
-                    return Results.Ok(new { message = "Matrícula deletada com sucesso" });
-                }).RequireAuthorization("Admin");
+            route.MapPut("/update/{id:guid}", async (Guid id, MatriculaRequest req, AppDbContext context) =>
+            {
+                var matricula = await context.Matriculas.FindAsync(id);
+                if (matricula == null)
+                    return Results.NotFound(new { message = "Matrícula não encontrada" });
+                if (!MiniValidation.MiniValidator.TryValidate(req, out var errors))
+                    return Results.BadRequest(errors);
+                matricula.AlunoId = req.alunoId;
+                matricula.CursoId = req.cursoId;
+                await context.SaveChangesAsync();
+                return Results.Ok(new { message = "Matrícula atualizada com sucesso" });
+            });
         }
     }
 }
