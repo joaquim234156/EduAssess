@@ -22,7 +22,7 @@ namespace EduAssess.Routes.TurmaRoutes
                     await context.Turmas.AddAsync(turma);
                     await context.SaveChangesAsync();
                     return Results.Ok(new { message = "Turma criada com sucesso", turmaId = turma.Id });
-                }).RequireAuthorization("GestaoAcademica", "Admin");
+                }).RequireAuthorization("Gestao", "Admin");
 
             route.MapGet("get/{id:guid}",
                 async (Guid id, AppDbContext context) =>

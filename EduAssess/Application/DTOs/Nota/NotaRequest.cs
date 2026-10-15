@@ -1,8 +1,10 @@
 ﻿namespace EduAssess.Application.DTOs.Nota
 {
     public record NotaRequest(
-        int IdAluno,
-        int IdDisciplina,
+        Guid IdUsuario,
+        Guid IdDisciplina,
+        Guid idTurma,
+        Guid idCurso,
         decimal ValorNota
         );
 }
