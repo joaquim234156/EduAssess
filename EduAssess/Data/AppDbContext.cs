@@ -7,9 +7,15 @@ namespace EduAssess.Data
 {
     public class AppDbContext : DbContext
     {
-        public DbSet<UserModel> Users { get; set; }
-        public DbSet<CursoModel> Cursos { get; set; }
-        public DbSet<TurmaModel> Turmas { get; set; }
+        public AppDbContext(DbContextOptions<AppDbContext> options) : base(options) { }
+
+        public DbSet<UserModel> Users { get; set; } = null!;
+        public DbSet<CursoModel> Cursos { get; set; } = null!;
+        public DbSet<TurmaModel> Turmas { get; set; } = null!;
+        public DbSet<MatriculaModel> Matriculas { get; set; } = null!;
+        public DbSet<DisciplinaModel> Disciplinas { get; set; } = null!;
+        public DbSet<NotaModel> Notas { get; set; } = null!;
+
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

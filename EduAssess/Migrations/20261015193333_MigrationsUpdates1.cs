@@ -18,6 +18,13 @@ namespace EduAssess.Migrations
                 nullable: false,
                 defaultValue: new Guid("00000000-0000-0000-0000-000000000000"));
 
+            migrationBuilder.AddColumn<Guid>(
+                name: "UsuarioId",
+                table: "Notas",
+                type: "TEXT",
+                nullable: false,
+                defaultValue: new Guid("00000000-0000-0000-0000-000000000000"));
+
             migrationBuilder.CreateTable(
                 name: "Disciplinas",
                 columns: table => new
@@ -42,6 +49,9 @@ namespace EduAssess.Migrations
                 name: "DisciplinaId",
                 table: "Notas");
 
+            migrationBuilder.DropColumn(
+                name: "UsuarioId",
+                table: "Notas");
         }
     }
 }

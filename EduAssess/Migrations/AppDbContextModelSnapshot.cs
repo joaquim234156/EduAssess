@@ -42,6 +42,25 @@ namespace EduAssess.Migrations
                     b.ToTable("Cursos");
                 });
 
+            modelBuilder.Entity("EduAssess.Models.DisciplinaModel", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Descricao")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Nome")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("Disciplinas");
+                });
+
             modelBuilder.Entity("EduAssess.Models.MatriculaModel", b =>
                 {
                     b.Property<Guid>("Id")
@@ -85,7 +104,13 @@ namespace EduAssess.Migrations
                         .IsRequired()
                         .HasColumnType("TEXT");
 
+                    b.Property<Guid>("DisciplinaId")
+                        .HasColumnType("TEXT");
+
                     b.Property<Guid>("MatriculaId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("UsuarioId")
                         .HasColumnType("TEXT");
 
                     b.Property<decimal>("Valor")

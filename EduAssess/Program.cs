@@ -8,7 +8,6 @@ using Microsoft.EntityFrameworkCore.Metadata.Internal;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using System.Text;
-using EduAssess.Routes.TurmaRoutes;
 using EduAssess.Components;
 using EduAssess.Web;
 
@@ -219,6 +218,7 @@ app.AuthRoutes();
 app.CursosRoutes();
 app.MatriculaRoutes();
 app.TurmaRoutes();
+app.DisciplinaRoutes();
 
 // Registra Front apenas se não for "ApiOnly"
 if (appMode != "ApiOnly")
