@@ -1,25 +1,12 @@
 <Router AppAssembly="typeof(Program).Assembly">
     <Found Context="routeData">
-        <AuthorizeRouteView RouteData="routeData" DefaultLayout="typeof(PublicLayout)">
-            <NotAuthorized>
-                @if (context.User.Identity?.IsAuthenticated == true)
-                {
-                    <AccessDeniedView />
-                }
-                else
-                {
-                    <RedirectToLogin />
-                }
-            </NotAuthorized>
-            <Authorizing>
-                <div class="loading"><span class="spinner"></span> Verificando seu acesso…</div>
-            </Authorizing>
-        </AuthorizeRouteView>
+        <RouteView RouteData="routeData" DefaultLayout="typeof(MainLayout)" />
         <FocusOnNavigate RouteData="routeData" Selector="h1" />
     </Found>
     <NotFound>
-        <LayoutView Layout="typeof(PublicLayout)">
-            <NotFoundView />
+        <LayoutView Layout="typeof(MainLayout)">
+            <PageTitle>Página não encontrada | EduAssess</PageTitle>
+            <section class="empty-state"><h1>Página não encontrada</h1><a href="/">Voltar ao painel</a></section>
         </LayoutView>
     </NotFound>
 </Router>
