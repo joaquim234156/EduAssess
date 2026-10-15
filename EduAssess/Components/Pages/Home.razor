@@ -1,0 +1,70 @@
+@page "/"
+@inject UiSession Session
+@inject AcademicDashboardService Academic
+@inject NavigationManager Navigation
+
+<PageTitle>Visão geral | EduAssess</PageTitle>
+@if (summary is null)
+{
+    <div class="loading-state">Carregando informações acadêmicas...</div>
+}
+else
+{
+    <div class="page-heading">
+        <div><div class="eyebrow">RESUMO ACADÊMICO</div><h1>Visão geral</h1><p>Acompanhe os principais indicadores da sua instituição.</p></div>
+        @if (Session.CanManage)
+        {
+            <a class="button button-primary" href="/matriculas">＋ Nova matrícula</a>
+        }
+    </div>
+    <div class="stats-grid">
+        <article class="stat-card"><div class="stat-top"><span class="stat-icon icon-violet">▤</span><span class="stat-caption">ATIVOS</span></div><strong>@summary.CourseCount</strong><div class="stat-label">Cursos cadastrados</div><div class="stat-bottom">Formação e desenvolvimento</div></article>
+        <article class="stat-card"><div class="stat-top"><span class="stat-icon icon-blue">▦</span><span class="stat-caption">EM ANDAMENTO</span></div><strong>@summary.ClassCount</strong><div class="stat-label">Turmas abertas</div><div class="stat-bottom">Organização por período letivo</div></article>
+        <article class="stat-card"><div class="stat-top"><span class="stat-icon icon-green">♙</span><span class="stat-caption">COMUNIDADE</span></div><strong>@summary.StudentCount</strong><div class="stat-label">Pessoas cadastradas</div><div class="stat-bottom">Alunos, professores e gestores</div></article>
+        <article class="stat-card"><div class="stat-top"><span class="stat-icon icon-orange">▣</span><span class="stat-caption">ATIVAS</span></div><strong>@summary.EnrollmentCount</strong><div class="stat-label">Matrículas realizadas</div><div class="stat-bottom">Alunos conectados às turmas</div></article>
+    </div>
+    <div class="content-grid">
+        <section class="panel recent-panel">
+            <div class="panel-heading"><div><h2>Matrículas recentes</h2><p>Últimas movimentações acadêmicas</p></div><a class="text-link" href="/matriculas">Ver todas <span>→</span></a></div>
+            @if (summary.RecentEnrollments.Count == 0)
+            {
+                <div class="empty-state compact"><div class="empty-icon">▣</div><strong>Nenhuma matrícula por enquanto</strong><span>As novas matrículas aparecerão aqui.</span></div>
+            }
+            else
+            {
+                <div class="table-wrap"><table><thead><tr><th>ALUNO</th><th>CURSO / TURMA</th><th>DATA</th><th>STATUS</th></tr></thead><tbody>
+                    @foreach (var row in summary.RecentEnrollments)
+                    {
+                        <tr><td><div class="table-person"><span class="avatar avatar-small">@GetInitials(row.StudentName)</span><strong>@row.StudentName</strong></div></td><td><span class="cell-primary">@row.CourseName</span><span class="cell-secondary">@row.ClassName</span></td><td>@row.EnrolledAt.ToLocalTime().ToString("dd/MM/yyyy")</td><td><span class="badge @(row.Active ? "badge-green" : "badge-gray")">@(row.Active ? "Ativa" : "Inativa")</span></td></tr>
+                    }
+                </tbody></table></div>
+            }
+        </section>
+        <section class="panel shortcuts-panel">
+            <div class="panel-heading"><div><h2>Acesso rápido</h2><p>Atalhos para tarefas frequentes</p></div></div>
+            <a class="shortcut" href="/cursos"><span class="shortcut-icon icon-violet">▤</span><span><strong>Gerenciar cursos</strong><small>Edite cursos e durações</small></span><b>→</b></a>
+            <a class="shortcut" href="/turmas"><span class="shortcut-icon icon-blue">▦</span><span><strong>Organizar turmas</strong><small>Professores e períodos</small></span><b>→</b></a>
+            <a class="shortcut" href="/alunos"><span class="shortcut-icon icon-green">♙</span><span><strong>Adicionar aluno</strong><small>Cadastre novos estudantes</small></span><b>→</b></a>
+            <a class="shortcut" href="/notas"><span class="shortcut-icon icon-orange">✎</span><span><strong>Lançar notas</strong><small>Acompanhe o desempenho</small></span><b>→</b></a>
+        </section>
+    </div>
+    <section class="welcome-banner"><div class="welcome-spark">✦</div><div><strong>Educação que transforma</strong><p>Uma visão mais clara para construir o futuro de cada aluno.</p></div><div class="banner-decoration">EDU<span>+</span></div></section>
+}
+
+@code {
+    private DashboardSummary? summary;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!Session.IsSignedIn)
+        {
+            Navigation.NavigateTo("/login");
+            return;
+        }
+
+        try { summary = await Academic.GetDashboardAsync(); }
+        catch (UnauthorizedAccessException) { Navigation.NavigateTo("/login"); }
+    }
+
+    private static string GetInitials(string name) => string.Join("", name.Split(' ', StringSplitOptions.RemoveEmptyEntries).Take(2).Select(x => char.ToUpperInvariant(x[0])));
+}
