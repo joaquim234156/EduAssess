@@ -23,7 +23,7 @@ namespace EduAssess.Models
         {
             Id = Guid.NewGuid();
             Name = name;
-            Email = email;
+            Email = NormalizeEmail(email);
             Cpf = cpf;
             Telefone = tel;
             DataNascimento = dataNascimento;
@@ -34,29 +34,30 @@ namespace EduAssess.Models
         }
 
         public Guid Id { get; init; }
-        public string Name { get; set; }
-        public string Email { get; private set; }
-        public string Cpf { get; set; }
-        public string Telefone { get; set; }
+        public string Name { get; set; } = null!;
+        public string Email { get; private set; } = null!;
+        public string Cpf { get; set; } = null!;
+        public string Telefone { get; set; } = null!;
         public DateOnly DataNascimento { get; set; }
-        public string PasswordHash { get; private set; }
+        public string PasswordHash { get; private set; } = null!;
         public UserRole Role { get; private set; }
         public bool Ativa { get; private set; }
         public Guid IdTurma { get; private set; }
 
-        public ICollection<MatriculaModel> Matriculas { get; private set; }
+        public ICollection<MatriculaModel> Matriculas { get; private set; } = [];
 
         public void Update(string name, string email)
         {
-            Name = name;
-            Email = email;
+            Name = name.Trim();
+            Email = NormalizeEmail(email);
         }
 
-        public void UpdateAdmin(string name, string email, UserRole role)
+        public void AssignAsStudent()
         {
-            Name = name;
-            Email = email;
-            Role = role;
+            if (Role != UserRole.User)
+                throw new InvalidOperationException("Somente contas sem perfil acadêmico podem ser atribuídas como aluno.");
+
+            Role = UserRole.Aluno;
         }
 
         public void UpdatePassword(string newPassword, string? confirmPassword)
@@ -78,6 +79,8 @@ namespace EduAssess.Models
         {
             return BCrypt.Net.BCrypt.Verify(password, PasswordHash);
         }
+
+        private static string NormalizeEmail(string email) => email.Trim().ToLowerInvariant();
 
         public void Disable()
         {

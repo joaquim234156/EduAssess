@@ -1,6 +1,57 @@
-@EduAssess_HostAddress = http://localhost:5062
+@baseUrl = http://localhost:5062
+@adminToken = {{adminToken}}
+@gestorToken = {{gestorToken}}
+@professorToken = {{professorToken}}
+@accountId = {{accountId}}
 
-GET {{EduAssess_HostAddress}}/weatherforecast/
-Accept: application/json
+### Public registration always creates a non-privileged User
+POST {{baseUrl}}/auth/register
+Content-Type: application/json
 
-###
+{
+  "name": "Pessoa de Teste",
+  "email": "pessoa.teste@example.com",
+  "cpf": "12345678901",
+  "tel": "11987654321",
+  "dataNascimento": "2000-01-01",
+  "password": "SenhaSegura123",
+  "confirmPassword": "SenhaSegura123"
+}
+
+### Admin creates a manager
+POST {{baseUrl}}/auth/users/managers
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "name": "Gestor de Teste",
+  "email": "gestor.teste@example.com",
+  "cpf": "12345678902",
+  "tel": "11987654322",
+  "dataNascimento": "1985-01-01",
+  "password": "SenhaSegura123",
+  "confirmPassword": "SenhaSegura123"
+}
+
+### Gestor creates a professor
+POST {{baseUrl}}/auth/users/professors
+Authorization: Bearer {{gestorToken}}
+Content-Type: application/json
+
+{
+  "name": "Professor de Teste",
+  "email": "professor.teste@example.com",
+  "cpf": "12345678903",
+  "tel": "11987654323",
+  "dataNascimento": "1980-01-01",
+  "password": "SenhaSegura123",
+  "confirmPassword": "SenhaSegura123"
+}
+
+### Admin, Gestor or Professor lists accounts awaiting student assignment
+GET {{baseUrl}}/auth/users/pending-students
+Authorization: Bearer {{professorToken}}
+
+### Admin, Gestor or Professor assigns an existing account as student
+POST {{baseUrl}}/auth/users/{{accountId}}/assign-student
+Authorization: Bearer {{professorToken}}
