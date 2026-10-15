@@ -90,55 +90,79 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 
 var app = builder.Build();
 
-if (app.Environment.IsDevelopment())
+// Pega o modo de execução (App, ApiOnly, Full)
+var appMode = builder.Configuration.GetValue<string>("APP_MODE") ?? "Full";
+
+app.UseHttpsRedirection();
+app.UseStaticFiles();
+
+// Habilita Swagger apenas se não for "App" puro
+if (appMode != "App")
 {
     app.UseSwagger();
     app.UseSwaggerUI(c =>
     {
-        // Define o Swagger UI na raiz da aplicação durante dev (comportamento anterior)
-        c.RoutePrefix = string.Empty;
+        c.RoutePrefix = "swagger";
         c.SwaggerEndpoint("/swagger/v1/swagger.json", "v1");
     });
 }
-
-app.AuthRoutes();
-app.CursosRoutes();
-app.MatriculaRoutes();
-app.TurmaRoutes();
-
-app.UseHttpsRedirection();
-app.UseStaticFiles();
 
 app.UseAuthentication();
 app.UseAuthorization();
 app.UseAntiforgery();
 
 app.MapControllers();
-app.MapRazorComponents<App>()
-    .AddInteractiveServerRenderMode();
+
+// Rotas customizadas
+app.AuthRoutes();
+app.CursosRoutes();
+app.MatriculaRoutes();
+app.TurmaRoutes();
+
+// Registra Front apenas se não for "ApiOnly"
+if (appMode != "ApiOnly")
+{
+    app.MapRazorComponents<App>()
+        .AddInteractiveServerRenderMode();
+}
 
 using (var scope = app.Services.CreateScope())
 {
     var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
-    // Garante que o banco de dados e as migrations foram aplicados
-    context.Database.Migrate(); 
-
-    // Se não existir nenhum usuário registrado, cria o Admin padrão
-    if (!context.Users.Any())
+    try
     {
-        var adminUser = new UserModel(
-            name: "Admin",
-            email: "admin@eduassess.com",
-            cpf: "00000000000",
-            tel: "0000000000",
-            dataNascimento: DateOnly.FromDateTime(new DateTime(1990, 1, 1, 0, 0, 0, DateTimeKind.Utc)),
-            password: "Admin1234", // Troque por uma senha forte
-            role: UserRole.Admin
-        );
+        // Garante que o banco de dados e as migrations foram aplicados
+        context.Database.Migrate();
+    }
+    catch (Exception ex)
+    {
+        // Se migrations falhar, apenas loga o erro (permite app continuar)
+        Console.WriteLine($"Erro ao aplicar migrations: {ex.Message}");
+    }
 
-        context.Users.Add(adminUser);
-        context.SaveChanges();
+    try
+    {
+        // Se não existir nenhum usuário registrado, cria o Admin padrão
+        if (!context.Users.Any())
+        {
+            var adminUser = new UserModel(
+                name: "Admin",
+                email: "admin@eduassess.com",
+                cpf: "00000000000",
+                tel: "0000000000",
+                dataNascimento: DateOnly.FromDateTime(new DateTime(1990, 1, 1, 0, 0, 0, DateTimeKind.Utc)),
+                password: "Admin1234", // Troque por uma senha forte
+                role: UserRole.Admin
+            );
+
+            context.Users.Add(adminUser);
+            context.SaveChanges();
+        }
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"Erro ao criar admin: {ex.Message}");
     }
 }
 
