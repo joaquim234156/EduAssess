@@ -25,7 +25,8 @@ namespace EduAssess.Application.Routes
                     await context.SaveChangesAsync();
 
                     return Results.Ok(new { message = "Curso criado com sucesso", cursoId = curso.Id });
-                });
+                }).RequireAuthorization("Gestao", "Admin");
+
             route.MapPut("update/{id:guid}",
             async (Guid id, CursosRequest req, AppDbContext context) =>
             {
@@ -49,7 +50,8 @@ namespace EduAssess.Application.Routes
                         curso.DuracaoEmAnos
                     }
                 });
-            });
+            }).RequireAuthorization("Gestao", "Admin");
+
             route.MapDelete("delete/{id:guid}",
             async (Guid id, AppDbContext context) =>
             {
@@ -60,7 +62,7 @@ namespace EduAssess.Application.Routes
                 curso.Disable();
                 await context.SaveChangesAsync();
                 return Results.Ok(new { message = "Curso desativado com sucesso" });
-            });
+            }).RequireAuthorization("Gestao", "Admin");
 
             route.MapGet("get/{nome}",
                 async (string nome, AppDbContext context) =>
@@ -78,7 +80,7 @@ namespace EduAssess.Application.Routes
                             curso.DuracaoEmAnos
                         }
                     });
-                });
+                }).RequireAuthorization("Gestao", "Admin");
         }
 
     }
