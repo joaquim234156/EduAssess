@@ -250,5 +250,4 @@ public sealed record InstructorRow(Guid Id, string Name);
 public sealed record ClassRow(Guid Id, string Name, string CourseName, string InstructorName, int Period);
 public sealed record EnrollmentRow(Guid Id, string StudentName, string ClassName, string CourseName, DateTime EnrolledAt, bool Active);
 public sealed record GradeRow(Guid Id, string StudentName, string ClassName, string Description, decimal Value, DateTime CreatedAt);
-public sealed record EnrollmentOption(Guid Id, Guid UserId, string Label);
-public sealed record DisciplineOption(Guid Id, string Name);
+public sealed record EnrollmentOption(Guid Id, string Label);
