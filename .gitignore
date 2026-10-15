@@ -362,3 +362,6 @@ MigrationBackup/
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
 /EduAssess/EduAssess.sqlite
+*.db
+*.db-shm
+*.db-wal

@@ -200,10 +200,15 @@ public sealed class AcademicDashboardService(AppDbContext db, UiSession session,
         await session.RequireManagementAsync();
         if (string.IsNullOrWhiteSpace(description))
             throw new ArgumentException("Informe a descrição da avaliação.");
-        var enrollment = await db.Matriculas.FirstOrDefaultAsync(x => x.Id == enrollmentId && x.Ativa)
+
+        var enrollment = await db.Matriculas
+            .FirstOrDefaultAsync(x => x.Id == enrollmentId && x.Ativa)
             ?? throw new ArgumentException("Selecione uma matrícula ativa.");
 
-        db.Notas.Add(new NotaModel(enrollmentId, enrollment.UsuarioId, description.Trim(), value));
+        db.Notas.Add(new NotaModel(enrollmentId, description.Trim(), value)
+        {
+            UsuarioId = enrollment.UsuarioId
+        });
         await db.SaveChangesAsync();
     }
 

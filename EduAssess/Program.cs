@@ -1,11 +1,12 @@
 using EduAssess.Converters;
-using EduAssess.Data;
 using EduAssess.Application.Routes;
 using EduAssess.Models;
+using EduAssess.Data;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Internal;
 using Microsoft.IdentityModel.Tokens;
+using Microsoft.Data.Sqlite;
 using Microsoft.OpenApi.Models;
 using System.Threading.RateLimiting;
 using System.Text;
@@ -107,9 +108,15 @@ builder.Services.AddSwaggerGen(c =>
 
 builder.Services.AddDbContext<AppDbContext>(options =>
 {
-    // Usa SQLite por padrão; se desejar outro provedor altere a connection string e o Use... correspondente
-    var conn = builder.Configuration.GetConnectionString("DefaultConnection") ?? "Data Source=eduassess.db";
-    options.UseSqlite(conn);
+    var connectionString = builder.Configuration.GetConnectionString("DefaultConnection") ?? "Data Source=eduassess.db";
+    var sqliteConnection = new SqliteConnectionStringBuilder(connectionString);
+    if (!string.Equals(sqliteConnection.DataSource, ":memory:", StringComparison.OrdinalIgnoreCase)
+        && !Path.IsPathRooted(sqliteConnection.DataSource))
+    {
+        sqliteConnection.DataSource = Path.GetFullPath(sqliteConnection.DataSource, builder.Environment.ContentRootPath);
+    }
+
+    options.UseSqlite(sqliteConnection.ToString());
 });
 
 var app = builder.Build();
@@ -130,6 +137,21 @@ app.MatriculaRoutes();
 app.TurmaRoutes();
 
 app.UseHttpsRedirection();
+
+app.Use(async (context, next) =>
+{
+    var path = context.Request.Path.Value;
+    if (!string.IsNullOrEmpty(path) &&
+        (path.Equals("/index.html", StringComparison.OrdinalIgnoreCase) ||
+         path.Equals("/index.htm", StringComparison.OrdinalIgnoreCase)))
+    {
+        context.Response.Redirect("/", false);
+        return;
+    }
+
+    await next();
+});
+
 app.UseStaticFiles();
 app.UseRateLimiter();
 
@@ -145,8 +167,7 @@ using (var scope = app.Services.CreateScope())
 {
     var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
-    // Garante que o banco de dados e as migrations foram aplicados
-    context.Database.Migrate(); 
+    context.Database.Migrate();
 
     // The first administrator must be provisioned through deployment secrets.
     if (!context.Users.Any())
