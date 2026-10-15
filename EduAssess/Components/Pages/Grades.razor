@@ -1,0 +1,79 @@
+@page "/notas"
+@inject UiSession Session
+@inject AcademicDashboardService Academic
+@inject NavigationManager Navigation
+
+<PageTitle>Notas | EduAssess</PageTitle>
+<div class="page-heading"><div><div class="eyebrow">ACOMPANHAMENTO DE DESEMPENHO</div><h1>Notas</h1><p>Registre avaliações e acompanhe o progresso acadêmico.</p></div></div>
+@if (!string.IsNullOrWhiteSpace(message)) { <div class="alert @alertClass">@message</div> }
+<div class="page-columns">
+    @if (Session.CanManage)
+    {
+        <section class="panel form-panel">
+            <div class="panel-heading"><div><h2>Lançar avaliação</h2><p>Adicione um resultado a uma matrícula.</p></div></div>
+            <EditForm Model="form" OnValidSubmit="CreateAsync">
+                <DataAnnotationsValidator />
+                <label class="field-label">Aluno / turma</label><InputSelect class="text-input" @bind-Value="form.EnrollmentId"><option value="">Selecione a matrícula</option>@foreach (var enrollment in enrollments) { <option value="@enrollment.Id">@enrollment.Label</option> }</InputSelect><ValidationMessage For="@(() => form.EnrollmentId)" />
+                <label class="field-label">Avaliação</label><InputText class="text-input" @bind-Value="form.Description" placeholder="Ex.: Prova 1, Trabalho final" /><ValidationMessage For="@(() => form.Description)" />
+                <label class="field-label">Nota</label><InputNumber class="text-input" @bind-Value="form.Value" step="0.01" />
+                <button class="button button-primary full-button" type="submit">Salvar nota</button>
+            </EditForm>
+        </section>
+    }
+    <section class="panel list-panel">
+        <div class="panel-heading"><div><h2>Notas lançadas</h2><p>Avaliações registradas por matrícula</p></div><span class="count-pill">@grades.Count</span></div>
+        @if (grades.Count == 0) { <div class="empty-state"><div class="empty-icon">✎</div><strong>Nenhuma nota lançada</strong><span>Os resultados registrados aparecerão aqui.</span></div> }
+        else
+        {
+            <div class="table-wrap"><table><thead><tr><th>ALUNO</th><th>TURMA</th><th>AVALIAÇÃO</th><th>NOTA</th><th>LANÇAMENTO</th></tr></thead><tbody>
+                @foreach (var item in grades)
+                {
+                    <tr><td><strong>@item.StudentName</strong></td><td>@item.ClassName</td><td>@item.Description</td><td><span class="grade-value">@item.Value.ToString("0.##")</span></td><td>@item.CreatedAt.ToLocalTime().ToString("dd/MM/yyyy")</td></tr>
+                }
+            </tbody></table></div>
+        }
+    </section>
+</div>
+
+@code {
+    private List<GradeRow> grades = [];
+    private List<EnrollmentOption> enrollments = [];
+    private GradeForm form = new();
+    private string? message;
+    private string alertClass = "alert-success";
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!Session.IsSignedIn) { Navigation.NavigateTo("/login"); return; }
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        grades = await Academic.GetGradesAsync();
+        enrollments = await Academic.GetEnrollmentOptionsAsync();
+    }
+
+    private async Task CreateAsync()
+    {
+        try
+        {
+            if (form.EnrollmentId == Guid.Empty)
+                throw new ArgumentException("Selecione uma matrícula.");
+            await Academic.CreateGradeAsync(form.EnrollmentId, form.Description, form.Value);
+            message = "Nota lançada com sucesso.";
+            alertClass = "alert-success";
+            form = new GradeForm();
+            await LoadAsync();
+        }
+        catch (Exception ex) when (ex is ArgumentException or UnauthorizedAccessException)
+        { message = ex.Message; alertClass = "alert-error"; }
+    }
+
+    private sealed class GradeForm
+    {
+        [Required(ErrorMessage = "Selecione uma matrícula.")] public Guid EnrollmentId { get; set; }
+        [Required(ErrorMessage = "Informe a avaliação.")][StringLength(120)] public string Description { get; set; } = "";
+        public decimal Value { get; set; }
+    }
+}
