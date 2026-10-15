@@ -1,7 +1,7 @@
 using EduAssess.Converters;
-using EduAssess.Data;
 using EduAssess.Application.Routes;
 using EduAssess.Models;
+using EduAssess.Data;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Internal;
@@ -37,7 +37,6 @@ builder.Services.AddAuthentication(options =>
 
 builder.Services.AddAuthorization(options =>
 {
-    // O nome da política agora é "Admin"
     options.AddPolicy("Admin", policy => policy.RequireRole("Admin", "Gestor"));
     options.AddPolicy("Professor", policy => policy.RequireRole("Professor"));
 });
@@ -183,7 +182,6 @@ builder.Services.AddSwaggerGen(c =>
 
 builder.Services.AddDbContext<AppDbContext>(options =>
 {
-    // Usa SQLite por padrão; se desejar outro provedor altere a connection string e o Use... correspondente
     var conn = builder.Configuration.GetConnectionString("DefaultConnection") ?? "Data Source=eduassess.db";
     options.UseSqlite(conn);
 });
@@ -206,6 +204,29 @@ if (appMode != "App")
         c.SwaggerEndpoint("/swagger/v1/swagger.json", "v1");
     });
 }
+
+app.AuthRoutes();
+app.CursosRoutes();
+app.MatriculaRoutes();
+app.TurmaRoutes();
+
+app.UseHttpsRedirection();
+
+app.Use(async (context, next) =>
+{
+    var path = context.Request.Path.Value;
+    if (!string.IsNullOrEmpty(path) &&
+        (path.Equals("/index.html", StringComparison.OrdinalIgnoreCase) ||
+         path.Equals("/index.htm", StringComparison.OrdinalIgnoreCase)))
+    {
+        context.Response.Redirect("/", false);
+        return;
+    }
+
+    await next();
+});
+
+app.UseStaticFiles();
 
 app.UseAuthentication();
 app.UseAuthorization();
@@ -231,38 +252,22 @@ using (var scope = app.Services.CreateScope())
 {
     var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
-    try
+    context.Database.Migrate();
+
+    if (!context.Users.Any())
     {
-        // Garante que o banco de dados e as migrations foram aplicados
-        context.Database.Migrate();
-    }
-    catch (Exception ex)
-    {
-        // Se migrations falhar, apenas loga o erro (permite app continuar)
-        Console.WriteLine($"Erro ao aplicar migrations: {ex.Message}");
+        var adminUser = new UserModel(
+            name: "Admin",
+            email: "admin@eduassess.com",
+            cpf: "00000000000",
+            tel: "0000000000",
+            dataNascimento: DateOnly.FromDateTime(new DateTime(1990, 1, 1, 0, 0, 0, DateTimeKind.Utc)),
+            password: "Admin1234",
+            role: UserRole.Admin
+        );
+
+        context.Users.Add(adminUser);
+        context.SaveChanges();
     }
 
-    try
-    {
-        // Se não existir nenhum usuário registrado, cria o Admin padrão
-        if (!context.Users.Any())
-        {
-            var adminUser = new UserModel(
-                name: "Admin",
-                email: "admin@eduassess.com",
-                cpf: "00000000000",
-                tel: "0000000000",
-                dataNascimento: DateOnly.FromDateTime(new DateTime(1990, 1, 1, 0, 0, 0, DateTimeKind.Utc)),
-                password: "Admin1234", // Troque por uma senha forte
-                role: UserRole.Admin
-            );
-
-            context.Users.Add(adminUser);
-            context.SaveChanges();
-        }
-    }
-    catch (Exception ex)
-    {
-        Console.WriteLine($"Erro ao criar admin: {ex.Message}");
-    }
-}
+app.Run();
