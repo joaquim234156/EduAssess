@@ -1,0 +1,79 @@
+@page "/login"
+@inject UiSession Session
+@inject NavigationManager Navigation
+
+<PageTitle>Entrar | EduAssess</PageTitle>
+<div class="login-page">
+    <section class="login-brand-panel">
+        <a class="brand login-brand" href="/"><span class="brand-mark">E</span><span>Edu<span>Assess</span><small>GESTÃO ACADÊMICA</small></span></a>
+        <div class="login-message">
+            <div class="login-kicker">APRENDER. EVOLUIR. CONQUISTAR.</div>
+            <h1>O próximo passo<br />da educação começa aqui.</h1>
+            <p>Uma plataforma completa para acompanhar cursos, turmas e o desenvolvimento de cada aluno.</p>
+            <div class="login-decoration"><span>✦</span><span>✳</span><span>＋</span></div>
+        </div>
+        <div class="login-footnote">EDUASSESS <span>•</span> PLATAFORMA EDUCACIONAL</div>
+    </section>
+    <section class="login-form-panel">
+        <div class="login-form-wrap">
+            <div class="mobile-brand brand"><span class="brand-mark">E</span><span>Edu<span>Assess</span></span></div>
+            <div class="eyebrow">BEM-VINDO DE VOLTA</div>
+            <h2>Acesse sua conta</h2>
+            <p class="muted">Entre com suas credenciais para continuar.</p>
+            <EditForm Model="form" OnValidSubmit="SignInAsync">
+                <DataAnnotationsValidator />
+                @if (!string.IsNullOrWhiteSpace(error))
+                {
+                    <div class="alert alert-error">@error</div>
+                }
+                <label class="field-label" for="email">E-mail</label>
+                <InputText id="email" class="text-input" @bind-Value="form.Email" placeholder="voce@instituicao.edu.br" autocomplete="username" />
+                <ValidationMessage For="@(() => form.Email)" />
+                <label class="field-label" for="password">Senha</label>
+                <InputText id="password" type="password" class="text-input" @bind-Value="form.Password" placeholder="Digite sua senha" autocomplete="current-password" />
+                <ValidationMessage For="@(() => form.Password)" />
+                <button class="button button-primary login-submit" type="submit" disabled="@busy">@(busy ? "Entrando..." : "Entrar na plataforma") <span>→</span></button>
+            </EditForm>
+            <div class="login-security"><span>◈</span> Seus dados estão protegidos com segurança.</div>
+        </div>
+    </section>
+</div>
+
+@code {
+    private readonly LoginForm form = new();
+    private string? error;
+    private bool busy;
+
+    protected override void OnInitialized()
+    {
+        if (Session.IsSignedIn)
+            Navigation.NavigateTo("/");
+    }
+
+    private async Task SignInAsync()
+    {
+        busy = true;
+        error = null;
+        try
+        {
+            if (await Session.SignInAsync(form.Email, form.Password))
+                Navigation.NavigateTo("/");
+            else
+                error = "Credenciais inválidas ou perfil sem permissão para acessar o painel.";
+        }
+        finally
+        {
+            busy = false;
+        }
+    }
+
+    private sealed class LoginForm
+    {
+        [Required(ErrorMessage = "Informe seu e-mail.")]
+        [EmailAddress(ErrorMessage = "Informe um e-mail válido.")]
+        public string Email { get; set; } = "";
+
+        [Required(ErrorMessage = "Informe sua senha.")]
+        public string Password { get; set; } = "";
+    }
+}
