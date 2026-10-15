@@ -10,13 +10,16 @@
             <a class="brand" href="/"><span class="brand-mark">E</span><span>Edu<span>Assess</span><small>GESTÃO ACADÊMICA</small></span></a>
             <div class="nav-label">MENU PRINCIPAL</div>
             <nav class="main-nav">
-                <NavLink href="/" Match="NavLinkMatch.All"><span class="nav-icon">⌂</span> Visão geral</NavLink>
-                <NavLink href="/cursos"><span class="nav-icon">▤</span> Cursos</NavLink>
-                <NavLink href="/turmas"><span class="nav-icon">▦</span> Turmas</NavLink>
+                @if (Session.CanManage)
+                {
+                    <NavLink href="/" Match="NavLinkMatch.All"><span class="nav-icon">⌂</span> Visão geral</NavLink>
+                    <NavLink href="/cursos"><span class="nav-icon">▤</span> Cursos</NavLink>
+                    <NavLink href="/turmas"><span class="nav-icon">▦</span> Turmas</NavLink>
+                    <NavLink href="/equipe"><span class="nav-icon">♧</span> Equipe</NavLink>
+                    <NavLink href="/matriculas"><span class="nav-icon">▣</span> Matrículas</NavLink>
+                    <NavLink href="/notas"><span class="nav-icon">✎</span> Notas</NavLink>
+                }
                 <NavLink href="/alunos"><span class="nav-icon">♙</span> Alunos</NavLink>
-                <NavLink href="/equipe"><span class="nav-icon">♧</span> Professores</NavLink>
-                <NavLink href="/matriculas"><span class="nav-icon">▣</span> Matrículas</NavLink>
-                <NavLink href="/notas"><span class="nav-icon">✎</span> Notas</NavLink>
             </nav>
             <div class="sidebar-bottom">
                 <div class="sidebar-user">

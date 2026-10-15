@@ -34,6 +34,7 @@
                 <ValidationMessage For="@(() => form.Password)" />
                 <button class="button button-primary login-submit" type="submit" disabled="@busy">@(busy ? "Entrando..." : "Entrar na plataforma") <span>→</span></button>
             </EditForm>
+            <p class="muted">Ainda não tem conta? <a href="/cadastro">Criar conta</a></p>
             <div class="login-security"><span>◈</span> Seus dados estão protegidos com segurança.</div>
         </div>
     </section>
@@ -47,7 +48,7 @@
     protected override void OnInitialized()
     {
         if (Session.IsSignedIn)
-            Navigation.NavigateTo("/");
+            Navigation.NavigateTo(Session.User?.Role == UserRole.Professor ? "/alunos" : "/");
     }
 
     private async Task SignInAsync()
@@ -57,7 +58,7 @@
         try
         {
             if (await Session.SignInAsync(form.Email, form.Password))
-                Navigation.NavigateTo("/");
+                Navigation.NavigateTo(Session.User?.Role == UserRole.Professor ? "/alunos" : "/");
             else
                 error = "Credenciais inválidas ou perfil sem permissão para acessar o painel.";
         }

@@ -11,7 +11,7 @@ namespace EduAssess.EduAssess.Aplication.Services
         public static string GenerateToken(UserModel user, string secretKey)
         {
             var tokenHandler = new JwtSecurityTokenHandler();
-            var key = Encoding.ASCII.GetBytes(secretKey);
+            var key = Encoding.UTF8.GetBytes(secretKey);
             var tokenDescriptor = new SecurityTokenDescriptor
             {
                 Subject = new ClaimsIdentity(new[]

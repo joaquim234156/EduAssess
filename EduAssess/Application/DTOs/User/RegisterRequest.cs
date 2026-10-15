@@ -1,11 +1,10 @@
-﻿using EduAssess.Models;
 using System.ComponentModel.DataAnnotations;
 
 namespace EduAssess.EduAssess.Aplication.DTOs.User
 {
     public record RegisterRequest(
         [Required(ErrorMessage = "O Nome é obrigatório.")]
-        [StringLength(100, MinimumLength = 3, ErrorMessage = "O nome deve ter entre 3 e 120 caracteres.")]
+        [StringLength(100, MinimumLength = 3, ErrorMessage = "O nome deve ter entre 3 e 100 caracteres.")]
         string name,
         [Required(ErrorMessage = "O Email é obrigatório.")]
         [MaxLength(150, ErrorMessage = "O Email deve ter no máximo 150 caracteres.")]
@@ -21,13 +20,11 @@ namespace EduAssess.EduAssess.Aplication.DTOs.User
         DateOnly dataNascimento,
         [Required(ErrorMessage = "A Senha é obrigatório")]
         [MinLength(8, ErrorMessage = "A Senha deve ter no mínimo 8 caracteres.")]
-        [MaxLength(250, ErrorMessage = "A Senha deve ter no máximo 250 caracteres.")]
+        [MaxLength(72, ErrorMessage = "A senha deve ter no máximo 72 caracteres.")]
         string password,
-        [Required(ErrorMessage = "A Senha é obrigatório")]
+        [Required(ErrorMessage = "A confirmação da senha é obrigatória.")]
         [MinLength(8, ErrorMessage = "A Senha deve ter no mínimo 8 caracteres.")]
-        [MaxLength(250, ErrorMessage = "A Senha deve ter no máximo 250 caracteres.")]
-        string? confirmPassword = null,
-
-        UserRole role = UserRole.User
+        [MaxLength(72, ErrorMessage = "A confirmação deve ter no máximo 72 caracteres.")]
+        string confirmPassword
     );
 }
