@@ -14,8 +14,9 @@
             <EditForm Model="form" OnValidSubmit="CreateAsync">
                 <DataAnnotationsValidator />
                 <label class="field-label">Aluno / turma</label><InputSelect class="text-input" @bind-Value="form.EnrollmentId"><option value="">Selecione a matrícula</option>@foreach (var enrollment in enrollments) { <option value="@enrollment.Id">@enrollment.Label</option> }</InputSelect><ValidationMessage For="@(() => form.EnrollmentId)" />
+                <label class="field-label">Disciplina</label><InputSelect class="text-input" @bind-Value="form.DisciplinaId"><option value="">Selecione a disciplina</option>@foreach (var discipline in disciplines) { <option value="@discipline.Id">@discipline.Name</option> }</InputSelect><ValidationMessage For="@(() => form.DisciplinaId)" />
                 <label class="field-label">Avaliação</label><InputText class="text-input" @bind-Value="form.Description" placeholder="Ex.: Prova 1, Trabalho final" /><ValidationMessage For="@(() => form.Description)" />
-                <label class="field-label">Nota</label><InputNumber class="text-input" @bind-Value="form.Value" step="0.01" />
+                <label class="field-label">Nota</label><InputNumber class="text-input" @bind-Value="form.Value" min="0" max="10" step="0.01" /><ValidationMessage For="@(() => form.Value)" />
                 <button class="button button-primary full-button" type="submit">Salvar nota</button>
             </EditForm>
         </section>
@@ -38,6 +39,7 @@
 @code {
     private List<GradeRow> grades = [];
     private List<EnrollmentOption> enrollments = [];
+    private List<DisciplineOption> disciplines = [];
     private GradeForm form = new();
     private string? message;
     private string alertClass = "alert-success";
@@ -52,15 +54,18 @@
     {
         grades = await Academic.GetGradesAsync();
         enrollments = await Academic.GetEnrollmentOptionsAsync();
+        disciplines = await Academic.GetDisciplineOptionsAsync();
     }
 
     private async Task CreateAsync()
     {
         try
         {
-            if (form.EnrollmentId == Guid.Empty)
-                throw new ArgumentException("Selecione uma matrícula.");
-            await Academic.CreateGradeAsync(form.EnrollmentId, form.Description, form.Value);
+            var enrollment = enrollments.FirstOrDefault(x => x.Id == form.EnrollmentId)
+                ?? throw new ArgumentException("Selecione uma matrícula válida.");
+            if (form.DisciplinaId == Guid.Empty)
+                throw new ArgumentException("Selecione uma disciplina válida.");
+            await Academic.CreateGradeAsync(form.EnrollmentId, enrollment.UserId, form.DisciplinaId, form.Description, form.Value);
             message = "Nota lançada com sucesso.";
             alertClass = "alert-success";
             form = new GradeForm();
@@ -73,7 +78,9 @@
     private sealed class GradeForm
     {
         [Required(ErrorMessage = "Selecione uma matrícula.")] public Guid EnrollmentId { get; set; }
+        [Required(ErrorMessage = "Selecione uma disciplina.")] public Guid DisciplinaId { get; set; }
         [Required(ErrorMessage = "Informe a avaliação.")][StringLength(120)] public string Description { get; set; } = "";
+        [Range(typeof(decimal), "0", "10", ErrorMessage = "A nota deve estar entre 0 e 10.")]
         public decimal Value { get; set; }
     }
 }
