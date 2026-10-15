@@ -205,7 +205,7 @@ namespace EduAssess.Application.Routes
                     await context.SaveChangesAsync();
                     return Results.Ok(new { message = "User deleted successfully" });
                 }
-            );
+            ).RequireAuthorization("Admin");
         }
     }
 }

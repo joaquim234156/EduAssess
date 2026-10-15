@@ -1,6 +1,10 @@
 ﻿namespace EduAssess.Application.DTOs.Curso
 {
-    public class CursoResponseDTO
-    {
-    }
+    public record CursoResponseDTO
+        (
+        Guid Id,
+        string Nome,
+        string Descricao,
+        bool Ativo
+        );
 }
