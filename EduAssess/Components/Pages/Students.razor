@@ -1,0 +1,79 @@
+@page "/alunos"
+@inject UiSession Session
+@inject AcademicDashboardService Academic
+@inject NavigationManager Navigation
+
+<PageTitle>Alunos | EduAssess</PageTitle>
+<div class="page-heading"><div><div class="eyebrow">COMUNIDADE ACADÊMICA</div><h1>Alunos</h1><p>Consulte e gerencie os estudantes cadastrados.</p></div></div>
+@if (!string.IsNullOrWhiteSpace(message)) { <div class="alert @alertClass">@message</div> }
+<div class="page-columns">
+    @if (Session.CanManage)
+    {
+        <section class="panel form-panel">
+            <div class="panel-heading"><div><h2>Novo aluno</h2><p>Os dados serão usados para acesso à plataforma.</p></div></div>
+            <EditForm Model="form" OnValidSubmit="CreateAsync">
+                <DataAnnotationsValidator />
+                <label class="field-label">Nome completo</label><InputText class="text-input" @bind-Value="form.Name" placeholder="Nome do aluno" /><ValidationMessage For="@(() => form.Name)" />
+                <label class="field-label">E-mail</label><InputText class="text-input" @bind-Value="form.Email" placeholder="aluno@email.com" /><ValidationMessage For="@(() => form.Email)" />
+                <div class="form-row"><div><label class="field-label">CPF</label><InputText class="text-input" @bind-Value="form.Cpf" inputmode="numeric" placeholder="11 dígitos" /><ValidationMessage For="@(() => form.Cpf)" /></div><div><label class="field-label">Telefone</label><InputText class="text-input" @bind-Value="form.Phone" inputmode="numeric" placeholder="DDD + número" /><ValidationMessage For="@(() => form.Phone)" /></div></div>
+                <label class="field-label">Data de nascimento</label><InputDate class="text-input" @bind-Value="form.BirthDate" />
+                <label class="field-label">Senha inicial</label><InputText class="text-input" @bind-Value="form.Password" type="password" autocomplete="new-password" /><ValidationMessage For="@(() => form.Password)" />
+                <button class="button button-primary full-button" type="submit">Cadastrar aluno</button>
+            </EditForm>
+        </section>
+    }
+    <section class="panel list-panel">
+        <div class="panel-heading"><div><h2>Estudantes</h2><p>Alunos ativos na plataforma</p></div><span class="count-pill">@students.Count</span></div>
+        @if (students.Count == 0) { <div class="empty-state"><div class="empty-icon">♙</div><strong>Nenhum aluno cadastrado</strong><span>Os alunos adicionados aparecerão aqui.</span></div> }
+        else
+        {
+            <div class="table-wrap"><table><thead><tr><th>ALUNO</th><th>E-MAIL</th><th>TELEFONE</th></tr></thead><tbody>
+                @foreach (var student in students)
+                {
+                    <tr><td><div class="table-person"><span class="avatar avatar-small">@GetInitials(student.Name)</span><strong>@student.Name</strong></div></td><td>@student.Email</td><td>@student.Phone</td></tr>
+                }
+            </tbody></table></div>
+        }
+    </section>
+</div>
+
+@code {
+    private List<PersonRow> students = [];
+    private StudentForm form = new();
+    private string? message;
+    private string alertClass = "alert-success";
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!Session.IsSignedIn) { Navigation.NavigateTo("/login"); return; }
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync() => students = await Academic.GetStudentsAsync();
+
+    private async Task CreateAsync()
+    {
+        try
+        {
+            await Academic.CreateStudentAsync(form.Name, form.Email, form.Cpf, form.Phone, form.BirthDate, form.Password);
+            message = "Aluno cadastrado com sucesso.";
+            alertClass = "alert-success";
+            form = new StudentForm();
+            await LoadAsync();
+        }
+        catch (Exception ex) when (ex is ArgumentException or UnauthorizedAccessException)
+        { message = ex.Message; alertClass = "alert-error"; }
+    }
+
+    private static string GetInitials(string name) => string.Join("", name.Split(' ', StringSplitOptions.RemoveEmptyEntries).Take(2).Select(x => char.ToUpperInvariant(x[0])));
+
+    private sealed class StudentForm
+    {
+        [Required(ErrorMessage = "Informe o nome.")][StringLength(100, MinimumLength = 3)] public string Name { get; set; } = "";
+        [Required(ErrorMessage = "Informe o e-mail.")][EmailAddress(ErrorMessage = "E-mail inválido.")] public string Email { get; set; } = "";
+        [Required(ErrorMessage = "Informe o CPF.")][RegularExpression(@"^\d{11}$", ErrorMessage = "Use 11 números.")] public string Cpf { get; set; } = "";
+        [Required(ErrorMessage = "Informe o telefone.")][RegularExpression(@"^\d{10,11}$", ErrorMessage = "Use 10 ou 11 números.")] public string Phone { get; set; } = "";
+        [Required(ErrorMessage = "Informe a data de nascimento.")] public DateOnly BirthDate { get; set; } = DateOnly.FromDateTime(DateTime.Today.AddYears(-18));
+        [Required(ErrorMessage = "Defina uma senha.")][MinLength(8, ErrorMessage = "Use pelo menos 8 caracteres.")] public string Password { get; set; } = "";
+    }
+}
