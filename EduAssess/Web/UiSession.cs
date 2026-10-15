@@ -17,7 +17,7 @@ public sealed class UiSession(AppDbContext db)
         var user = await db.Users.FirstOrDefaultAsync(x => x.Email == email && x.Ativa);
         if (user is null
             || !user.VerifyPassword(password)
-            || user.Role is not (UserRole.Admin or UserRole.Gestor))
+            || user.Role is not (UserRole.Admin or UserRole.Gestor or UserRole.Professor or UserRole.Aluno))
             return false;
 
         User = new UserSummary(user.Id, user.Name, user.Email, user.Role);
