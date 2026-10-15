@@ -209,11 +209,20 @@ public sealed class AcademicDashboardService(AppDbContext db, UiSession session)
         EnsureSignedIn();
         return await db.Matriculas.AsNoTracking().Where(x => x.Ativa)
             .OrderBy(x => x.Usuario.Name)
-            .Select(x => new EnrollmentOption(x.Id, x.Usuario.Name + " — " + x.Turma.Nome))
+            .Select(x => new EnrollmentOption(x.Id, x.UsuarioId, x.Usuario.Name + " — " + x.Turma.Nome))
             .ToListAsync();
     }
 
-    public async Task CreateGradeAsync(Guid enrollmentId, string description, decimal value)
+    public async Task<List<DisciplineOption>> GetDisciplineOptionsAsync()
+    {
+        EnsureSignedIn();
+        return await db.Disciplinas.AsNoTracking()
+            .OrderBy(x => x.Nome)
+            .Select(x => new DisciplineOption(x.Id, x.Nome))
+            .ToListAsync();
+    }
+
+    public async Task CreateGradeAsync(Guid enrollmentId, Guid userId, Guid disciplinaId, string description, decimal value)
     {
         session.RequireManagement();
         if (string.IsNullOrWhiteSpace(description))
@@ -221,7 +230,7 @@ public sealed class AcademicDashboardService(AppDbContext db, UiSession session)
         if (!await db.Matriculas.AnyAsync(x => x.Id == enrollmentId && x.Ativa))
             throw new ArgumentException("Selecione uma matrícula ativa.");
 
-        db.Notas.Add(new NotaModel(enrollmentId, description.Trim(), value));
+        db.Notas.Add(new NotaModel(enrollmentId, userId, disciplinaId, description.Trim(), value));
         await db.SaveChangesAsync();
     }
 
@@ -239,4 +248,5 @@ public sealed record InstructorRow(Guid Id, string Name);
 public sealed record ClassRow(Guid Id, string Name, string CourseName, string InstructorName, int Period);
 public sealed record EnrollmentRow(Guid Id, string StudentName, string ClassName, string CourseName, DateTime EnrolledAt, bool Active);
 public sealed record GradeRow(Guid Id, string StudentName, string ClassName, string Description, decimal Value, DateTime CreatedAt);
-public sealed record EnrollmentOption(Guid Id, string Label);
+public sealed record EnrollmentOption(Guid Id, Guid UserId, string Label);
+public sealed record DisciplineOption(Guid Id, string Name);

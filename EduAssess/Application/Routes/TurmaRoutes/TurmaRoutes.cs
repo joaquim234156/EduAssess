@@ -3,7 +3,7 @@ using EduAssess.Data;
 using EduAssess.Models;
 using Microsoft.EntityFrameworkCore;
 
-namespace EduAssess.Routes.TurmaRoutes
+namespace EduAssess.Application.Routes
 {
     public static class TurmaRoute
     {
