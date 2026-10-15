@@ -9,10 +9,59 @@ using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using System.Text;
 using EduAssess.Routes.TurmaRoutes;
+using EduAssess.Components;
+using EduAssess.Web;
 
 namespace EduAssess
 {
-    internal static class Program
+    options.SerializerOptions.Converters.Add(new DateOnlyPtBrJsonConverter());
+});
+
+// Configuração do Scheme de Autenticação JWT
+builder.Services.AddAuthentication(options =>
+{
+    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+})
+.AddJwtBearer(options =>
+{
+    options.RequireHttpsMetadata = false;
+    options.SaveToken = true;
+    options.TokenValidationParameters = new TokenValidationParameters
+    {
+        ValidateIssuerSigningKey = true,
+        IssuerSigningKey = new SymmetricSecurityKey(Encoding.ASCII.GetBytes(key!)),
+        ValidateIssuer = false,
+        ValidateAudience = false
+    };
+});
+
+builder.Services.AddAuthorization(options =>
+{
+    // O nome da política agora é "Admin"
+    options.AddPolicy("Admin", policy => policy.RequireRole("Admin", "Gestor"));
+    options.AddPolicy("Professor", policy => policy.RequireRole("Professor"));
+});
+
+builder.Services.AddControllers();
+builder.Services.AddRazorComponents()
+    .AddInteractiveServerComponents();
+builder.Services.AddScoped<UiSession>();
+builder.Services.AddScoped<AcademicDashboardService>();
+
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen(c =>
+{
+    c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+    {
+        Name = "Authorization",
+        Type = SecuritySchemeType.Http,
+        Scheme = "bearer",
+        BearerFormat = "JWT",
+        In = ParameterLocation.Header,
+        Description = "Insira o token JWT abaixo:"
+    });
+    c.AddSecurityRequirement(new OpenApiSecurityRequirement
     {
         public static void Main(string[] args)
         {
@@ -147,8 +196,7 @@ if (app.Environment.IsDevelopment())
     app.UseSwagger();
     app.UseSwaggerUI(c =>
     {
-        // Define o Swagger UI como raiz da aplicação para abrir direto ao iniciar.
-        c.RoutePrefix = string.Empty; 
+        c.RoutePrefix = "swagger";
         c.SwaggerEndpoint("/swagger/v1/swagger.json", "v1");
     });
 }
@@ -159,11 +207,15 @@ app.MatriculaRoutes();
 app.TurmaRoutes();
 
 app.UseHttpsRedirection();
+app.UseStaticFiles();
 
 app.UseAuthentication();
 app.UseAuthorization();
+app.UseAntiforgery();
 
 app.MapControllers();
+app.MapRazorComponents<App>()
+    .AddInteractiveServerRenderMode();
 
 using (var scope = app.Services.CreateScope())
 {
