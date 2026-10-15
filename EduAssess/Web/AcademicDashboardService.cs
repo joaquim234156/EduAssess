@@ -218,10 +218,12 @@ public sealed class AcademicDashboardService(AppDbContext db, UiSession session)
         session.RequireManagement();
         if (string.IsNullOrWhiteSpace(description))
             throw new ArgumentException("Informe a descrição da avaliação.");
-        if (!await db.Matriculas.AnyAsync(x => x.Id == enrollmentId && x.Ativa))
-            throw new ArgumentException("Selecione uma matrícula ativa.");
 
-        db.Notas.Add(new NotaModel(enrollmentId, description.Trim(), value));
+        var enrollment = await db.Matriculas
+            .FirstOrDefaultAsync(x => x.Id == enrollmentId && x.Ativa)
+            ?? throw new ArgumentException("Selecione uma matrícula ativa.");
+
+        db.Notas.Add(new NotaModel(enrollmentId, enrollment.UsuarioId, description.Trim(), value));
         await db.SaveChangesAsync();
     }
 
