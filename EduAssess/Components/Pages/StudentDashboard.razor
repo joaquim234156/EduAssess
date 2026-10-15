@@ -1,0 +1,84 @@
+﻿@page "/aluno"
+@inject UiSession Session
+@inject NavigationManager Navigation
+
+<PageTitle>Meu painel | EduAssess</PageTitle>
+
+<div class="page-heading">
+    <div>
+        <div class="eyebrow">ÁREA DO ESTUDANTE</div>
+
+        <h1>
+            Olá, @Session.User?.Name!
+        </h1>
+
+        <p>
+            Acompanhe suas turmas, avaliações e seu
+            desempenho acadêmico.
+        </p>
+    </div>
+</div>
+
+<div class="content-grid">
+
+    <section class="panel">
+        <div class="panel-heading">
+            <div>
+                <h2>Minhas turmas</h2>
+                <p>Consulte suas turmas matriculadas.</p>
+            </div>
+        </div>
+
+        <div class="empty-state compact">
+            <div class="empty-icon">▦</div>
+            <strong>Nenhuma turma carregada</strong>
+            <span>
+                Vamos conectar esta área ao banco de dados
+                na próxima etapa.
+            </span>
+        </div>
+    </section>
+
+    <section class="panel">
+        <div class="panel-heading">
+            <div>
+                <h2>Minhas avaliações</h2>
+                <p>Atividades disponíveis para você responder.</p>
+            </div>
+        </div>
+
+        <div class="empty-state compact">
+            <div class="empty-icon">✎</div>
+            <strong>Nenhuma avaliação carregada</strong>
+            <span>
+                Em breve, suas avaliações aparecerão aqui.
+            </span>
+        </div>
+    </section>
+
+</div>
+
+<section class="welcome-banner">
+    <div class="welcome-spark">✦</div>
+
+    <div>
+        <strong>Seu aprendizado em primeiro lugar</strong>
+        <p>
+            Acompanhe seu progresso e continue evoluindo.
+        </p>
+    </div>
+
+    <div class="banner-decoration">
+        EDU<span>+</span>
+    </div>
+</section>
+
+@code {
+    protected override void OnInitialized()
+    {
+        if (!Session.IsSignedIn)
+        {
+            Navigation.NavigateTo("/login");
+        }
+    }
+}
