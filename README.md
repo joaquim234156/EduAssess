@@ -16,6 +16,31 @@ A senha administrativa deve ter no máximo 72 bytes. Na primeira inicialização
 
 Abra a URL exibida no terminal. O Swagger fica disponível em `/swagger` no ambiente de desenvolvimento.
 
+## Executar localmente no VS Code
+
+1. Abra a pasta raiz do repositório no VS Code e selecione **Terminal > Novo Terminal**.
+2. Gere e salve os segredos locais uma única vez (substitua o e-mail e a senha pelos valores desejados):
+
+```powershell
+$bytes = New-Object byte[] 48
+$rng = [System.Security.Cryptography.RandomNumberGenerator]::Create()
+$rng.GetBytes($bytes)
+$jwtSecret = [Convert]::ToBase64String($bytes)
+$rng.Dispose()
+dotnet user-secrets set "JwtSettings:Secret" $jwtSecret --project .\EduAssess\EduAssess.csproj
+Remove-Variable bytes, rng, jwtSecret
+dotnet user-secrets set "BootstrapAdmin:Email" "admin@local.test" --project .\EduAssess\EduAssess.csproj
+dotnet user-secrets set "BootstrapAdmin:Password" "<senha-forte-com-12-ou-mais-caracteres>" --project .\EduAssess\EduAssess.csproj
+```
+
+3. Inicie o perfil **Front + API (HTTP)** pelo botão Executar do VS Code ou execute:
+
+```powershell
+dotnet run --project .\EduAssess\EduAssess.csproj --launch-profile "Front + API (HTTP)"
+```
+
+O perfil abre a aplicação em `http://localhost:5062/login`. Acesse com o e-mail e a senha de Admin configurados acima. O primeiro banco de desenvolvimento é criado em `EduAssess/eduassess-local.db`, persiste entre execuções e fica ignorado pelo Git; não é um banco temporário nem é enviado ao repositório. A conta Admin de bootstrap só é criada se esse banco estiver vazio.
+
 ## Cadastro e hierarquia de perfis
 
 - Qualquer visitante pode criar uma conta em `/cadastro`; ela recebe somente o perfil neutro `User`.
@@ -32,4 +57,5 @@ As operações protegidas do painel revalidam no banco se a conta continua ativa
 
 ```powershell
 dotnet build .\EduAssess\EduAssess.csproj
+dotnet test .\EduAssess.slnx
 ```
