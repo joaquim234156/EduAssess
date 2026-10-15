@@ -1,0 +1,95 @@
+@page "/cadastro"
+@inject AccountRegistrationService Accounts
+@inject NavigationManager Navigation
+
+<PageTitle>Criar conta | EduAssess</PageTitle>
+<div class="login-page">
+    <section class="login-brand-panel">
+        <a class="brand login-brand" href="/"><span class="brand-mark">E</span><span>Edu<span>Assess</span><small>GESTÃO ACADÊMICA</small></span></a>
+        <div class="login-message">
+            <div class="login-kicker">SEU PRÓXIMO PASSO</div>
+            <h1>Crie sua conta<br />na EduAssess.</h1>
+            <p>Depois do cadastro, um Admin, Gestor ou Professor poderá atribuir seu perfil acadêmico.</p>
+        </div>
+        <div class="login-footnote">EDUASSESS <span>•</span> PLATAFORMA EDUCACIONAL</div>
+    </section>
+    <section class="login-form-panel">
+        <div class="login-form-wrap">
+            <div class="eyebrow">NOVO CADASTRO</div>
+            <h2>Criar uma conta</h2>
+            <p class="muted">Contas novas não recebem perfil privilegiado automaticamente.</p>
+            @if (!string.IsNullOrWhiteSpace(message))
+            {
+                <div class="alert @alertClass">@message</div>
+            }
+            @if (created)
+            {
+                <a class="button button-primary login-submit" href="/login">Ir para entrar <span>→</span></a>
+            }
+            else
+            {
+                <EditForm Model="form" OnValidSubmit="RegisterAsync">
+                    <DataAnnotationsValidator />
+                    <label class="field-label">Nome completo</label>
+                    <InputText class="text-input" @bind-Value="form.Name" autocomplete="name" />
+                    <ValidationMessage For="@(() => form.Name)" />
+                    <label class="field-label">E-mail</label>
+                    <InputText class="text-input" @bind-Value="form.Email" autocomplete="email" />
+                    <ValidationMessage For="@(() => form.Email)" />
+                    <div class="form-row">
+                        <div><label class="field-label">CPF</label><InputText class="text-input" @bind-Value="form.Cpf" inputmode="numeric" /><ValidationMessage For="@(() => form.Cpf)" /></div>
+                        <div><label class="field-label">Telefone</label><InputText class="text-input" @bind-Value="form.Phone" inputmode="numeric" autocomplete="tel" /><ValidationMessage For="@(() => form.Phone)" /></div>
+                    </div>
+                    <label class="field-label">Data de nascimento</label>
+                    <InputDate class="text-input" @bind-Value="form.BirthDate" />
+                    <ValidationMessage For="@(() => form.BirthDate)" />
+                    <label class="field-label">Senha</label>
+                    <InputText class="text-input" @bind-Value="form.Password" type="password" autocomplete="new-password" />
+                    <ValidationMessage For="@(() => form.Password)" />
+                    <label class="field-label">Confirmar senha</label>
+                    <InputText class="text-input" @bind-Value="form.ConfirmPassword" type="password" autocomplete="new-password" />
+                    <ValidationMessage For="@(() => form.ConfirmPassword)" />
+                    <button class="button button-primary login-submit" type="submit" disabled="@busy">@(busy ? "Criando conta..." : "Criar conta") <span>→</span></button>
+                </EditForm>
+                <p class="muted">Já tem uma conta? <a href="/login">Entrar</a></p>
+            }
+        </div>
+    </section>
+</div>
+
+@code {
+    private AccountRegistrationForm form = new();
+    private string? message;
+    private string alertClass = "alert-success";
+    private bool busy;
+    private bool created;
+
+    private async Task RegisterAsync()
+    {
+        busy = true;
+        message = null;
+        try
+        {
+            await Accounts.RegisterUserAsync(
+                form.Name, form.Email, form.Cpf, form.Phone, form.BirthDate,
+                form.Password, form.ConfirmPassword);
+            message = "Conta criada. Aguarde um Admin, Gestor ou Professor atribuir seu perfil de aluno.";
+            alertClass = "alert-success";
+            created = true;
+        }
+        catch (AccountConflictException ex)
+        {
+            message = ex.Message;
+            alertClass = "alert-error";
+        }
+        catch (ArgumentException ex)
+        {
+            message = ex.Message;
+            alertClass = "alert-error";
+        }
+        finally
+        {
+            busy = false;
+        }
+    }
+}

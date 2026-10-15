@@ -27,14 +27,14 @@ namespace EduAssess.Application.Routes
                         message = "Matricula registrada com sucesso",
                         matricula = new {matricula.Id, matricula.UsuarioId, matricula.TurmaId, matricula.DataMatricula}
                     });
-                }).RequireAuthorization("Gestao", "Admin");
+                }).RequireAuthorization("Gestao");
 
             route.MapGet("matriculas",
                 async (AppDbContext context) =>
                 {
                     var matriculas = await context.Matriculas.Select(m => new MatriculaResponseDTO(m.Id, m.UsuarioId, m.TurmaId, m.DataMatricula)).ToListAsync();
                     return Results.Ok(matriculas);
-                }).RequireAuthorization("Gestao", "Admin");
+                }).RequireAuthorization("Gestao");
         }
     }
 }

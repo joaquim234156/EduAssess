@@ -8,7 +8,6 @@
         {
             Id = Guid.NewGuid();
             MatriculaId = matriculaId;
-            //UsuarioId = usuarioId;
             Descricao = descricao;
             Valor = valor;
             DataLancamento = DateTime.UtcNow;

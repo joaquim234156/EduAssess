@@ -4,11 +4,11 @@ using Microsoft.EntityFrameworkCore;
 
 namespace EduAssess.Web;
 
-public sealed class AcademicDashboardService(AppDbContext db, UiSession session)
+public sealed class AcademicDashboardService(AppDbContext db, UiSession session, AccountRegistrationService accounts)
 {
     public async Task<DashboardSummary> GetDashboardAsync()
     {
-        EnsureSignedIn();
+        await EnsureManagementAsync();
         var recentEnrollments = await db.Matriculas
             .AsNoTracking()
             .OrderByDescending(x => x.DataMatricula)
@@ -32,7 +32,7 @@ public sealed class AcademicDashboardService(AppDbContext db, UiSession session)
 
     public async Task<List<CourseRow>> GetCoursesAsync()
     {
-        EnsureSignedIn();
+        await EnsureManagementAsync();
         return await db.Cursos.AsNoTracking().Where(x => x.Ativo)
             .OrderBy(x => x.Nome)
             .Select(x => new CourseRow(x.Id, x.Nome, x.Descricao, x.DuracaoEmAnos))
@@ -41,7 +41,7 @@ public sealed class AcademicDashboardService(AppDbContext db, UiSession session)
 
     public async Task SaveCourseAsync(Guid? id, string name, string description, int duration)
     {
-        session.RequireManagement();
+        await session.RequireManagementAsync();
         if (string.IsNullOrWhiteSpace(name) || name.Trim().Length < 3)
             throw new ArgumentException("Informe um nome de curso com pelo menos 3 caracteres.");
         if (duration < 1)
@@ -67,7 +67,7 @@ public sealed class AcademicDashboardService(AppDbContext db, UiSession session)
 
     public async Task DisableCourseAsync(Guid id)
     {
-        session.RequireManagement();
+        await session.RequireManagementAsync();
         var course = await db.Cursos.FirstOrDefaultAsync(x => x.Id == id && x.Ativo)
             ?? throw new InvalidOperationException("O curso não foi encontrado.");
         course.Disable();
@@ -76,7 +76,7 @@ public sealed class AcademicDashboardService(AppDbContext db, UiSession session)
 
     public async Task<List<PersonRow>> GetStudentsAsync()
     {
-        EnsureSignedIn();
+        await session.RequireStudentAssignmentAsync();
         return await db.Users.AsNoTracking()
             .Where(x => x.Ativa && x.Role == UserRole.Aluno)
             .OrderBy(x => x.Name)
@@ -84,58 +84,40 @@ public sealed class AcademicDashboardService(AppDbContext db, UiSession session)
             .ToListAsync();
     }
 
-    public async Task CreateStudentAsync(string name, string email, string cpf, string phone, DateOnly birthDate, string password)
+    public async Task<List<PersonRow>> GetPendingStudentAssignmentsAsync()
     {
-        session.RequireManagement();
-        if (string.IsNullOrWhiteSpace(name) || name.Trim().Length < 3)
-            throw new ArgumentException("Informe um nome com pelo menos 3 caracteres.");
-        if (string.IsNullOrWhiteSpace(email) || !email.Contains('@'))
-            throw new ArgumentException("Informe um e-mail válido.");
-        if (cpf.Length != 11 || !cpf.All(char.IsDigit))
-            throw new ArgumentException("O CPF deve conter 11 números.");
-        if (phone.Length is < 10 or > 11 || !phone.All(char.IsDigit))
-            throw new ArgumentException("O telefone deve conter 10 ou 11 números.");
-        if (password.Length < 8)
-            throw new ArgumentException("A senha deve ter no mínimo 8 caracteres.");
-        if (await db.Users.AnyAsync(x => x.Email == email.Trim()))
-            throw new ArgumentException("Já existe um usuário com esse e-mail.");
+        await session.RequireStudentAssignmentAsync();
+        return await accounts.GetPendingStudentAssignmentsAsync(session.User!.Role);
+    }
 
-        db.Users.Add(new UserModel(name.Trim(), email.Trim(), cpf, phone, birthDate, password, UserRole.Aluno));
-        await db.SaveChangesAsync();
+    public async Task AssignAsStudentAsync(Guid userId)
+    {
+        await session.RequireStudentAssignmentAsync();
+        await accounts.AssignAsStudentAsync(session.User!.Role, userId);
     }
 
     public async Task<List<InstructorRow>> GetInstructorsAsync()
     {
-        EnsureSignedIn();
+        await EnsureManagementAsync();
         return await db.Users.AsNoTracking().Where(x => x.Ativa && x.Role == UserRole.Professor)
             .OrderBy(x => x.Name)
             .Select(x => new InstructorRow(x.Id, x.Name))
             .ToListAsync();
     }
 
-    public async Task CreateInstructorAsync(string name, string email, string cpf, string phone, DateOnly birthDate, string password)
+    public async Task CreateInstructorAsync(
+        string name, string email, string cpf, string phone, DateOnly birthDate,
+        string password, string confirmPassword)
     {
-        session.RequireManagement();
-        if (string.IsNullOrWhiteSpace(name) || name.Trim().Length < 3)
-            throw new ArgumentException("Informe um nome com pelo menos 3 caracteres.");
-        if (string.IsNullOrWhiteSpace(email) || !email.Contains('@'))
-            throw new ArgumentException("Informe um e-mail válido.");
-        if (cpf.Length != 11 || !cpf.All(char.IsDigit))
-            throw new ArgumentException("O CPF deve conter 11 números.");
-        if (phone.Length is < 10 or > 11 || !phone.All(char.IsDigit))
-            throw new ArgumentException("O telefone deve conter 10 ou 11 números.");
-        if (password.Length < 8)
-            throw new ArgumentException("A senha deve ter no mínimo 8 caracteres.");
-        if (await db.Users.AnyAsync(x => x.Email == email.Trim()))
-            throw new ArgumentException("Já existe um usuário com esse e-mail.");
-
-        db.Users.Add(new UserModel(name.Trim(), email.Trim(), cpf, phone, birthDate, password, UserRole.Professor));
-        await db.SaveChangesAsync();
+        await session.RequireManagementAsync();
+        await accounts.CreateProfessorAsync(
+            session.User!.Role,
+            name, email, cpf, phone, birthDate, password, confirmPassword);
     }
 
     public async Task<List<ClassRow>> GetClassesAsync()
     {
-        EnsureSignedIn();
+        await EnsureManagementAsync();
         return await db.Turmas.AsNoTracking().Where(x => x.Ativo)
             .OrderBy(x => x.Nome)
             .Select(x => new ClassRow(x.Id, x.Nome, x.Curso.Nome, x.Professor.Name, x.Periodo))
@@ -144,7 +126,7 @@ public sealed class AcademicDashboardService(AppDbContext db, UiSession session)
 
     public async Task CreateClassAsync(string name, Guid courseId, Guid instructorId)
     {
-        session.RequireManagement();
+        await session.RequireManagementAsync();
         if (string.IsNullOrWhiteSpace(name))
             throw new ArgumentException("Informe o nome da turma.");
         var courseExists = await db.Cursos.AnyAsync(x => x.Id == courseId && x.Ativo);
@@ -162,7 +144,7 @@ public sealed class AcademicDashboardService(AppDbContext db, UiSession session)
 
     public async Task<List<EnrollmentRow>> GetEnrollmentsAsync()
     {
-        EnsureSignedIn();
+        await EnsureManagementAsync();
         return await db.Matriculas.AsNoTracking()
             .OrderByDescending(x => x.DataMatricula)
             .Select(x => new EnrollmentRow(
@@ -177,7 +159,7 @@ public sealed class AcademicDashboardService(AppDbContext db, UiSession session)
 
     public async Task CreateEnrollmentAsync(Guid studentId, Guid classId)
     {
-        session.RequireManagement();
+        await session.RequireManagementAsync();
         if (!await db.Users.AnyAsync(x => x.Id == studentId && x.Ativa && x.Role == UserRole.Aluno))
             throw new ArgumentException("Selecione um aluno ativo.");
         if (!await db.Turmas.AnyAsync(x => x.Id == classId && x.Ativo))
@@ -191,7 +173,7 @@ public sealed class AcademicDashboardService(AppDbContext db, UiSession session)
 
     public async Task<List<GradeRow>> GetGradesAsync()
     {
-        EnsureSignedIn();
+        await EnsureManagementAsync();
         return await db.Notas.AsNoTracking()
             .OrderByDescending(x => x.DataLancamento)
             .Select(x => new GradeRow(
@@ -206,7 +188,7 @@ public sealed class AcademicDashboardService(AppDbContext db, UiSession session)
 
     public async Task<List<EnrollmentOption>> GetEnrollmentOptionsAsync()
     {
-        EnsureSignedIn();
+        await EnsureManagementAsync();
         return await db.Matriculas.AsNoTracking().Where(x => x.Ativa)
             .OrderBy(x => x.Usuario.Name)
             .Select(x => new EnrollmentOption(x.Id, x.Usuario.Name + " — " + x.Turma.Nome))
@@ -215,7 +197,7 @@ public sealed class AcademicDashboardService(AppDbContext db, UiSession session)
 
     public async Task CreateGradeAsync(Guid enrollmentId, string description, decimal value)
     {
-        session.RequireManagement();
+        await session.RequireManagementAsync();
         if (string.IsNullOrWhiteSpace(description))
             throw new ArgumentException("Informe a descrição da avaliação.");
 
@@ -223,15 +205,14 @@ public sealed class AcademicDashboardService(AppDbContext db, UiSession session)
             .FirstOrDefaultAsync(x => x.Id == enrollmentId && x.Ativa)
             ?? throw new ArgumentException("Selecione uma matrícula ativa.");
 
-        db.Notas.Add(new NotaModel(enrollmentId, enrollment.UsuarioId, description.Trim(), value));
+        db.Notas.Add(new NotaModel(enrollmentId, description.Trim(), value)
+        {
+            UsuarioId = enrollment.UsuarioId
+        });
         await db.SaveChangesAsync();
     }
 
-    private void EnsureSignedIn()
-    {
-        if (!session.IsSignedIn)
-            throw new UnauthorizedAccessException("Faça login para visualizar os dados acadêmicos.");
-    }
+    private Task EnsureManagementAsync() => session.RequireManagementAsync();
 }
 
 public sealed record DashboardSummary(int CourseCount, int ClassCount, int StudentCount, int EnrollmentCount, List<EnrollmentRow> RecentEnrollments);
