@@ -4,11 +4,11 @@
     {
         protected NotaModel() { }
 
-        public NotaModel(Guid matriculaId, Guid usuarioId, string descricao, decimal valor)
+        public NotaModel(Guid matriculaId, string descricao, decimal valor)
         {
             Id = Guid.NewGuid();
             MatriculaId = matriculaId;
-            UsuarioId = usuarioId;
+            //UsuarioId = usuarioId;
             Descricao = descricao;
             Valor = valor;
             DataLancamento = DateTime.UtcNow;
