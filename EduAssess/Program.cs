@@ -7,14 +7,22 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Internal;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
+using System.Threading.RateLimiting;
 using System.Text;
+using System.Security.Cryptography;
 using EduAssess.Routes.TurmaRoutes;
 using EduAssess.Components;
 using EduAssess.Web;
+using System.ComponentModel.DataAnnotations;
 
 var builder = WebApplication.CreateBuilder(args);
 
-var key = builder.Configuration.GetValue<string>("JwtSettings:Secret");
+var key = builder.Configuration["JwtSettings:Secret"];
+if (string.IsNullOrWhiteSpace(key) || Encoding.UTF8.GetByteCount(key) < 32)
+    throw new InvalidOperationException("Configure JwtSettings:Secret com pelo menos 32 bytes usando um secret manager ou variável de ambiente.");
+var keyFingerprint = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(key)));
+if (keyFingerprint == "0FF4E66D64D9C80091BCCA39698054BCD5E0F37A27302C5655CED5D3DEC19C16")
+    throw new InvalidOperationException("JwtSettings:Secret corresponde a uma chave comprometida do histórico Git. Gere e configure uma chave nova.");
 
 builder.Services.ConfigureHttpJsonOptions(options =>
 {
@@ -29,12 +37,11 @@ builder.Services.AddAuthentication(options =>
 })
 .AddJwtBearer(options =>
 {
-    options.RequireHttpsMetadata = false;
-    options.SaveToken = true;
+    options.RequireHttpsMetadata = true;
     options.TokenValidationParameters = new TokenValidationParameters
     {
         ValidateIssuerSigningKey = true,
-        IssuerSigningKey = new SymmetricSecurityKey(Encoding.ASCII.GetBytes(key!)),
+        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(key)),
         ValidateIssuer = false,
         ValidateAudience = false
     };
@@ -42,9 +49,25 @@ builder.Services.AddAuthentication(options =>
 
 builder.Services.AddAuthorization(options =>
 {
-    // O nome da política agora é "Admin"
-    options.AddPolicy("Admin", policy => policy.RequireRole("Admin", "Gestor"));
+    options.AddPolicy("Admin", policy => policy.RequireRole("Admin"));
+    options.AddPolicy("Gestor", policy => policy.RequireRole("Gestor"));
+    options.AddPolicy("Gestao", policy => policy.RequireRole("Admin", "Gestor"));
+    options.AddPolicy("AtribuirAluno", policy => policy.RequireRole("Admin", "Gestor", "Professor"));
     options.AddPolicy("Professor", policy => policy.RequireRole("Professor"));
+});
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    options.AddPolicy("public-auth", context =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 10,
+                Window = TimeSpan.FromMinutes(1),
+                QueueLimit = 0,
+                AutoReplenishment = true
+            }));
 });
 
 builder.Services.AddControllers();
@@ -52,6 +75,7 @@ builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 builder.Services.AddScoped<UiSession>();
 builder.Services.AddScoped<AcademicDashboardService>();
+builder.Services.AddScoped<AccountRegistrationService>();
 
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
@@ -107,6 +131,7 @@ app.TurmaRoutes();
 
 app.UseHttpsRedirection();
 app.UseStaticFiles();
+app.UseRateLimiter();
 
 app.UseAuthentication();
 app.UseAuthorization();
@@ -123,18 +148,29 @@ using (var scope = app.Services.CreateScope())
     // Garante que o banco de dados e as migrations foram aplicados
     context.Database.Migrate(); 
 
-    // Se não existir nenhum usuário registrado, cria o Admin padrão
+    // The first administrator must be provisioned through deployment secrets.
     if (!context.Users.Any())
     {
+        var adminEmail = app.Configuration["BootstrapAdmin:Email"];
+        var adminPassword = app.Configuration["BootstrapAdmin:Password"];
+        if (string.IsNullOrWhiteSpace(adminEmail)
+            || string.IsNullOrWhiteSpace(adminPassword)
+            || adminEmail.Length > 150
+            || !new EmailAddressAttribute().IsValid(adminEmail)
+            || adminPassword.Length < 12
+            || Encoding.UTF8.GetByteCount(adminPassword) > 72)
+        {
+            throw new InvalidOperationException("Configure BootstrapAdmin:Email e uma senha entre 12 e 72 bytes para provisionar o primeiro administrador.");
+        }
+
         var adminUser = new UserModel(
             name: "Admin",
-            email: "admin@eduassess.com",
+            email: adminEmail,
             cpf: "00000000000",
             tel: "0000000000",
-            dataNascimento: DateOnly.FromDateTime(new DateTime(1990, 1, 1, 0, 0, 0, DateTimeKind.Utc)),
-            password: "Admin1234", // Troque por uma senha forte
-            role: UserRole.Admin
-        );
+            dataNascimento: new DateOnly(1990, 1, 1),
+            password: adminPassword,
+            role: UserRole.Admin);
 
         context.Users.Add(adminUser);
         context.SaveChanges();
