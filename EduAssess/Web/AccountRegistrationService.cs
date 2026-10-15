@@ -1,13 +1,13 @@
 using System.ComponentModel.DataAnnotations;
+using System.Data;
 using System.Text;
 using EduAssess.Data;
 using EduAssess.Models;
-using EduAssess.Models.Local;
 using Microsoft.EntityFrameworkCore;
 
 namespace EduAssess.Web;
 
-public sealed class AccountRegistrationService(IDbContextFactory<AppDbContext> dbFactory)
+public sealed class AccountRegistrationService(AppDbContext db)
 {
     public Task<UserModel> RegisterUserAsync(
         string name, string email, string cpf, string phone, DateOnly birthDate,
@@ -38,7 +38,6 @@ public sealed class AccountRegistrationService(IDbContextFactory<AppDbContext> d
         UserRole actorRole, CancellationToken cancellationToken = default)
     {
         EnsureCanAssignStudent(actorRole);
-        await using var db = await dbFactory.CreateDbContextAsync(cancellationToken);
         return await db.Users.AsNoTracking()
             .Where(x => x.Ativa && x.Role == UserRole.User)
             .OrderBy(x => x.Name)
@@ -50,7 +49,6 @@ public sealed class AccountRegistrationService(IDbContextFactory<AppDbContext> d
         UserRole actorRole, Guid userId, CancellationToken cancellationToken = default)
     {
         EnsureCanAssignStudent(actorRole);
-        await using var db = await dbFactory.CreateDbContextAsync(cancellationToken);
         var user = await db.Users.FirstOrDefaultAsync(x => x.Id == userId && x.Ativa, cancellationToken)
             ?? throw new KeyNotFoundException("A conta não foi encontrada.");
 
@@ -62,12 +60,10 @@ public sealed class AccountRegistrationService(IDbContextFactory<AppDbContext> d
         string name, string email, string cpf, string phone, DateOnly birthDate,
         string password, string confirmPassword, UserRole role, CancellationToken cancellationToken)
     {
-        cpf = UiFormat.Digits(cpf);
-        phone = UiFormat.Digits(phone);
         Validate(name, email, cpf, phone, birthDate, password, confirmPassword);
 
         var normalizedEmail = email.Trim().ToLowerInvariant();
-        await using var db = await dbFactory.CreateDbContextAsync(cancellationToken);
+        await using var transaction = await db.Database.BeginTransactionAsync(IsolationLevel.Serializable, cancellationToken);
         if (await db.Users.AnyAsync(x => x.Email.ToLower() == normalizedEmail, cancellationToken))
             throw new AccountConflictException("Já existe uma conta com esse e-mail.");
         if (await db.Users.AnyAsync(x => x.Cpf == cpf, cancellationToken))
@@ -76,6 +72,7 @@ public sealed class AccountRegistrationService(IDbContextFactory<AppDbContext> d
         var user = new UserModel(name.Trim(), normalizedEmail, cpf, phone, birthDate, password, role);
         db.Users.Add(user);
         await db.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
         return user;
     }
 
