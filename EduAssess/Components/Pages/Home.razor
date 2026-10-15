@@ -56,9 +56,9 @@ else
 
     protected override async Task OnInitializedAsync()
     {
-        if (!Session.IsSignedIn)
+        if (!Session.CanManage)
         {
-            Navigation.NavigateTo("/login");
+            Navigation.NavigateTo(Session.CanAssignStudents ? "/alunos" : "/login");
             return;
         }
 
