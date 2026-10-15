@@ -1,0 +1,82 @@
+@page "/turmas"
+@inject UiSession Session
+@inject AcademicDashboardService Academic
+@inject NavigationManager Navigation
+
+<PageTitle>Turmas | EduAssess</PageTitle>
+<div class="page-heading"><div><div class="eyebrow">ORGANIZAÇÃO ACADÊMICA</div><h1>Turmas</h1><p>Conecte cada formação aos professores e estudantes.</p></div></div>
+@if (!string.IsNullOrWhiteSpace(message)) { <div class="alert @alertClass">@message</div> }
+<div class="page-columns">
+    @if (Session.CanManage)
+    {
+        <section class="panel form-panel">
+            <div class="panel-heading"><div><h2>Nova turma</h2><p>Escolha um curso e um professor.</p></div></div>
+            <EditForm Model="form" OnValidSubmit="CreateAsync">
+                <DataAnnotationsValidator />
+                <label class="field-label">Nome da turma</label><InputText class="text-input" @bind-Value="form.Name" placeholder="Ex.: Administração — Noite" /><ValidationMessage For="@(() => form.Name)" />
+                <label class="field-label">Curso</label><InputSelect class="text-input" @bind-Value="form.CourseId"><option value="">Selecione um curso</option>@foreach (var course in courses) { <option value="@course.Id">@course.Name</option> }</InputSelect><ValidationMessage For="@(() => form.CourseId)" />
+                <label class="field-label">Professor</label><InputSelect class="text-input" @bind-Value="form.InstructorId"><option value="">Selecione um professor</option>@foreach (var teacher in instructors) { <option value="@teacher.Id">@teacher.Name</option> }</InputSelect><ValidationMessage For="@(() => form.InstructorId)" />
+                <button class="button button-primary full-button" type="submit">Criar turma</button>
+                @if (instructors.Count == 0) { <div class="form-hint">Cadastre um usuário com perfil Professor antes de criar turmas.</div> }
+            </EditForm>
+        </section>
+    }
+    <section class="panel list-panel">
+        <div class="panel-heading"><div><h2>Turmas cadastradas</h2><p>Turmas ativas e seus responsáveis</p></div><span class="count-pill">@classes.Count</span></div>
+        @if (classes.Count == 0) { <div class="empty-state"><div class="empty-icon">▦</div><strong>Nenhuma turma cadastrada</strong><span>Crie uma turma para organizar seus alunos.</span></div> }
+        else
+        {
+            <div class="table-wrap"><table><thead><tr><th>TURMA</th><th>CURSO</th><th>PROFESSOR</th><th>PERÍODO</th></tr></thead><tbody>
+                @foreach (var item in classes)
+                {
+                    <tr><td><div class="table-person"><span class="class-avatar">▦</span><strong>@item.Name</strong></div></td><td>@item.CourseName</td><td>@item.InstructorName</td><td><span class="badge badge-violet">Período @item.Period</span></td></tr>
+                }
+            </tbody></table></div>
+        }
+    </section>
+</div>
+
+@code {
+    private List<ClassRow> classes = [];
+    private List<CourseRow> courses = [];
+    private List<InstructorRow> instructors = [];
+    private ClassForm form = new();
+    private string? message;
+    private string alertClass = "alert-success";
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!Session.IsSignedIn) { Navigation.NavigateTo("/login"); return; }
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        classes = await Academic.GetClassesAsync();
+        courses = await Academic.GetCoursesAsync();
+        instructors = await Academic.GetInstructorsAsync();
+    }
+
+    private async Task CreateAsync()
+    {
+        try
+        {
+            if (form.CourseId == Guid.Empty || form.InstructorId == Guid.Empty)
+                throw new ArgumentException("Selecione um curso e um professor.");
+            await Academic.CreateClassAsync(form.Name, form.CourseId, form.InstructorId);
+            message = "Turma criada com sucesso.";
+            alertClass = "alert-success";
+            form = new ClassForm();
+            await LoadAsync();
+        }
+        catch (Exception ex) when (ex is ArgumentException or UnauthorizedAccessException)
+        { message = ex.Message; alertClass = "alert-error"; }
+    }
+
+    private sealed class ClassForm
+    {
+        [Required(ErrorMessage = "Informe o nome da turma.")][StringLength(150)] public string Name { get; set; } = "";
+        [Required(ErrorMessage = "Selecione um curso.")] public Guid CourseId { get; set; }
+        [Required(ErrorMessage = "Selecione um professor.")] public Guid InstructorId { get; set; }
+    }
+}
