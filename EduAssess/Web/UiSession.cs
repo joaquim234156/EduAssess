@@ -21,11 +21,9 @@ public sealed class UiSession(AppDbContext db)
         var user = await db.Users.FirstOrDefaultAsync(x => x.Email.ToLower() == normalizedEmail && x.Ativa);
         if (user is null
             || !user.VerifyPassword(password)
-<<<<<<< HEAD
+
             || user.Role is not (UserRole.Admin or UserRole.Gestor or UserRole.Professor or UserRole.Aluno))
-=======
-            || user.Role is not (UserRole.Admin or UserRole.Gestor or UserRole.Professor))
->>>>>>> c5273ce8581d71745d0fb82dc8b00b7babe00c1e
+
             return false;
 
         User = new UserSummary(user.Id, user.Name, user.Email, user.Role);
@@ -75,6 +73,7 @@ public sealed class UiSession(AppDbContext db)
         if (!CanAssignStudents)
             throw new UnauthorizedAccessException("Esta ação exige perfil de Admin, Gestor ou Professor.");
     }
+
 }
 
 public sealed record UserSummary(Guid Id, string Name, string Email, UserRole Role);

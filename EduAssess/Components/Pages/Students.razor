@@ -1,6 +1,7 @@
 @page "/alunos"
 @inject UiSession Session
 @inject AcademicDashboardService Academic
+@inject AccountRegistrationService Accounts
 @inject NavigationManager Navigation
 
 <PageTitle>Alunos | EduAssess</PageTitle>
@@ -58,18 +59,18 @@
         await LoadAsync();
     }
 
-    private async Task LoadAsync()
-    {
-        students = await Academic.GetStudentsAsync();
-        pendingUsers = await Academic.GetPendingStudentAssignmentsAsync();
-    }
+private async Task LoadAsync()
+{
+    students = await Academic.GetStudentsAsync();
+    pendingUsers = await Accounts.GetPendingStudentAssignmentsAsync(Session.User!.Role);
+}
 
     private async Task AssignAsStudentAsync(Guid userId)
     {
         busy = true;
         try
         {
-            await Academic.AssignAsStudentAsync(userId);
+            await Accounts.AssignAsStudentAsync(Session.User!.Role, userId);
             message = "Perfil de aluno atribuído com sucesso.";
             alertClass = "alert-success";
             await LoadAsync();
