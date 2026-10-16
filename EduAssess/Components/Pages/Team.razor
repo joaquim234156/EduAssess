@@ -93,8 +93,8 @@
     {
         await CreateAsync(async () =>
         {
-            await Academic.CreateInstructorAsync(
-                professorForm.Name, professorForm.Email, professorForm.Cpf, professorForm.Phone,
+            await Accounts.CreateProfessorAsync(
+                Session.User!.Role, professorForm.Name, professorForm.Email, professorForm.Cpf, professorForm.Phone,
                 professorForm.BirthDate, professorForm.Password, professorForm.ConfirmPassword);
             professorForm = new AccountRegistrationForm();
             message = "Professor cadastrado com sucesso.";

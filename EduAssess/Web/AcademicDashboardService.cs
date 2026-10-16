@@ -41,7 +41,7 @@ public sealed class AcademicDashboardService(AppDbContext db, UiSession session)
 
     public async Task SaveCourseAsync(Guid? id, string name, string description, int duration)
     {
-        session.RequireManagement();
+        await session.RequireManagementAsync();
         if (string.IsNullOrWhiteSpace(name) || name.Trim().Length < 3)
             throw new ArgumentException("Informe um nome de curso com pelo menos 3 caracteres.");
         if (duration < 1)
@@ -67,7 +67,7 @@ public sealed class AcademicDashboardService(AppDbContext db, UiSession session)
 
     public async Task DisableCourseAsync(Guid id)
     {
-        session.RequireManagement();
+        await session.RequireManagementAsync();
         var course = await db.Cursos.FirstOrDefaultAsync(x => x.Id == id && x.Ativo)
             ?? throw new InvalidOperationException("O curso não foi encontrado.");
         course.Disable();
@@ -86,7 +86,7 @@ public sealed class AcademicDashboardService(AppDbContext db, UiSession session)
 
     public async Task CreateStudentAsync(string name, string email, string cpf, string phone, DateOnly birthDate, string password)
     {
-        session.RequireManagement();
+        await session.RequireManagementAsync();
         if (string.IsNullOrWhiteSpace(name) || name.Trim().Length < 3)
             throw new ArgumentException("Informe um nome com pelo menos 3 caracteres.");
         if (string.IsNullOrWhiteSpace(email) || !email.Contains('@'))
@@ -115,7 +115,7 @@ public sealed class AcademicDashboardService(AppDbContext db, UiSession session)
 
     public async Task CreateInstructorAsync(string name, string email, string cpf, string phone, DateOnly birthDate, string password)
     {
-        session.RequireManagement();
+        await session.RequireManagementAsync();
         if (string.IsNullOrWhiteSpace(name) || name.Trim().Length < 3)
             throw new ArgumentException("Informe um nome com pelo menos 3 caracteres.");
         if (string.IsNullOrWhiteSpace(email) || !email.Contains('@'))
@@ -144,7 +144,7 @@ public sealed class AcademicDashboardService(AppDbContext db, UiSession session)
 
     public async Task CreateClassAsync(string name, Guid courseId, Guid instructorId)
     {
-        session.RequireManagement();
+        await session.RequireManagementAsync();
         if (string.IsNullOrWhiteSpace(name))
             throw new ArgumentException("Informe o nome da turma.");
         var courseExists = await db.Cursos.AnyAsync(x => x.Id == courseId && x.Ativo);
@@ -177,7 +177,7 @@ public sealed class AcademicDashboardService(AppDbContext db, UiSession session)
 
     public async Task CreateEnrollmentAsync(Guid studentId, Guid classId)
     {
-        session.RequireManagement();
+        await session.RequireManagementAsync();
         if (!await db.Users.AnyAsync(x => x.Id == studentId && x.Ativa && x.Role == UserRole.Aluno))
             throw new ArgumentException("Selecione um aluno ativo.");
         if (!await db.Turmas.AnyAsync(x => x.Id == classId && x.Ativo))
@@ -224,7 +224,7 @@ public sealed class AcademicDashboardService(AppDbContext db, UiSession session)
 
     public async Task CreateGradeAsync(Guid enrollmentId, Guid userId, Guid disciplinaId, string description, decimal value)
     {
-        session.RequireManagement();
+        await session.RequireManagementAsync();
         if (string.IsNullOrWhiteSpace(description))
             throw new ArgumentException("Informe a descrição da avaliação.");
         if (!await db.Matriculas.AnyAsync(x => x.Id == enrollmentId && x.Ativa))
