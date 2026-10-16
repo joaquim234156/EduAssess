@@ -86,9 +86,19 @@ public sealed class AcademicDashboardService(AppDbContext db, UiSession session,
 
     public async Task<List<PersonRow>> GetPendingStudentAssignmentsAsync()
     {
-        await session.RequireStudentAssignmentAsync();
-        return await accounts.GetPendingStudentAssignmentsAsync(session.User!.Role);
-    }
+        await session.RequireManagementAsync();
+        if (string.IsNullOrWhiteSpace(name) || name.Trim().Length < 3)
+            throw new ArgumentException("Informe um nome com pelo menos 3 caracteres.");
+        if (string.IsNullOrWhiteSpace(email) || !email.Contains('@'))
+            throw new ArgumentException("Informe um e-mail válido.");
+        if (cpf.Length != 11 || !cpf.All(char.IsDigit))
+            throw new ArgumentException("O CPF deve conter 11 números.");
+        if (phone.Length is < 10 or > 11 || !phone.All(char.IsDigit))
+            throw new ArgumentException("O telefone deve conter 10 ou 11 números.");
+        if (password.Length < 8)
+            throw new ArgumentException("A senha deve ter no mínimo 8 caracteres.");
+        if (await db.Users.AnyAsync(x => x.Email == email.Trim()))
+            throw new ArgumentException("Já existe um usuário com esse e-mail.");
 
     public async Task AssignAsStudentAsync(Guid userId)
     {
@@ -110,9 +120,21 @@ public sealed class AcademicDashboardService(AppDbContext db, UiSession session,
         string password, string confirmPassword)
     {
         await session.RequireManagementAsync();
-        await accounts.CreateProfessorAsync(
-            session.User!.Role,
-            name, email, cpf, phone, birthDate, password, confirmPassword);
+        if (string.IsNullOrWhiteSpace(name) || name.Trim().Length < 3)
+            throw new ArgumentException("Informe um nome com pelo menos 3 caracteres.");
+        if (string.IsNullOrWhiteSpace(email) || !email.Contains('@'))
+            throw new ArgumentException("Informe um e-mail válido.");
+        if (cpf.Length != 11 || !cpf.All(char.IsDigit))
+            throw new ArgumentException("O CPF deve conter 11 números.");
+        if (phone.Length is < 10 or > 11 || !phone.All(char.IsDigit))
+            throw new ArgumentException("O telefone deve conter 10 ou 11 números.");
+        if (password.Length < 8)
+            throw new ArgumentException("A senha deve ter no mínimo 8 caracteres.");
+        if (await db.Users.AnyAsync(x => x.Email == email.Trim()))
+            throw new ArgumentException("Já existe um usuário com esse e-mail.");
+
+        db.Users.Add(new UserModel(name.Trim(), email.Trim(), cpf, phone, birthDate, password, UserRole.Professor));
+        await db.SaveChangesAsync();
     }
 
     public async Task<List<ClassRow>> GetClassesAsync()
