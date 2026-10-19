@@ -191,7 +191,7 @@ public sealed class AcademicDashboardService(AppDbContext db, UiSession session)
 
     public async Task<List<GradeRow>> GetGradesAsync()
     {
-        EnsureSignedIn();
+        await session.RequireManagementAsync();
         return await db.Notas.AsNoTracking()
             .OrderByDescending(x => x.DataLancamento)
             .Select(x => new GradeRow(
@@ -202,6 +202,42 @@ public sealed class AcademicDashboardService(AppDbContext db, UiSession session)
                 x.Valor,
                 x.DataLancamento))
             .ToListAsync();
+    }
+
+    public async Task<StudentDashboardSummary> GetStudentDashboardAsync()
+    {
+        await session.RequireStudentAsync();
+        var studentId = session.User!.Id;
+
+        var classes = await db.Matriculas.AsNoTracking()
+            .Where(x => x.UsuarioId == studentId)
+            .OrderByDescending(x => x.DataMatricula)
+            .Select(x => new StudentClassRow(
+                x.Id,
+                x.Turma.Nome,
+                x.Turma.Curso.Nome,
+                x.Turma.Professor.Name,
+                x.DataMatricula,
+                x.Ativa))
+            .ToListAsync();
+
+        var grades = await db.Notas.AsNoTracking()
+            .Where(x => x.Matricula.UsuarioId == studentId)
+            .OrderByDescending(x => x.DataLancamento)
+            .Select(x => new StudentGradeRow(
+                x.Descricao,
+                x.Valor,
+                x.DataLancamento,
+                x.Matricula.Turma.Nome,
+                x.Matricula.Turma.Curso.Nome))
+            .ToListAsync();
+
+        return new StudentDashboardSummary(
+            classes.Count(x => x.Active),
+            grades.Count,
+            grades.Count == 0 ? null : grades.Average(x => x.Value),
+            classes,
+            grades);
     }
 
     public async Task<List<EnrollmentOption>> GetEnrollmentOptionsAsync()
@@ -248,5 +284,8 @@ public sealed record InstructorRow(Guid Id, string Name);
 public sealed record ClassRow(Guid Id, string Name, string CourseName, string InstructorName, int Period);
 public sealed record EnrollmentRow(Guid Id, string StudentName, string ClassName, string CourseName, DateTime EnrolledAt, bool Active);
 public sealed record GradeRow(Guid Id, string StudentName, string ClassName, string Description, decimal Value, DateTime CreatedAt);
+public sealed record StudentDashboardSummary(int ActiveClassCount, int GradeCount, decimal? AverageGrade, List<StudentClassRow> Classes, List<StudentGradeRow> Grades);
+public sealed record StudentClassRow(Guid EnrollmentId, string ClassName, string CourseName, string InstructorName, DateTime EnrolledAt, bool Active);
+public sealed record StudentGradeRow(string Description, decimal Value, DateTime CreatedAt, string ClassName, string CourseName);
 public sealed record EnrollmentOption(Guid Id, Guid UserId, string Label);
 public sealed record DisciplineOption(Guid Id, string Name);

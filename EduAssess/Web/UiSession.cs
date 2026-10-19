@@ -12,6 +12,7 @@ public sealed class UiSession(AppDbContext db)
     public bool CanCreateManager => User?.Role == UserRole.Admin;
     public bool CanCreateProfessor => User?.Role == UserRole.Gestor;
     public bool CanAssignStudents => User?.Role is UserRole.Admin or UserRole.Gestor or UserRole.Professor;
+    public bool IsStudent => User?.Role == UserRole.Aluno;
 
     public event Action? Changed;
 
@@ -40,7 +41,7 @@ public sealed class UiSession(AppDbContext db)
             .SingleOrDefaultAsync(x => x.Id == User.Id);
         if (user is null
             || !user.Ativa
-            || user.Role is not (UserRole.Admin or UserRole.Gestor or UserRole.Professor))
+            || user.Role is not (UserRole.Admin or UserRole.Gestor or UserRole.Professor or UserRole.Aluno))
         {
             SignOut();
             return;
@@ -72,6 +73,13 @@ public sealed class UiSession(AppDbContext db)
         await RefreshAuthorizationAsync();
         if (!CanAssignStudents)
             throw new UnauthorizedAccessException("Esta ação exige perfil de Admin, Gestor ou Professor.");
+    }
+
+    public async Task RequireStudentAsync()
+    {
+        await RefreshAuthorizationAsync();
+        if (!IsStudent)
+            throw new UnauthorizedAccessException("Esta área é exclusiva para alunos.");
     }
 
 }
