@@ -14,7 +14,7 @@
         }
 
         public Guid Id { get; init; }
-        public Guid ProfessorId{get; private set;}
+        public Guid ProfessorId{ get; private set;}
         public string Nome { get; private set; } = null!;
         public string Descricao { get; private set; } = null!;
         public bool Ativa {get; private set;}

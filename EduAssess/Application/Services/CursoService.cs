@@ -30,7 +30,7 @@ namespace EduAssess.Application.Services
             );
         }
 
-        public async Task<IEnumerable<CursoResponseDTO>> ListarTodosAsync()
+        public async Task<IEnumerable<CursoResponseDTO>> ListarCursosAsync()
         {
             return await _context.Cursos
                 .Select(curso => new CursoResponseDTO(

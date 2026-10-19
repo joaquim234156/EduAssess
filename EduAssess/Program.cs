@@ -74,6 +74,7 @@ builder.Services.AddScoped<AccountRegistrationService>();
 
 builder.Services.AddScoped<INotaService, NotaService>();
 builder.Services.AddScoped<ICursoService, CursoService>();
+builder.Services.AddScoped<IDisciplinaService, DisciplinaService>();
 
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
