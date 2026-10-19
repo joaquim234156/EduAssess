@@ -4,15 +4,30 @@
     {
         protected DisciplinaModel() { }
 
-        public DisciplinaModel(string nome, string descricao)
+        public DisciplinaModel(string nome, string descricao, Guid professorId)
         {
             Id = Guid.NewGuid();
+            ProfessorId = professorId;
             Nome = nome;
             Descricao = descricao;
+            Ativa = true;
         }
 
         public Guid Id { get; init; }
+        public Guid ProfessorId{get; private set;}
         public string Nome { get; private set; } = null!;
         public string Descricao { get; private set; } = null!;
+        public bool Ativa {get; private set;}
+
+        public void UpdateDisciplina(string nome, string descricao, Guid professorId)
+        {
+            ProfessorId = professorId;
+            Nome = nome;
+            Descricao = descricao;
+        }
+        public void Disable()
+        {
+            Ativa = false;
+        }
     }
 }
