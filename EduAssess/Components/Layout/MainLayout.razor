@@ -2,6 +2,7 @@
 @inherits LayoutComponentBase
 @inject UiSession Session
 @inject NavigationManager Navigation
+@inject Microsoft.JSInterop.IJSRuntime JS
 
 <div class="app-shell">
     @if (Session.IsSignedIn)
@@ -32,7 +33,15 @@
         <main class="main-area">
             <header class="topbar">
                 <div><div class="eyebrow">PORTAL EDUCACIONAL</div><div class="topbar-title">Olá, @(Session.User?.Name.Split(' ')[0]) <span>✦</span></div></div>
-                <div class="topbar-right"><span class="status-dot"></span> Ambiente conectado <span class="topbar-date">@DateTime.Now.ToString("dd 'de' MMMM, yyyy", new System.Globalization.CultureInfo("pt-BR"))</span></div>
+                <div class="topbar-right">
+                    <span class="status-dot"></span>
+                    <span class="connection-status">Ambiente conectado</span>
+                    <span class="topbar-date">@DateTime.Now.ToString("dd 'de' MMMM, yyyy", new System.Globalization.CultureInfo("pt-BR"))</span>
+                    <button type="button" class="theme-toggle" @onclick="ToggleThemeAsync" aria-label="Alternar tema" aria-pressed="@isDark">
+                        <span aria-hidden="true">@(isDark ? "☀" : "☾")</span>
+                        <span>@(isDark ? "Modo claro" : "Modo escuro")</span>
+                    </button>
+                </div>
             </header>
             <div class="page-content">@Body</div>
             <footer class="footer">EduAssess <span>•</span> Plataforma de gestão acadêmica</footer>
@@ -40,6 +49,10 @@
     }
     else
     {
+        <button type="button" class="theme-toggle theme-toggle-standalone" @onclick="ToggleThemeAsync" aria-label="Alternar tema" aria-pressed="@isDark">
+            <span aria-hidden="true">@(isDark ? "☀" : "☾")</span>
+            <span>@(isDark ? "Modo claro" : "Modo escuro")</span>
+        </button>
         @Body
     }
 </div>
@@ -50,6 +63,22 @@
     protected override void OnInitialized() => Session.Changed += OnSessionChanged;
 
     private void OnSessionChanged() => _ = InvokeAsync(StateHasChanged);
+
+    private bool isDark;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            isDark = await JS.InvokeAsync<bool>("eduAssessTheme.isDark", Array.Empty<object>());
+            StateHasChanged();
+        }
+    }
+
+    private async Task ToggleThemeAsync()
+    {
+        isDark = await JS.InvokeAsync<bool>("eduAssessTheme.toggle", Array.Empty<object>());
+    }
 
     private void SignOut()
     {
