@@ -1,10 +1,17 @@
-﻿namespace EduAssess.Application.DTOs.Nota
+﻿using System.ComponentModel.DataAnnotations;
+
+namespace EduAssess.Application.DTOs.Nota
 {
     public record NotaRequest(
-        Guid IdUsuario,
-        Guid IdDisciplina,
-        Guid idTurma,
-        Guid idCurso,
-        decimal ValorNota
+        [Required(ErrorMessage = "Selecione um aluno.")]
+        Guid idMatricula,
+        [Required(ErrorMessage = "Selecione um Professor.")]
+        Guid idUsuario,
+        [Required(ErrorMessage = "Selecione uma disciplina.")]
+        Guid idDisciplina,
+        string descricao,
+        [Required(ErrorMessage = "A nota é obrigatória.")]
+        [Range(typeof(decimal), "0", "10", ErrorMessage = "A nota deve ser maior ou igual a 0 e menor ou igual a 10.")]
+        decimal valorNota
         );
 }

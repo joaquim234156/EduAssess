@@ -13,7 +13,7 @@ namespace EduAssess.Application.Routes
     {
         public static void AuthRoutes(this WebApplication app)
         {
-            var route = app.MapGroup("auth").WithTags("Autenticação"); ;
+            var route = app.MapGroup("auth").WithTags("Autenticação");
 
             route.MapPost("register",
                 async (RegisterRequest req, AccountRegistrationService accounts, CancellationToken cancellationToken) =>
