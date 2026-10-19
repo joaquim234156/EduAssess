@@ -48,7 +48,7 @@
     protected override void OnInitialized()
     {
         if (Session.IsSignedIn)
-            Navigation.NavigateTo(Session.User?.Role == UserRole.Professor ? "/alunos" : "/");
+            Navigation.NavigateTo(GetHomePath());
     }
 
     private async Task SignInAsync()
@@ -58,7 +58,7 @@
         try
         {
             if (await Session.SignInAsync(form.Email, form.Password))
-                Navigation.NavigateTo(Session.User?.Role == UserRole.Professor ? "/alunos" : "/");
+                Navigation.NavigateTo(GetHomePath());
             else
                 error = "Credenciais inválidas ou perfil sem permissão para acessar o painel.";
         }
@@ -67,6 +67,13 @@
             busy = false;
         }
     }
+
+    private string GetHomePath() => Session.User?.Role switch
+    {
+        UserRole.Aluno => "/aluno",
+        UserRole.Professor => "/alunos",
+        _ => "/"
+    };
 
     private sealed class LoginForm
     {

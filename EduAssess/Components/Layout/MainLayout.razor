@@ -19,8 +19,16 @@
                     <NavLink href="/equipe"><span class="nav-icon">♧</span> Equipe</NavLink>
                     <NavLink href="/matriculas"><span class="nav-icon">▣</span> Matrículas</NavLink>
                     <NavLink href="/notas"><span class="nav-icon">✎</span> Notas</NavLink>
+                    <NavLink href="/alunos"><span class="nav-icon">♙</span> Alunos</NavLink>
                 }
-                <NavLink href="/alunos"><span class="nav-icon">♙</span> Alunos</NavLink>
+                else if (Session.IsStudent)
+                {
+                    <NavLink href="/aluno" Match="NavLinkMatch.All"><span class="nav-icon">⌂</span> Meu painel</NavLink>
+                }
+                else if (Session.CanAssignStudents)
+                {
+                    <NavLink href="/alunos"><span class="nav-icon">♙</span> Alunos</NavLink>
+                }
             </nav>
             <div class="sidebar-bottom">
                 <div class="sidebar-user">

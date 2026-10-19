@@ -1,84 +1,128 @@
 ﻿@page "/aluno"
 @inject UiSession Session
+@inject AcademicDashboardService Academic
 @inject NavigationManager Navigation
 
 <PageTitle>Meu painel | EduAssess</PageTitle>
 
-<div class="page-heading">
-    <div>
-        <div class="eyebrow">ÁREA DO ESTUDANTE</div>
-
-        <h1>
-            Olá, @Session.User?.Name!
-        </h1>
-
-        <p>
-            Acompanhe suas turmas, avaliações e seu
-            desempenho acadêmico.
-        </p>
+@if (dashboard is null)
+{
+    <div class="loading-state">Carregando suas informações acadêmicas...</div>
+}
+else
+{
+    <div class="page-heading">
+        <div>
+            <div class="eyebrow">ÁREA DO ESTUDANTE</div>
+            <h1>Olá, @Session.User?.Name!</h1>
+            <p>Acompanhe suas turmas, notas e evolução acadêmica.</p>
+        </div>
     </div>
-</div>
 
-<div class="content-grid">
+    <div class="stats-grid">
+        <article class="stat-card">
+            <div class="stat-top"><span class="stat-icon icon-blue">▦</span><span class="stat-caption">ATIVAS</span></div>
+            <strong>@dashboard.ActiveClassCount</strong>
+            <div class="stat-label">Minhas turmas</div>
+            <div class="stat-bottom">Matrículas em andamento</div>
+        </article>
+        <article class="stat-card">
+            <div class="stat-top"><span class="stat-icon icon-orange">✎</span><span class="stat-caption">RESULTADOS</span></div>
+            <strong>@dashboard.GradeCount</strong>
+            <div class="stat-label">Notas lançadas</div>
+            <div class="stat-bottom">Avaliações registradas</div>
+        </article>
+        <article class="stat-card">
+            <div class="stat-top"><span class="stat-icon icon-green">✦</span><span class="stat-caption">DESEMPENHO</span></div>
+            <strong>@(dashboard.AverageGrade?.ToString("0.##") ?? "—")</strong>
+            <div class="stat-label">Média geral</div>
+            <div class="stat-bottom">Escala de 0 a 10</div>
+        </article>
+    </div>
 
-    <section class="panel">
-        <div class="panel-heading">
-            <div>
-                <h2>Minhas turmas</h2>
-                <p>Consulte suas turmas matriculadas.</p>
+    <div class="content-grid">
+        <section class="panel recent-panel">
+            <div class="panel-heading">
+                <div><h2>Minhas turmas</h2><p>Cursos e professores vinculados às suas matrículas</p></div>
+                <span class="count-pill">@dashboard.Classes.Count</span>
             </div>
-        </div>
+            @if (dashboard.Classes.Count == 0)
+            {
+                <div class="empty-state compact"><div class="empty-icon">▦</div><strong>Nenhuma turma vinculada</strong><span>Quando sua matrícula for realizada, a turma aparecerá aqui.</span></div>
+            }
+            else
+            {
+                <div class="table-wrap">
+                    <table>
+                        <thead><tr><th>CURSO / TURMA</th><th>PROFESSOR</th><th>MATRÍCULA</th><th>STATUS</th></tr></thead>
+                        <tbody>
+                            @foreach (var item in dashboard.Classes)
+                            {
+                                <tr>
+                                    <td><span class="cell-primary">@item.CourseName</span><span class="cell-secondary">@item.ClassName</span></td>
+                                    <td>@item.InstructorName</td>
+                                    <td>@item.EnrolledAt.ToLocalTime().ToString("dd/MM/yyyy")</td>
+                                    <td><span class="badge @(item.Active ? "badge-green" : "badge-gray")">@(item.Active ? "Ativa" : "Encerrada")</span></td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </section>
 
-        <div class="empty-state compact">
-            <div class="empty-icon">▦</div>
-            <strong>Nenhuma turma carregada</strong>
-            <span>
-                Vamos conectar esta área ao banco de dados
-                na próxima etapa.
-            </span>
-        </div>
-    </section>
-
-    <section class="panel">
-        <div class="panel-heading">
-            <div>
-                <h2>Minhas avaliações</h2>
-                <p>Atividades disponíveis para você responder.</p>
-            </div>
-        </div>
-
-        <div class="empty-state compact">
-            <div class="empty-icon">✎</div>
-            <strong>Nenhuma avaliação carregada</strong>
-            <span>
-                Em breve, suas avaliações aparecerão aqui.
-            </span>
-        </div>
-    </section>
-
-</div>
-
-<section class="welcome-banner">
-    <div class="welcome-spark">✦</div>
-
-    <div>
-        <strong>Seu aprendizado em primeiro lugar</strong>
-        <p>
-            Acompanhe seu progresso e continue evoluindo.
-        </p>
+        <section class="panel shortcuts-panel">
+            <div class="panel-heading"><div><h2>Minhas notas</h2><p>Resultados das suas avaliações</p></div></div>
+            @if (dashboard.Grades.Count == 0)
+            {
+                <div class="empty-state compact"><div class="empty-icon">✎</div><strong>Nenhuma nota lançada</strong><span>Suas avaliações aparecerão aqui quando forem registradas.</span></div>
+            }
+            else
+            {
+                <div class="table-wrap">
+                    <table>
+                        <thead><tr><th>AVALIAÇÃO</th><th>CURSO / TURMA</th><th>NOTA</th><th>DATA</th></tr></thead>
+                        <tbody>
+                            @foreach (var grade in dashboard.Grades)
+                            {
+                                <tr>
+                                    <td><strong>@grade.Description</strong></td>
+                                    <td><span class="cell-primary">@grade.CourseName</span><span class="cell-secondary">@grade.ClassName</span></td>
+                                    <td><span class="grade-value">@grade.Value.ToString("0.##")</span></td>
+                                    <td>@grade.CreatedAt.ToLocalTime().ToString("dd/MM/yyyy")</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </section>
     </div>
 
-    <div class="banner-decoration">
-        EDU<span>+</span>
-    </div>
-</section>
+    <section class="welcome-banner">
+        <div class="welcome-spark">✦</div>
+        <div><strong>Seu aprendizado em primeiro lugar</strong><p>Acompanhe seu progresso e continue evoluindo.</p></div>
+        <div class="banner-decoration">EDU<span>+</span></div>
+    </section>
+}
 
 @code {
-    protected override void OnInitialized()
+    private StudentDashboardSummary? dashboard;
+
+    protected override async Task OnInitializedAsync()
     {
         if (!Session.IsSignedIn)
         {
             Navigation.NavigateTo("/login");
+            return;
         }
+
+        if (!Session.IsStudent)
+        {
+            Navigation.NavigateTo(Session.CanManage ? "/" : Session.CanAssignStudents ? "/alunos" : "/login");
+            return;
+        }
+
+        dashboard = await Academic.GetStudentDashboardAsync();
     }
 }
