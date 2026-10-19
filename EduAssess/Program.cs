@@ -52,7 +52,9 @@ builder.Services.AddRazorComponents()
 builder.Services.AddScoped<UiSession>();
 builder.Services.AddScoped<AcademicDashboardService>();
 builder.Services.AddScoped<AccountRegistrationService>();
+
 builder.Services.AddScoped<INotaService, NotaService>();
+builder.Services.AddScoped<ICursoService, CursoService>();
 
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>

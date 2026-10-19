@@ -48,12 +48,18 @@ namespace EduAssess.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("TEXT");
 
+                    b.Property<bool>("Ativa")
+                        .HasColumnType("INTEGER");
+
                     b.Property<string>("Descricao")
                         .IsRequired()
                         .HasColumnType("TEXT");
 
                     b.Property<string>("Nome")
                         .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("ProfessorId")
                         .HasColumnType("TEXT");
 
                     b.HasKey("Id");
