@@ -2,7 +2,6 @@
 using EduAssess.Application.Interfaces;
 using EduAssess.Data;
 using EduAssess.Models;
-using EduAssess.Models.Local;
 using Microsoft.EntityFrameworkCore;
 
 namespace EduAssess.Application.Services
@@ -18,7 +17,7 @@ namespace EduAssess.Application.Services
 
         public async Task<CursoResponseDTO> CriarCursoAsync(CursoRequest req)
         {
-            var curso = new CursoModel(req.nome, req.descricao ?? string.Empty, req.duracaoEmAnos);
+            var curso = new CursoModel(req.nome, req.descricao, req.duracaoEmAnos);
             await _context.Cursos.AddAsync(curso);
             await _context.SaveChangesAsync();
 
@@ -31,37 +30,9 @@ namespace EduAssess.Application.Services
             );
         }
 
-        public async Task<IEnumerable<CursoResponseDTO>> ListarCursosAsync()
+        public async Task<IEnumerable<CursoResponseDTO>> ListarTodosAsync()
         {
             return await _context.Cursos
-                .Select(curso => new CursoResponseDTO(
-                    curso.Id,
-                    curso.Nome,
-                    curso.Descricao,
-                    curso.DuracaoEmAnos,
-                    curso.Ativo
-                ))
-                .ToListAsync();
-        }
-
-        public async Task<IEnumerable<CursoResponseDTO>> ListarCursosAtivosAsync()
-        {
-            return await _context.Cursos
-                .Where(curso => curso.Ativo)
-                .Select(curso => new CursoResponseDTO(
-                    curso.Id,
-                    curso.Nome,
-                    curso.Descricao,
-                    curso.DuracaoEmAnos,
-                    curso.Ativo
-                ))
-                .ToListAsync();
-        }
-
-        public async Task<IEnumerable<CursoResponseDTO>> ListarCursosInativosAsync()
-        {
-            return await _context.Cursos
-                .Where(curso => !curso.Ativo)
                 .Select(curso => new CursoResponseDTO(
                     curso.Id,
                     curso.Nome,
@@ -95,7 +66,7 @@ namespace EduAssess.Application.Services
             {
                 throw new KeyNotFoundException("Curso não encontrado.");
             }
-            curso.Update(req.nome, req.descricao ?? string.Empty, req.duracaoEmAnos);
+            curso.Update(req.nome, req.descricao, req.duracaoEmAnos);
             await _context.SaveChangesAsync();
             return new CursoResponseDTO(
                 curso.Id,
@@ -105,30 +76,5 @@ namespace EduAssess.Application.Services
                 curso.Ativo
             );
         }
-
-        public async Task<bool> DeletarCursoAsync(Guid id)
-        {
-            var curso = await _context.Cursos.FindAsync(id);
-            if (curso == null)
-            {
-                throw new KeyNotFoundException("Curso não encontrado.");
-            }
-            curso.Disable();
-            await _context.SaveChangesAsync();
-            return true;
-        }
-
-        public async Task<bool> AtivarCursoAsync(Guid id)
-        {
-            var curso = await _context.Cursos.FindAsync(id);
-            if (curso == null)
-            {
-                throw new KeyNotFoundException("Curso não encontrado.");
-            }
-            curso.Enable();
-            await _context.SaveChangesAsync();
-            return true;
-        }
-
     }
 }
