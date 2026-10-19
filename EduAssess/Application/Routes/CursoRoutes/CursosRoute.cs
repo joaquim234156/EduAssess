@@ -86,7 +86,7 @@ namespace EduAssess.Application.Routes
             route.MapGet("list",
                 async (AppDbContext context, ICursoService CursoService) =>
                 {
-                    var cursos = await CursoService.ListarTodosAsync();
+                    var cursos = await CursoService.ListarCursosAsync();
                     return Results.Ok(new { message = "Cursos listados com sucesso", cursos });
                 }).RequireAuthorization("Admin");
         }
