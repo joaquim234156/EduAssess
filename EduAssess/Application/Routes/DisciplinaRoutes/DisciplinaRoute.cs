@@ -16,12 +16,12 @@ namespace EduAssess.Application.Routes
                     if (!MiniValidation.MiniValidator.TryValidate(req, out var errors))
                         return Results.BadRequest(errors);
                     
-                    var disciplina = new DisciplinaModel(req.nome, req.descricao);
+                    var disciplina = new DisciplinaModel(req.nome, req.descricao, req.professorId);
                     context.Disciplinas.Add(disciplina);
                     await context.SaveChangesAsync();
                     return Results.Ok(new
                     {
-                        message = "Disciplina registrada com sucesso",
+                        message = "Disciplina registrada com sucesso", 
                         disciplina = new { disciplina.Id, disciplina.Nome, disciplina.Descricao }
                     });
                 }).RequireAuthorization("Admin", "Gestor");
@@ -30,7 +30,38 @@ namespace EduAssess.Application.Routes
             {
                 var disciplinas = await context.Disciplinas.ToListAsync();
                 return Results.Ok(disciplinas.Select(d => new { d.Id, d.Nome, d.Descricao }));
-            }).RequireAuthorization("Admin", "Gestor", "Professor", "Aluno");
+            });
+            route.MapPut("update/{id:Guid}",
+            async ( Guid id, DisciplinaRequestPut req, AppDbContext context)=>
+            {
+                if (!MiniValidation.MiniValidator.TryValidate(req,out var errors))
+                    return Results.BadRequest(errors);
+                var disciplina = await context.Disciplinas.FindAsync(id);
+
+                if (disciplina == null || disciplina.Ativa == false)
+                {
+                    return Results.NotFound(new {message = "Essa Disciplina não existe"});
+                }
+                
+                disciplina.UpdateDisciplina(req.nome, req.descricao,req.professorId);
+                await context.SaveChangesAsync();
+                return Results.Ok(new
+                {
+                    message = "Disciplina atualizada com sucesso!!!"
+                }
+                );
+            });
+            route.MapDelete("delete/{id:Guid}",
+            async (Guid id, AppDbContext context )=>
+            {
+                var disciplina = await context.Disciplinas.FindAsync(id);
+                if(disciplina == null || !disciplina.Ativa)
+                {
+                    return Results.NotFound(new{message = "Disciplina não encontrada"});
+                }
+                disciplina.Disable();
+                return Results.Ok(new{message = "Disciplina deletada com sucesso"});
+            }).RequireAuthorization("Admin","Gestor");
         }
     }
 }

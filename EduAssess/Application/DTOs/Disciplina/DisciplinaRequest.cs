@@ -2,6 +2,7 @@
 {
     public record DisciplinaRequest(
         string nome,
-        string descricao
+        string descricao,
+        Guid professorId
         );
 }
