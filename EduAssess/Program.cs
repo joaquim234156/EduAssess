@@ -1,7 +1,11 @@
-using EduAssess.Converters;
+using EduAssess.Application.Interfaces;
 using EduAssess.Application.Routes;
-using EduAssess.Models;
+using EduAssess.Application.Services;
+using EduAssess.Components;
+using EduAssess.Converters;
 using EduAssess.Data;
+using EduAssess.Models;
+using EduAssess.Web;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Internal;
@@ -9,11 +13,6 @@ using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using System.Threading.RateLimiting;
 using System.Text;
-using System.Security.Cryptography;
-using EduAssess.Routes.TurmaRoutes;
-using EduAssess.Components;
-using EduAssess.Web;
-using System.ComponentModel.DataAnnotations;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -29,7 +28,6 @@ builder.Services.ConfigureHttpJsonOptions(options =>
     options.SerializerOptions.Converters.Add(new DateOnlyPtBrJsonConverter());
 });
 
-// Configuração do Scheme de Autenticação JWT
 builder.Services.AddAuthentication(options =>
 {
     options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
@@ -49,10 +47,7 @@ builder.Services.AddAuthentication(options =>
 
 builder.Services.AddAuthorization(options =>
 {
-    options.AddPolicy("Admin", policy => policy.RequireRole("Admin"));
-    options.AddPolicy("Gestor", policy => policy.RequireRole("Gestor"));
-    options.AddPolicy("Gestao", policy => policy.RequireRole("Admin", "Gestor"));
-    options.AddPolicy("AtribuirAluno", policy => policy.RequireRole("Admin", "Gestor", "Professor"));
+    options.AddPolicy("Admin", policy => policy.RequireRole("Admin", "Gestor"));
     options.AddPolicy("Professor", policy => policy.RequireRole("Professor"));
 });
 builder.Services.AddRateLimiter(options =>
@@ -75,7 +70,8 @@ builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 builder.Services.AddScoped<UiSession>();
 builder.Services.AddScoped<AcademicDashboardService>();
-builder.Services.AddScoped<AccountRegistrationService>(); // <- falta esta
+builder.Services.AddScoped<AccountRegistrationService>();
+builder.Services.AddScoped<INotaService, NotaService>();
 
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
@@ -119,7 +115,6 @@ var appMode = builder.Configuration.GetValue<string>("APP_MODE") ?? "Full";
 app.UseHttpsRedirection();
 app.UseStaticFiles();
 
-// Habilita Swagger apenas se não for "App" puro
 if (appMode != "App")
 {
     app.UseSwagger();
@@ -160,14 +155,13 @@ app.UseAntiforgery();
 
 app.MapControllers();
 
-// Rotas customizadas
 app.AuthRoutes();
 app.CursosRoutes();
 app.MatriculaRoutes();
 app.TurmaRoutes();
 app.DisciplinaRoutes();
+app.NotaRoutes();
 
-// Registra Front apenas se não for "ApiOnly"
 if (appMode != "ApiOnly")
 {
     app.MapRazorComponents<App>()
@@ -183,30 +177,15 @@ using (var scope = app.Services.CreateScope())
     // The first administrator must be provisioned through deployment secrets.
     if (!context.Users.Any())
     {
-        var adminEmail = app.Configuration["BootstrapAdmin:Email"];
-        var adminPassword = app.Configuration["BootstrapAdmin:Password"];
-        if (string.IsNullOrWhiteSpace(adminEmail)
-            || string.IsNullOrWhiteSpace(adminPassword)
-            || adminEmail.Length > 150
-            || !new EmailAddressAttribute().IsValid(adminEmail)
-            || adminPassword.Length < 12
-            || Encoding.UTF8.GetByteCount(adminPassword) > 72)
-        {
-            throw new InvalidOperationException("Configure BootstrapAdmin:Email e uma senha entre 12 e 72 bytes para provisionar o primeiro administrador.");
-        }
-
-        var adminUser = new UserModel(
-            name: "Admin",
-            email: adminEmail,
-            cpf: "00000000000",
-            tel: "0000000000",
-            dataNascimento: new DateOnly(1990, 1, 1),
-            password: adminPassword,
-            role: UserRole.Admin);
+        context.Database.Migrate();
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"Erro ao aplicar migrations: {ex.Message}");
+    }
 
     try
     {
-        // Se não existir nenhum usuário registrado, cria o Admin padrão
         if (!context.Users.Any())
         {
             var adminUser = new UserModel(
@@ -215,7 +194,7 @@ using (var scope = app.Services.CreateScope())
                 cpf: "00000000000",
                 tel: "0000000000",
                 dataNascimento: DateOnly.FromDateTime(new DateTime(1990, 1, 1, 0, 0, 0, DateTimeKind.Utc)),
-                password: "Admin1234", // Troque por uma senha forte
+                password: "Admin1234",
                 role: UserRole.Admin
             );
 
