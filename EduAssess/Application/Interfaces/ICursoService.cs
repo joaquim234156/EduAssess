@@ -7,6 +7,6 @@ namespace EduAssess.Application.Interfaces
         Task<CursoResponseDTO> CriarCursoAsync(CursoRequest req);
         Task<CursoResponseDTO> ObterCursoPorIdAsync(Guid id);
         Task<CursoResponseDTO> AtualizarCursoAsync(Guid id, CursoRequest req);
-        Task<IEnumerable<CursoResponseDTO>> ListarTodosAsync();
+        Task<IEnumerable<CursoResponseDTO>> ListarCursosAsync();
     }
 }
