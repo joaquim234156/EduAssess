@@ -2,9 +2,9 @@
 {
     public record MatriculaResponseDTO
     (
-        Guid id,
-        Guid usuarioId,
-        Guid turmaId,
-        DateTime dataMatricula
+        Guid Id,
+        Guid UsuarioId,
+        Guid TurmaId,
+        DateTime DataMatricula
     );
 }

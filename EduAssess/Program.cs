@@ -1,15 +1,17 @@
+using EduAssess.Application.Interfaces;
+using EduAssess.Application.Routes;
+using EduAssess.Application.Services;
+using EduAssess.Components;
 using EduAssess.Converters;
 using EduAssess.Data;
-using EduAssess.Application.Routes;
 using EduAssess.Models;
+using EduAssess.Web;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Internal;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using System.Text;
-using EduAssess.Components;
-using EduAssess.Web;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -20,7 +22,6 @@ builder.Services.ConfigureHttpJsonOptions(options =>
     options.SerializerOptions.Converters.Add(new DateOnlyPtBrJsonConverter());
 });
 
-// Configuração do Scheme de Autenticação JWT
 builder.Services.AddAuthentication(options =>
 {
     options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
@@ -41,7 +42,6 @@ builder.Services.AddAuthentication(options =>
 
 builder.Services.AddAuthorization(options =>
 {
-    // O nome da política agora é "Admin"
     options.AddPolicy("Admin", policy => policy.RequireRole("Admin", "Gestor"));
     options.AddPolicy("Professor", policy => policy.RequireRole("Professor"));
 });
@@ -51,7 +51,8 @@ builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 builder.Services.AddScoped<UiSession>();
 builder.Services.AddScoped<AcademicDashboardService>();
-builder.Services.AddScoped<AccountRegistrationService>(); // <- falta esta
+builder.Services.AddScoped<AccountRegistrationService>();
+builder.Services.AddScoped<INotaService, NotaService>();
 
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
@@ -96,7 +97,6 @@ var appMode = builder.Configuration.GetValue<string>("APP_MODE") ?? "Full";
 app.UseHttpsRedirection();
 app.UseStaticFiles();
 
-// Habilita Swagger apenas se não for "App" puro
 if (appMode != "App")
 {
     app.UseSwagger();
@@ -113,14 +113,13 @@ app.UseAntiforgery();
 
 app.MapControllers();
 
-// Rotas customizadas
 app.AuthRoutes();
 app.CursosRoutes();
 app.MatriculaRoutes();
 app.TurmaRoutes();
 app.DisciplinaRoutes();
+app.NotaRoutes();
 
-// Registra Front apenas se não for "ApiOnly"
 if (appMode != "ApiOnly")
 {
     app.MapRazorComponents<App>()
@@ -133,18 +132,15 @@ using (var scope = app.Services.CreateScope())
 
     try
     {
-        // Garante que o banco de dados e as migrations foram aplicados
         context.Database.Migrate();
     }
     catch (Exception ex)
     {
-        // Se migrations falhar, apenas loga o erro (permite app continuar)
         Console.WriteLine($"Erro ao aplicar migrations: {ex.Message}");
     }
 
     try
     {
-        // Se não existir nenhum usuário registrado, cria o Admin padrão
         if (!context.Users.Any())
         {
             var adminUser = new UserModel(
@@ -153,7 +149,7 @@ using (var scope = app.Services.CreateScope())
                 cpf: "00000000000",
                 tel: "0000000000",
                 dataNascimento: DateOnly.FromDateTime(new DateTime(1990, 1, 1, 0, 0, 0, DateTimeKind.Utc)),
-                password: "Admin1234", // Troque por uma senha forte
+                password: "Admin1234",
                 role: UserRole.Admin
             );
 
