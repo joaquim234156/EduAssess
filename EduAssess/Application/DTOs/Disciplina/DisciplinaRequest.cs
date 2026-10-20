@@ -7,6 +7,6 @@ namespace EduAssess.Application.DTOs.Disciplina
         [StringLength(100, MinimumLength = 3, ErrorMessage = "O Nome da Disciplina deve ter entre 3 e 100 caracteres.")]
         string nome,
         string descricao,
-        Guid professorId
+        Guid? professorId = null
         );
 }
