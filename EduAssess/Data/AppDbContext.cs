@@ -16,6 +16,7 @@ namespace EduAssess.Data
         public DbSet<MatriculaModel> Matriculas { get; set; } = null!;
         public DbSet<DisciplinaModel> Disciplinas { get; set; } = null!;
         public DbSet<NotaModel> Notas { get; set; } = null!;
+        public DbSet<QuestaoModel> Questoes {get; set;} = null!;
 
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
