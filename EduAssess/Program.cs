@@ -44,6 +44,7 @@ builder.Services.AddAuthorization(options =>
 {
     options.AddPolicy("Admin", policy => policy.RequireRole("Admin", "Gestor"));
     options.AddPolicy("Professor", policy => policy.RequireRole("Professor"));
+    options.AddPolicy("Docente", policy => policy.RequireRole("Admin","Gestor","Professor"));
 });
 
 builder.Services.AddControllers();

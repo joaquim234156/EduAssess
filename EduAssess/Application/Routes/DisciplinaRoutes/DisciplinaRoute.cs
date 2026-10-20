@@ -60,6 +60,7 @@ namespace EduAssess.Application.Routes
                     return Results.NotFound(new{message = "Disciplina não encontrada"});
                 }
                 disciplina.Disable();
+                await context.SaveChangesAsync();
                 return Results.Ok(new{message = "Disciplina deletada com sucesso"});
             }).RequireAuthorization("Admin","Gestor");
         }
