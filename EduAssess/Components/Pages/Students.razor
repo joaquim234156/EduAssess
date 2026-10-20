@@ -55,7 +55,7 @@
 
     protected override async Task OnInitializedAsync()
     {
-        if (!Session.CanAssignStudents) { Navigation.NavigateTo("/login"); return; }
+        if (!Session.CanAssignStudents) { Navigation.NavigateTo(Session.IsStudent ? "/aluno" : "/login"); return; }
         await LoadAsync();
     }
 
