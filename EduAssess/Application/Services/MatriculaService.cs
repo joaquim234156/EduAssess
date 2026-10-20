@@ -1,0 +1,94 @@
+﻿using EduAssess.Application.DTOs.Matricula;
+using EduAssess.Application.Interfaces;
+using EduAssess.Data;
+using EduAssess.Models;
+using Microsoft.EntityFrameworkCore;
+
+namespace EduAssess.Application.Services
+{
+    public class MatriculaService : IMatriculaService
+    {
+        private readonly AppDbContext _context;
+
+        public MatriculaService(AppDbContext context)
+        {
+            _context = context;
+        }
+
+        public async Task<MatriculaResponseDTO> AtualizarMatriculaAsync(Guid id, MatriculaRequestPut req)
+        {
+            var matricula = await _context.Matriculas.FindAsync(id);
+            if (matricula == null)
+            {
+                throw new KeyNotFoundException("Matrícula não encontrada.");
+            }
+
+            matricula.Update(req.usuarioId, req.turmaId);
+            await _context.SaveChangesAsync();
+
+            return new MatriculaResponseDTO
+            (
+                matricula.Id,
+                matricula.UsuarioId,
+                matricula.TurmaId,
+                matricula.DataMatricula
+            );
+        }
+
+        public async Task<MatriculaResponseDTO> CriarMatriculaAsync(MatriculaRequest req)
+        {
+            var matricula = new MatriculaModel(req.usuarioId, req.turmaId);
+
+            _context.Matriculas.Add(matricula);
+            await _context.SaveChangesAsync();
+
+            return new MatriculaResponseDTO
+            (
+                matricula.Id,
+                matricula.UsuarioId,
+                matricula.TurmaId,
+                matricula.DataMatricula
+            );
+        }
+
+        public async Task<bool> DeletarMatriculaAsync(Guid id)
+        {
+            var matricula = await _context.Matriculas.FindAsync(id);
+            if (matricula == null)
+            {
+                throw new KeyNotFoundException("Matrícula não encontrada.");
+            }
+
+            matricula.Disable();
+            await _context.SaveChangesAsync();
+            return true;
+        }
+
+        public async Task<IEnumerable<MatriculaResponseDTO>> ListarMatriculasAsync()
+        {
+            var matriculas = await _context.Matriculas.ToListAsync();
+            return matriculas.Select(m => new MatriculaResponseDTO(
+                m.Id,
+                m.UsuarioId,
+                m.TurmaId,
+                m.DataMatricula
+            ));
+        }
+
+        public async Task<MatriculaResponseDTO> ObterMatriculaPorIdAsync(Guid id)
+        {
+            var matricula = await _context.Matriculas.FindAsync(id);
+            if (matricula == null)
+            {
+                throw new KeyNotFoundException("Matrícula não encontrada.");
+            }
+
+            return new MatriculaResponseDTO(
+                matricula.Id,
+                matricula.UsuarioId,
+                matricula.TurmaId,
+                matricula.DataMatricula
+            );
+        }
+    }
+}

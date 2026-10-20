@@ -5,6 +5,7 @@
         Guid Id,
         string Nome,
         string Descricao,
+        int DuracaoEmAnos,
         bool Ativo
         );
 }

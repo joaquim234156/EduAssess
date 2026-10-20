@@ -1,4 +1,6 @@
 ﻿using EduAssess.Application.DTOs.Curso;
+using EduAssess.Application.Interfaces;
+using EduAssess.Application.Services;
 using EduAssess.Data;
 using EduAssess.Models;
 using Microsoft.EntityFrameworkCore;
@@ -9,9 +11,10 @@ namespace EduAssess.Application.Routes
     {
         public static void CursosRoutes(this WebApplication app)
         {
-            var route = app.MapGroup("cursos").WithTags("Cursos"); ;
+            var route = app.MapGroup("cursos").WithTags("Cursos");
+
             route.MapPost("create",
-                async (CursosRequest req, AppDbContext context) =>
+                async (CursoRequest req, AppDbContext context, ICursoService CursoService) =>
                 {
                     if (!MiniValidation.MiniValidator.TryValidate(req, out var errors))
                         return Results.BadRequest(errors);
@@ -20,15 +23,13 @@ namespace EduAssess.Application.Routes
                     if (existingCurso != null)
                         return Results.BadRequest(new { message = "Curso já existente" });
 
-                    var curso = new CursoModel(req.nome, req.descricao, req.duracaoEmAnos);
-                    await context.AddAsync(curso);
-                    await context.SaveChangesAsync();
+                    var curso = await CursoService.CriarCursoAsync(req);
 
                     return Results.Ok(new { message = "Curso criado com sucesso", cursoId = curso.Id });
-                }).RequireAuthorization("Gestao");
+                }).RequireAuthorization("Admin");
 
             route.MapPut("update/{id:guid}",
-            async (Guid id, CursosRequest req, AppDbContext context) =>
+            async (Guid id, CursoRequest req, AppDbContext context, ICursoService CursoService) =>
             {
                 if (!MiniValidation.MiniValidator.TryValidate(req, out var errors))
                     return Results.BadRequest(errors);
@@ -37,8 +38,7 @@ namespace EduAssess.Application.Routes
                 if (curso == null || !curso.Ativo)
                     return Results.NotFound(new { message = "Curso não encontrado" });
 
-                curso.Update(req.nome, req.descricao, req.duracaoEmAnos);
-                await context.SaveChangesAsync();
+                await CursoService.AtualizarCursoAsync(id, req);
                 return Results.Ok(new
                 {
                     message = "Curso atualizado com sucesso",
@@ -50,10 +50,10 @@ namespace EduAssess.Application.Routes
                         curso.DuracaoEmAnos
                     }
                 });
-            }).RequireAuthorization("Gestao");
+            }).RequireAuthorization("Admin");
 
             route.MapDelete("delete/{id:guid}",
-            async (Guid id, AppDbContext context) =>
+            async (Guid id, AppDbContext context, ICursoService CursoService) =>
             {
                 var curso = await context.Cursos.FindAsync(id);
                 if (curso == null || !curso.Ativo)
@@ -62,15 +62,16 @@ namespace EduAssess.Application.Routes
                 curso.Disable();
                 await context.SaveChangesAsync();
                 return Results.Ok(new { message = "Curso desativado com sucesso" });
-            }).RequireAuthorization("Gestao");
+            }).RequireAuthorization("Admin");
 
-            route.MapGet("get/{nome}",
-                async (string nome, AppDbContext context) =>
+            route.MapGet("get/{id:guid}",
+                async (Guid id, AppDbContext context, ICursoService CursoService) =>
                 {
-                    var curso = await context.Cursos.FirstOrDefaultAsync(c => c.Nome == nome);
+                    var curso = await context.Cursos.FindAsync(id);
                     if (curso == null || !curso.Ativo)
                         return Results.Ok(new { message = "Curso não encontrado" });
-                    return Results.Ok(new {
+                    return Results.Ok(new
+                    {
                         message = "curso encontrado com sucesso",
                         curso = new
                         {
@@ -80,7 +81,14 @@ namespace EduAssess.Application.Routes
                             curso.DuracaoEmAnos
                         }
                     });
-                }).RequireAuthorization("Gestao");
+                }).RequireAuthorization("Admin");
+
+            route.MapGet("list",
+                async (AppDbContext context, ICursoService CursoService) =>
+                {
+                    var cursos = await CursoService.ListarCursosAsync();
+                    return Results.Ok(new { message = "Cursos listados com sucesso", cursos });
+                }).RequireAuthorization("Admin");
         }
 
     }
