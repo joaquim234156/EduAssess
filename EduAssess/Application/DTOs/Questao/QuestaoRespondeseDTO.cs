@@ -1,4 +1,4 @@
-using EduAssess.Models.Local;
+using EduAssess.Models;
 
 namespace EduAssess.Application.DTOs.Questao
 {
