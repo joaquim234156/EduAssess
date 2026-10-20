@@ -19,7 +19,6 @@ namespace EduAssess.Application.Routes
                     if (!MiniValidation.MiniValidator.TryValidate(req, out var errors))
                         return Results.BadRequest(errors);
 
-                    // Professor usa sua identidade do JWT; Admin/Gestor escolhem o professor responsável.
                     Guid professorId;
                     if (user.IsInRole("Professor"))
                     {
@@ -38,7 +37,6 @@ namespace EduAssess.Application.Routes
                         professorId = req.professorId.Value;
                     }
 
-                    // Impede vincular disciplina a conta inexistente, inativa ou sem o perfil Professor.
                     var professorValido = await context.Users.AnyAsync(u =>
                         u.Id == professorId && u.Ativa && u.Role == UserRole.Professor);
 
@@ -50,7 +48,6 @@ namespace EduAssess.Application.Routes
                     {
                         message = "Disciplina registrada com sucesso",
                     });
-                // Mantém Admin/Gestor e acrescenta Professor ao fluxo de criação.
                 }).RequireAuthorization(policy => policy.RequireRole("Admin", "Gestor", "Professor"));
 
             route.MapGet("list", async (AppDbContext context, IDisciplinaService disciplinaService) =>
@@ -65,11 +62,9 @@ namespace EduAssess.Application.Routes
                 if (!MiniValidation.MiniValidator.TryValidate(req,out var errors))
                     return Results.BadRequest(errors);
 
-                // Rejeita o GUID vazio antes de tentar persistir uma referência de professor inválida.
                 if (req.professorId == Guid.Empty)
                     return Results.BadRequest(new { message = "Informe o ID de um professor válido." });
 
-                // A edição só pode atribuir a disciplina a um professor ativo, não a um ID qualquer.
                 var professorValido = await context.Users.AnyAsync(u =>
                     u.Id == req.professorId && u.Ativa && u.Role == UserRole.Professor);
                 if (!professorValido)
@@ -88,7 +83,6 @@ namespace EduAssess.Application.Routes
                     message = "Disciplina atualizada com sucesso!!!"
                 }
                 );
-            // A policy Admin inclui Admin e Gestor, mantendo o acesso administrativo da rota.
             }).RequireAuthorization("Admin");
 
             route.MapDelete("delete/{id:Guid}",
