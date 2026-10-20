@@ -15,9 +15,9 @@ namespace EduAssess.Application.Services
             _context = context;
         }
 
-        public async Task<DisciplinaResponseDTO> CriarDisciplinaAsync(DisciplinaRequest req)
+        public async Task<DisciplinaResponseDTO> CriarDisciplinaAsync(DisciplinaRequest req, Guid professorId)
         {
-            var disciplina = new DisciplinaModel(req.nome, req.descricao, req.professorId);
+            var disciplina = new DisciplinaModel(req.nome, req.descricao, professorId);
             await _context.Disciplinas.AddAsync(disciplina);
             await _context.SaveChangesAsync();
             return new DisciplinaResponseDTO(

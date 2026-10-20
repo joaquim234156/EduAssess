@@ -21,9 +21,9 @@
 
         public void UpdateDisciplina(string nome, string descricao, Guid professorId)
         {
-            ProfessorId = professorId;
             Nome = nome;
             Descricao = descricao;
+            ProfessorId = professorId;
         }
         public void Disable()
         {

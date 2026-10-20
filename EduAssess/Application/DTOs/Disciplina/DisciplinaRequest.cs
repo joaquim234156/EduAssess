@@ -3,6 +3,6 @@
     public record DisciplinaRequest(
         string nome,
         string descricao,
-        Guid professorId
+        Guid? professorId = null
         );
 }

@@ -3,6 +3,7 @@ using EduAssess.Application.Interfaces;
 using EduAssess.Data;
 using EduAssess.Models;
 using Microsoft.EntityFrameworkCore;
+using System.Security.Claims;
 
 namespace EduAssess.Application.Routes
 {
@@ -13,17 +14,41 @@ namespace EduAssess.Application.Routes
             var route = app.MapGroup("/disciplina").WithTags("Disciplinas");
 
             route.MapPost("register",
-                async (DisciplinaRequest req, AppDbContext context, IDisciplinaService disciplinaService) =>
+                async (DisciplinaRequest req, ClaimsPrincipal user, AppDbContext context, IDisciplinaService disciplinaService) =>
                 {
                     if (!MiniValidation.MiniValidator.TryValidate(req, out var errors))
                         return Results.BadRequest(errors);
-                    
-                    var disciplina = await disciplinaService.CriarDisciplinaAsync(req);
+
+                    Guid professorId;
+                    if (user.IsInRole("Professor"))
+                    {
+                        var userId = user.FindFirstValue(ClaimTypes.NameIdentifier);
+                        if (!Guid.TryParse(userId, out professorId))
+                            return Results.Unauthorized();
+
+                        if (req.professorId.HasValue && req.professorId.Value != professorId)
+                            return Results.Forbid();
+                    }
+                    else
+                    {
+                        if (!req.professorId.HasValue)
+                            return Results.BadRequest(new { message = "O Admin deve informar o ID do professor." });
+
+                        professorId = req.professorId.Value;
+                    }
+
+                    var professorValido = await context.Users.AnyAsync(u =>
+                        u.Id == professorId && u.Ativa && u.Role == UserRole.Professor);
+
+                    if (!professorValido)
+                        return Results.BadRequest(new { message = "O ID informado não pertence a um professor ativo." });
+
+                    await disciplinaService.CriarDisciplinaAsync(req, professorId);
                     return Results.Ok(new
                     {
                         message = "Disciplina registrada com sucesso",
                     });
-                }).RequireAuthorization("Admin");
+                }).RequireAuthorization(policy => policy.RequireRole("Admin", "Gestor", "Professor"));
 
             route.MapGet("list", async (AppDbContext context, IDisciplinaService disciplinaService) =>
             {
