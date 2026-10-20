@@ -129,6 +129,65 @@ namespace EduAssess.Migrations
                     b.ToTable("Notas");
                 });
 
+            modelBuilder.Entity("EduAssess.Models.QuestaoModel", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Alternativa1")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Alternativa2")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Alternativa3")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Alternativa4")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Alternativa5")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("AlternativaCorreta")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Assunto")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("Ativa")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("Dificuldade")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<Guid>("DisciplinaId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Enunciado")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Explicacao")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("ProfessorId")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("Questoes");
+                });
+
             modelBuilder.Entity("EduAssess.Models.TurmaModel", b =>
                 {
                     b.Property<Guid>("Id")

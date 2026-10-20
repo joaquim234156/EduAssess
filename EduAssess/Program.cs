@@ -44,11 +44,8 @@ builder.Services.AddAuthorization(options =>
 {
     options.AddPolicy("Admin", policy => policy.RequireRole("Admin", "Gestor"));
     options.AddPolicy("Professor", policy => policy.RequireRole("Professor"));
-    // A criação de professores usa esta policy para restringir a rota a Gestores.
     options.AddPolicy("Gestor", policy => policy.RequireRole("Gestor"));
-    // O serviço permite que Admin, Gestor ou Professor atribuam o perfil de aluno.
     options.AddPolicy("AtribuirAluno", policy => policy.RequireRole("Admin", "Gestor", "Professor"));
-    // As rotas Docente correspondem ao perfil Professor definido no enum UserRole.
     options.AddPolicy("Docente", policy => policy.RequireRole("Professor"));
 });
 
