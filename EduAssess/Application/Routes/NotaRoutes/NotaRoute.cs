@@ -18,7 +18,6 @@ namespace EduAssess.Application.Routes
                 if (!MiniValidation.MiniValidator.TryValidate(req, out var errors))
                     return Results.BadRequest(errors);
 
-                // Rejeita GUIDs vazios, que passam pela desserialização apesar de serem inválidos para o domínio.
                 if (req.idMatricula == Guid.Empty || req.idDisciplina == Guid.Empty)
                     return Results.BadRequest(new { message = "Informe IDs válidos para matrícula e disciplina." });
 
