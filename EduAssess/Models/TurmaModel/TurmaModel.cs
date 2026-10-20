@@ -23,5 +23,18 @@ namespace EduAssess.Models
         public bool Ativo { get; private set; }
         public CursoModel Curso { get; private set; } = null!;
         public UserModel Professor { get; private set; } = null!;
+
+        public void Update(string nome, Guid professorId, Guid cursoId, int periodo)
+        {
+            Nome = nome;
+            ProfessorId = professorId;
+            CursoId = cursoId;
+            Periodo = periodo;
+        }
+
+        public void Disable()
+        {
+            Ativo = false;
+        }
     }
 }

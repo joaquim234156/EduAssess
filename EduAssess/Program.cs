@@ -53,10 +53,12 @@ builder.Services.AddScoped<UiSession>();
 builder.Services.AddScoped<AcademicDashboardService>();
 builder.Services.AddScoped<AccountRegistrationService>();
 
+//Services
 builder.Services.AddScoped<INotaService, NotaService>();
 builder.Services.AddScoped<ICursoService, CursoService>();
 builder.Services.AddScoped<IDisciplinaService, DisciplinaService>();
 builder.Services.AddScoped<IMatriculaService, MatriculaService>();
+builder.Services.AddScoped<ITurmaService, TurmaService>();
 
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
