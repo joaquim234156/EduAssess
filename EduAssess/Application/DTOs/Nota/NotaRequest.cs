@@ -2,11 +2,10 @@
 
 namespace EduAssess.Application.DTOs.Nota
 {
+    // O professor não vem no JSON; a rota obtém seu ID da identidade autenticada.
     public record NotaRequest(
         [Required(ErrorMessage = "Selecione um aluno.")]
         Guid idMatricula,
-        [Required(ErrorMessage = "Selecione um Professor.")]
-        Guid idUsuario,
         [Required(ErrorMessage = "Selecione uma disciplina.")]
         Guid idDisciplina,
         string descricao,

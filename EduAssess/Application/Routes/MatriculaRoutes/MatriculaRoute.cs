@@ -13,10 +13,26 @@ namespace EduAssess.Application.Routes
             var route = app.MapGroup("/matricula").WithTags("Matriculas");
 
             route.MapPost("register",
-                async(MatriculaRequest req, IMatriculaService matriculaService, IConfiguration config) =>
+                async(MatriculaRequest req, IMatriculaService matriculaService, AppDbContext context) =>
                 {
                     if (!MiniValidation.MiniValidator.TryValidate(req, out var errors))
                         return Results.BadRequest(errors);
+
+                    // Required não rejeita Guid.Empty; valide ambos os IDs antes de criar a matrícula.
+                    if (req.usuarioId == Guid.Empty || req.turmaId == Guid.Empty)
+                        return Results.BadRequest(new { message = "Informe IDs válidos para aluno e turma." });
+
+                    // Uma matrícula só pode apontar para uma conta ativa com perfil Aluno.
+                    var alunoAtivo = await context.Users.AnyAsync(user =>
+                        user.Id == req.usuarioId && user.Ativa && user.Role == UserRole.Aluno);
+                    if (!alunoAtivo)
+                        return Results.BadRequest(new { message = "O usuário informado não é um aluno ativo." });
+
+                    // Impede matrícula em turma inexistente ou desativada.
+                    var turmaAtiva = await context.Turmas.AnyAsync(turma =>
+                        turma.Id == req.turmaId && turma.Ativo);
+                    if (!turmaAtiva)
+                        return Results.BadRequest(new { message = "A turma informada não existe ou está inativa." });
 
                     var matricula = await matriculaService.CriarMatriculaAsync(req);
                     return Results.Ok(new
@@ -45,10 +61,27 @@ namespace EduAssess.Application.Routes
                 }).RequireAuthorization("Admin");
 
             route.MapPut("matricula/{id:Guid}",
-                async (Guid id, MatriculaRequestPut req, IMatriculaService matriculaService) =>
+                async (Guid id, MatriculaRequestPut req, IMatriculaService matriculaService, AppDbContext context) =>
                 {
                     if (!MiniValidation.MiniValidator.TryValidate(req, out var errors))
                         return Results.BadRequest(errors);
+
+                    // Required não rejeita Guid.Empty; valide os IDs antes de trocar os vínculos da matrícula.
+                    if (req.usuarioId == Guid.Empty || req.turmaId == Guid.Empty)
+                        return Results.BadRequest(new { message = "Informe IDs válidos para aluno e turma." });
+
+                    // Mantém o vínculo da matrícula somente com um aluno existente, ativo e com role Aluno.
+                    var alunoAtivo = await context.Users.AnyAsync(user =>
+                        user.Id == req.usuarioId && user.Ativa && user.Role == UserRole.Aluno);
+                    if (!alunoAtivo)
+                        return Results.BadRequest(new { message = "O usuário informado não é um aluno ativo." });
+
+                    // Impede alterar o vínculo para uma turma inexistente ou desativada.
+                    var turmaAtiva = await context.Turmas.AnyAsync(turma =>
+                        turma.Id == req.turmaId && turma.Ativo);
+                    if (!turmaAtiva)
+                        return Results.BadRequest(new { message = "A turma informada não existe ou está inativa." });
+
                     var updatedMatricula = await matriculaService.AtualizarMatriculaAsync(id, req);
                     if (updatedMatricula == null)
                     {

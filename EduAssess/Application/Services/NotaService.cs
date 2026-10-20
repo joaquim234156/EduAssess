@@ -15,9 +15,10 @@ namespace EduAssess.Application.Services
             _context = context;
         }
 
-        public async Task<NotaResponseDTO> RegistrarNotaAsync(NotaRequest req)
+        public async Task<NotaResponseDTO> RegistrarNotaAsync(NotaRequest req, Guid professorId)
         {
-            var nota = new NotaModel(req.idMatricula, req.idDisciplina, req.idUsuario, req.descricao, req.valorNota);
+            // O professor vem da identidade autenticada; os IDs são passados à entidade na ordem do construtor.
+            var nota = new NotaModel(req.idMatricula, professorId, req.idDisciplina, req.descricao, req.valorNota);
 
             await _context.Notas.AddAsync(nota);
             await _context.SaveChangesAsync();
