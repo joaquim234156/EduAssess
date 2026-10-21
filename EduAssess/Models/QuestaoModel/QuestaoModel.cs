@@ -65,5 +65,10 @@ namespace EduAssess.Models
         {
             Ativa = false;
         }
+
+        public void Enable()
+        {
+            Ativa = true;
+        }
     }
 }

@@ -8,6 +8,10 @@ namespace EduAssess.Application.Interfaces
         Task<DisciplinaResponseDTO> ObterDisciplinaPorIdAsync(Guid id);
         Task<DisciplinaResponseDTO> AtualizarDisciplinaAsync(Guid id, DisciplinaRequestPut req);
         Task<IEnumerable<DisciplinaResponseDTO>> ListarDisciplinasAsync();
+        Task<IEnumerable<DisciplinaResponseDTO>> ListarDisciplinasAtivasAsync();
+        Task<IEnumerable<DisciplinaResponseDTO>> ListarDisciplinasInativasAsync();
+        Task<IEnumerable<DisciplinaResponseDTO>> ListarDisciplinasPorProfessorAsync(Guid professorId);
         Task<bool> DeletarDisciplinaAsync(Guid id);
+        Task<bool> AtivarDisciplinaAsync(Guid id);
     }
 }
