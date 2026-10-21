@@ -171,18 +171,96 @@ namespace EduAssess.Application.Routes
                     });
                 });
             route.MapPut("update{id:guid}",
-            async (Guid id,QuestaoRequest req, AppDbContext context) =>
+            async (Guid id,QuestaoRequest req, AppDbContext context, ClaimsPrincipal usuario) =>
             {
-                if (!MiniValidation.MiniValidator.TryValidate(req, out var errors ))
+                if (!MiniValidation.MiniValidator.TryValidate(req, out var errors))
+                {
                     return Results.BadRequest(errors);
-                
+                }
+
+
+                if (req.disciplinaId is not Guid disciplinaId ||
+                        disciplinaId == Guid.Empty)
+                    {
+                        return Results.BadRequest(new
+                        {
+                            message = "Escolha uma disciplina válida."
+                        });
+                    }
+
+                var idUsuario = usuario.FindFirst(
+                        ClaimTypes.NameIdentifier)?.Value;
+
+                if (!Guid.TryParse(idUsuario, out var professorId))
+                    {
+                        return Results.Unauthorized();
+                    }
+
+                    // 4. Verificar se a disciplina existe e está ativa.
+                    var disciplina = await context.Disciplinas
+                        .FirstOrDefaultAsync(d =>
+                            d.Id == disciplinaId && d.Ativa);
+
+                    if (disciplina == null)
+                    {
+                        return Results.NotFound(new
+                        {
+                            message = "Disciplina não encontrada."
+                        });
+                    }
+
+                    // 5. Impedir o professor de utilizar
+                    // uma disciplina atribuída a outra pessoa.
+                    if (disciplina.ProfessorId != professorId)
+                    {
+                        return Results.Forbid();
+                    }
+
+                    // 6. Garantir que a resposta correta
+                    // corresponda a uma das cinco alternativas.
+                    var alternativas = new[]
+                    {
+                        req.alternativa1,
+                        req.alternativa2,
+                        req.alternativa3,
+                        req.alternativa4,
+                        req.alternativa5
+                    };
+
+                    var respostaExiste = alternativas.Any(a =>
+                        string.Equals(
+                            a.Trim(),
+                            req.alternativaCorreta.Trim(),
+                            StringComparison.OrdinalIgnoreCase));
+
+                    if (!respostaExiste)
+                    {
+                        return Results.BadRequest(new
+                        {
+                            message =
+                                "A resposta correta deve corresponder " +
+                                "a uma das cinco alternativas."
+                        });
+                    }
+
                 var questao = await context.Questoes.FindAsync(id);
                 if (questao == null || !questao.Ativa)
                 {
                     return Results.NotFound(new{message="A questão solicitada não existe no banco de dados"});
                 }
 
-                questao.UpdateQuestion(questao.DisciplinaId, questao.Enunciado,questao.Alternativa1,questao.Alternativa2,questao.Alternativa3,questao.Alternativa4,questao.Alternativa5,questao.AlternativaCorreta,questao.Assunto,questao.Explicacao,questao.Dificuldade);
+                questao.UpdateQuestion(
+                    disciplinaId,
+                    req.enunciado,
+                    req.alternativaCorreta,
+                    req.alternativa1,
+                    req.alternativa2,
+                    req.alternativa3,
+                    req.alternativa4,
+                    req.alternativa5,
+                    req.assunto,
+                    req.explicacao,
+                    req.dificuldade!.Value);
 
                 var response = new QuestaoResponseDTO(
                         questao.Id,
