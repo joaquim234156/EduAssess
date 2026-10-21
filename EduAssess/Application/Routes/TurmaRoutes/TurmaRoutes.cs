@@ -17,7 +17,6 @@ namespace EduAssess.Application.Routes
                     if (!MiniValidation.MiniValidator.TryValidate(req, out var errors))
                         return Results.BadRequest(errors);
 
-                    // Required não rejeita Guid.Empty; validar os IDs antes de consultar ou persistir a turma.
                     if (req.professorId == Guid.Empty || req.cursoId == Guid.Empty)
                         return Results.BadRequest(new { message = "Informe IDs válidos para professor e curso." });
 
@@ -78,7 +77,6 @@ namespace EduAssess.Application.Routes
                     if (!MiniValidation.MiniValidator.TryValidate(req, out var errors))
                         return Results.BadRequest(errors);
 
-                    // Required não rejeita Guid.Empty; validar os IDs antes de atualizar as referências.
                     if (req.professorId == Guid.Empty || req.cursoId == Guid.Empty)
                         return Results.BadRequest(new { message = "Informe IDs válidos para professor e curso." });
 
