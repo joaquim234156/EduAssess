@@ -7,5 +7,7 @@ namespace EduAssess.Application.Interfaces
         Task<NotaResponseDTO> RegistrarNotaAsync(NotaRequest request, Guid professorId);
         Task<IEnumerable<NotaResponseDTO>> ObterNotasPorMatriculaAsync(Guid idMatricula);
         Task<IEnumerable<NotaResponseDTO>> ListarTodasAsync();
+        Task<NotaResponseDTO> AtualizarNotaAsync(Guid id, NotaRequest request);
+        Task<bool> DeletarNotaAsync(Guid id);
     }
 }

@@ -43,6 +43,34 @@ namespace EduAssess.Application.Services
                 .ToListAsync();
         }
 
+        public async Task<IEnumerable<CursoResponseDTO>> ListarCursosAtivosAsync()
+        {
+            return await _context.Cursos
+                .Where(curso => curso.Ativo)
+                .Select(curso => new CursoResponseDTO(
+                    curso.Id,
+                    curso.Nome,
+                    curso.Descricao,
+                    curso.DuracaoEmAnos,
+                    curso.Ativo
+                ))
+                .ToListAsync();
+        }
+
+        public async Task<IEnumerable<CursoResponseDTO>> ListarCursosInativosAsync()
+        {
+            return await _context.Cursos
+                .Where(curso => !curso.Ativo)
+                .Select(curso => new CursoResponseDTO(
+                    curso.Id,
+                    curso.Nome,
+                    curso.Descricao,
+                    curso.DuracaoEmAnos,
+                    curso.Ativo
+                ))
+                .ToListAsync();
+        }
+
         public async Task<CursoResponseDTO> ObterCursoPorIdAsync(Guid id)
         {
             var curso = await _context.Cursos.FindAsync(id);
@@ -76,5 +104,30 @@ namespace EduAssess.Application.Services
                 curso.Ativo
             );
         }
+
+        public async Task<bool> DeletarCursoAsync(Guid id)
+        {
+            var curso = await _context.Cursos.FindAsync(id);
+            if (curso == null)
+            {
+                throw new KeyNotFoundException("Curso não encontrado.");
+            }
+            curso.Disable();
+            await _context.SaveChangesAsync();
+            return true;
+        }
+
+        public async Task<bool> AtivarCursoAsync(Guid id)
+        {
+            var curso = await _context.Cursos.FindAsync(id);
+            if (curso == null)
+            {
+                throw new KeyNotFoundException("Curso não encontrado.");
+            }
+            curso.Enable();
+            await _context.SaveChangesAsync();
+            return true;
+        }
+
     }
 }
