@@ -69,5 +69,17 @@ namespace EduAssess.Application.Services
                 disciplina.Descricao
             );
         }
+
+        public async Task<bool> DeletarDisciplinaAsync(Guid id)
+        {
+            var disciplina = await _context.Disciplinas.FindAsync(id);
+            if (disciplina == null)
+            {
+                throw new KeyNotFoundException("Disciplina não encontrada.");
+            }
+            disciplina.Disable();
+            await _context.SaveChangesAsync();
+            return true;
+        }
     }
 }
