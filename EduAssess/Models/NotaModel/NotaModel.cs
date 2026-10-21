@@ -24,5 +24,11 @@
         public DateTime DataLancamento { get; private set; }
 
         public MatriculaModel Matricula { get; private set; } = null!;
+
+        public void UpdateNota(string descricao, decimal valor)
+        {
+            Descricao = descricao;
+            Valor = valor;
+        }
     }
 }

@@ -52,22 +52,21 @@ namespace EduAssess.Application.Routes
                 });
             }).RequireAuthorization("Admin");
 
-            route.MapDelete("delete/{id:guid}",
-            async (Guid id, AppDbContext context, ICursoService CursoService) =>
-            {
-                var curso = await context.Cursos.FindAsync(id);
-                if (curso == null || !curso.Ativo)
-                    return Results.NotFound(new { message = "Curso não encontrado" });
-
-                curso.Disable();
-                await context.SaveChangesAsync();
-                return Results.Ok(new { message = "Curso desativado com sucesso" });
-            }).RequireAuthorization("Admin");
+            route.MapDelete("delete/{id:Guid}",
+                async (Guid id, ICursoService cursoService) =>
+                {
+                    var deleted = await cursoService.DeletarCursoAsync(id);
+                    if (!deleted)
+                    {
+                        return Results.NotFound(new { message = "Curso não encontrada" });
+                    }
+                    return Results.Ok(new { message = "Curso deletado com sucesso" });
+                }).RequireAuthorization("Admin");
 
             route.MapGet("get/{id:guid}",
-                async (Guid id, AppDbContext context, ICursoService CursoService) =>
+                async (Guid id, ICursoService CursoService) =>
                 {
-                    var curso = await context.Cursos.FindAsync(id);
+                    var curso = await CursoService.ObterCursoPorIdAsync(id);
                     if (curso == null || !curso.Ativo)
                         return Results.Ok(new { message = "Curso não encontrado" });
                     return Results.Ok(new
@@ -89,6 +88,30 @@ namespace EduAssess.Application.Routes
                     var cursos = await CursoService.ListarCursosAsync();
                     return Results.Ok(new { message = "Cursos listados com sucesso", cursos });
                 }).RequireAuthorization("Admin");
+
+            route.MapGet("list/ativos",
+                async (AppDbContext context, ICursoService CursoService) =>
+                {
+                    var cursos = await CursoService.ListarCursosAtivosAsync();
+                    return Results.Ok(new { message = "Cursos ativos listados com sucesso", cursos });
+                }).RequireAuthorization("Admin");
+
+            route.MapGet("list/inativos",
+                async (AppDbContext context, ICursoService CursoService) =>
+                {
+                    var cursos = await CursoService.ListarCursosInativosAsync();
+                    return Results.Ok(new { message = "Cursos inativos listados com sucesso", cursos });
+                }).RequireAuthorization("Admin");
+
+            route.MapPut("ativar/{id:guid}",
+                async (Guid id, ICursoService CursoService) =>
+                {
+                    var enable = await CursoService.AtivarCursoAsync(id);
+                    if (!enable)
+                        return Results.NotFound(new { message = "Curso não encontrado ou já ativo" });
+                    return Results.Ok(new { message = "Curso ativado com sucesso" });
+                }).RequireAuthorization("Admin");
+
         }
 
     }
