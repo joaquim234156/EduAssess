@@ -15,7 +15,6 @@ namespace EduAssess.Application.Services
             _context = context;
         }
 
-        // Recebe um Guid obrigatório já resolvido pela rota, evitando persistir um professorId ausente.
         public async Task<DisciplinaResponseDTO> CriarDisciplinaAsync(DisciplinaRequest req, Guid professorId)
         {
             var disciplina = new DisciplinaModel(req.nome, req.descricao, professorId);
