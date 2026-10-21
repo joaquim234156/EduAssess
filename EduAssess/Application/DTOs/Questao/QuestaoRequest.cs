@@ -1,5 +1,5 @@
 using System.ComponentModel.DataAnnotations;
-using EduAssess.Models;
+using EduAssess.Models.Local;
 
 namespace EduAssess.Application.DTOs.Questao
 {

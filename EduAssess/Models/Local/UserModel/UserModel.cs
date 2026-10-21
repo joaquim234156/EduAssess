@@ -1,5 +1,4 @@
-﻿using EduAssess.Models.Global;
-using System.Data;
+﻿using System.Data;
 using System.Globalization;
 using System.Text.Json.Serialization;
 
@@ -30,8 +29,11 @@ namespace EduAssess.Models.Local
             DataNascimento = dataNascimento;
             Role = role;
             PasswordHash = BCrypt.Net.BCrypt.HashPassword(password);
-            
+            IdTurma = Guid.Empty;
+
             Ativa = true;
+
+            Matriculas = new List<MatriculaModel>();
         }
 
         public Guid Id { get; init; }
@@ -44,8 +46,6 @@ namespace EduAssess.Models.Local
         public UserRole Role { get; private set; }
         public bool Ativa { get; private set; }
         public Guid IdTurma { get; private set; }
-        // NOVO: instituições em que esta pessoa atua (e com qual papel)
-        public ICollection<UsuarioInstituicaoModel> Instituicoes { get; private set; } = [];
 
         public ICollection<MatriculaModel> Matriculas { get; private set; } = [];
 
