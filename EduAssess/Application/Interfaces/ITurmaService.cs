@@ -8,6 +8,8 @@ namespace EduAssess.Application.Interfaces
         Task<TurmaResponseDTO> ObterTurmaPorIdAsync(Guid id);
         Task<TurmaResponseDTO> AtualizarTurmaAsync(Guid id, TurmaRequestPut req);
         Task<IEnumerable<TurmaResponseDTO>> ListarTurmasAsync();
+        Task<IEnumerable<TurmaResponseDTO>> ListarTurmasPorProfessorAsync(Guid professorId);
         Task<bool> DeletarTurmaAsync(Guid id);
+        Task<bool> AtivarTurmaAsync(Guid id);
     }
 }
