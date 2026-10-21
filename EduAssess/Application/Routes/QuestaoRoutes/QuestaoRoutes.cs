@@ -4,7 +4,7 @@ using System.Linq;
 using System.Security.Claims;
 using EduAssess.Application.DTOs.Questao;
 using EduAssess.Data;
-using EduAssess.Models;
+using EduAssess.Models.Local;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.VisualBasic;
 

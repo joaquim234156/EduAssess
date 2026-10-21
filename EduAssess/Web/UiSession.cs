@@ -1,5 +1,5 @@
 using EduAssess.Data;
-using EduAssess.Models;
+using EduAssess.Models.Local;
 using Microsoft.EntityFrameworkCore;
 
 namespace EduAssess.Web;

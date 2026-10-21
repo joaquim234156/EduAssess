@@ -1,6 +1,6 @@
 ﻿using System.Text.Json.Serialization;
 
-namespace EduAssess.Models
+namespace EduAssess.Models.Local
 {
     public class MatriculaModel
     {

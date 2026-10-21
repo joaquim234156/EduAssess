@@ -2,6 +2,7 @@
 using EduAssess.Application.Interfaces;
 using EduAssess.Data;
 using EduAssess.Models;
+using EduAssess.Models.Local;
 using Microsoft.EntityFrameworkCore;
 
 namespace EduAssess.Application.Services
