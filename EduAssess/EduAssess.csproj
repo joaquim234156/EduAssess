@@ -25,7 +25,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="Models\MatriculaModel\" />
+    <Folder Include="Models\Local\MatriculaModel\" />
   </ItemGroup>
 
 </Project>

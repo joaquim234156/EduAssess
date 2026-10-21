@@ -1,4 +1,4 @@
-﻿namespace EduAssess.Models
+﻿namespace EduAssess.Models.Local
 {
     public class NotaModel
     {

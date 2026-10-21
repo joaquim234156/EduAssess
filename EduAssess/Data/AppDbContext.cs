@@ -1,8 +1,8 @@
 ﻿using System;
 using System.Linq;
+using EduAssess.Models.Local;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
-using EduAssess.Models;
 
 namespace EduAssess.Data
 {

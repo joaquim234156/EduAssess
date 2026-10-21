@@ -2,7 +2,7 @@
 using System.Globalization;
 using System.Text.Json.Serialization;
 
-namespace EduAssess.Models
+namespace EduAssess.Models.Local
 {
     public enum UserRole
     {

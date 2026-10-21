@@ -1,4 +1,4 @@
-﻿using EduAssess.Models;
+﻿using EduAssess.Models.Local;
 using System.ComponentModel.DataAnnotations;
 
 namespace EduAssess.EduAssess.Aplication.DTOs.User

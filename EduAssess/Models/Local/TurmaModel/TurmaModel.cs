@@ -1,6 +1,6 @@
 ﻿using Microsoft.IdentityModel.Tokens;
 
-namespace EduAssess.Models
+namespace EduAssess.Models.Local
 {
     public class TurmaModel
     {
@@ -19,7 +19,7 @@ namespace EduAssess.Models
         public Guid ProfessorId { get; private set; }
         public Guid CursoId { get; private set; }
         public int Periodo { get; private set; } = 0;
-        public string Nome { get; private set; }
+        public string Nome { get; private set; } = null;
         public bool Ativo { get; private set; }
         public CursoModel Curso { get; private set; } = null!;
         public UserModel Professor { get; private set; } = null!;
