@@ -15,6 +15,16 @@ namespace EduAssess.Application.Services
             _context = context;
         }
 
+        public async Task<bool> AtivarTurmaAsync(Guid id)
+        {
+            var turma = await _context.Turmas.FindAsync(id);
+            if (turma == null) return false;
+
+            turma.Enable();
+            await _context.SaveChangesAsync();
+            return true;
+        }
+
         public async Task<TurmaResponseDTO> AtualizarTurmaAsync(Guid id, TurmaRequestPut req)
         {
             var turma = await _context.Turmas.FindAsync(id);
@@ -46,6 +56,12 @@ namespace EduAssess.Application.Services
         public async Task<IEnumerable<TurmaResponseDTO>> ListarTurmasAsync()
         {
             var turmas = await _context.Turmas.ToListAsync();
+            return turmas.Select(t => new TurmaResponseDTO(t.Id, t.Nome, t.ProfessorId, t.CursoId, t.Periodo));
+        }
+
+        public async Task<IEnumerable<TurmaResponseDTO>> ListarTurmasPorProfessorAsync(Guid professorId)
+        {
+            var turmas = await _context.Turmas.Where(t => t.ProfessorId == professorId).ToListAsync();
             return turmas.Select(t => new TurmaResponseDTO(t.Id, t.Nome, t.ProfessorId, t.CursoId, t.Periodo));
         }
 
