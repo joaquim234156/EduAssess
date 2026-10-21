@@ -29,5 +29,10 @@
         {
             Ativa = false;
         }
+
+        public void Enable()
+        {
+            Ativa = true;
+        }
     }
 }

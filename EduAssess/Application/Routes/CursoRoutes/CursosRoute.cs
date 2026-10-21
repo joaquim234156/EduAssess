@@ -83,21 +83,21 @@ namespace EduAssess.Application.Routes
                 }).RequireAuthorization("Admin");
 
             route.MapGet("list",
-                async (AppDbContext context, ICursoService CursoService) =>
+                async (ICursoService CursoService) =>
                 {
                     var cursos = await CursoService.ListarCursosAsync();
                     return Results.Ok(new { message = "Cursos listados com sucesso", cursos });
                 }).RequireAuthorization("Admin");
 
             route.MapGet("list/ativos",
-                async (AppDbContext context, ICursoService CursoService) =>
+                async (ICursoService CursoService) =>
                 {
                     var cursos = await CursoService.ListarCursosAtivosAsync();
                     return Results.Ok(new { message = "Cursos ativos listados com sucesso", cursos });
                 }).RequireAuthorization("Admin");
 
             route.MapGet("list/inativos",
-                async (AppDbContext context, ICursoService CursoService) =>
+                async (ICursoService CursoService) =>
                 {
                     var cursos = await CursoService.ListarCursosInativosAsync();
                     return Results.Ok(new { message = "Cursos inativos listados com sucesso", cursos });
