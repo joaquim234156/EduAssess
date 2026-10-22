@@ -1,16 +1,14 @@
-﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations;
 
 namespace EduAssess.Application.DTOs.Curso
 {
-    public record CursosRequest   (
-        [Required(ErrorMessage = "O Nome do Curso é obrigatório!")]
-        [MaxLength(60, ErrorMessage = "O Nome do Curso não pode ultrapassar os 60 caracteres!!!")]
-        [MinLength(3, ErrorMessage = "O Nome do Curso deve ter no Mínimo 3 caracteres para prosseguir!!!")]
+    public record CursosRequest(
+        [Required(ErrorMessage = "O nome do curso é obrigatório.")]
+        [StringLength(60, MinimumLength = 3, ErrorMessage = "O nome do curso deve ter entre 3 e 60 caracteres.")]
         string nome,
-        [Required(ErrorMessage = "A Descrição do Curso é obrigatória!")]
-        [RegularExpression(@"^[0-9]+$", ErrorMessage = "A Duração do Curso deve conter apenas números!")]
+        [Range(1, 20, ErrorMessage = "A duração do curso deve ser de 1 a 20 anos.")]
         int duracaoEmAnos,
-        [MaxLength(500, ErrorMessage = "A Descrição do Curso não pode ultrapassar os 500 caracteres!!!")]
-        string descricao
+        [MaxLength(500, ErrorMessage = "A descrição do curso não pode ultrapassar 500 caracteres.")]
+        string? descricao = null
     );
 }

@@ -1,131 +1,116 @@
 @page "/equipe"
+@layout AppLayout
+@attribute [Authorize(Policy = "Gestao")]
 @inject UiSession Session
-@inject AcademicDashboardService Academic
+@inject AcademicService Academic
 @inject AccountRegistrationService Accounts
-@inject NavigationManager Navigation
 
 <PageTitle>Equipe | EduAssess</PageTitle>
-<div class="page-heading"><div><div class="eyebrow">EQUIPE ACADÊMICA</div><h1>Equipe</h1><p>A criação de cada perfil segue a hierarquia de permissões.</p></div></div>
-@if (!string.IsNullOrWhiteSpace(message)) { <div class="alert @alertClass">@message</div> }
-<div class="page-columns">
-    @if (Session.CanCreateManager)
-    {
-        <section class="panel form-panel">
-            <div class="panel-heading"><div><h2>Novo gestor</h2><p>Somente Admin pode criar uma conta Gestor.</p></div></div>
-            <EditForm Model="managerForm" OnValidSubmit="CreateManagerAsync">
-                <DataAnnotationsValidator />
-                <label class="field-label">Nome completo</label><InputText class="text-input" @bind-Value="managerForm.Name" /><ValidationMessage For="@(() => managerForm.Name)" />
-                <label class="field-label">E-mail</label><InputText class="text-input" @bind-Value="managerForm.Email" /><ValidationMessage For="@(() => managerForm.Email)" />
-                <div class="form-row">
-                    <div><label class="field-label">CPF</label><InputText class="text-input" @bind-Value="managerForm.Cpf" inputmode="numeric" /><ValidationMessage For="@(() => managerForm.Cpf)" /></div>
-                    <div><label class="field-label">Telefone</label><InputText class="text-input" @bind-Value="managerForm.Phone" inputmode="numeric" /><ValidationMessage For="@(() => managerForm.Phone)" /></div>
-                </div>
-                <label class="field-label">Data de nascimento</label><InputDate class="text-input" @bind-Value="managerForm.BirthDate" /><ValidationMessage For="@(() => managerForm.BirthDate)" />
-                <label class="field-label">Senha</label><InputText class="text-input" @bind-Value="managerForm.Password" type="password" autocomplete="new-password" /><ValidationMessage For="@(() => managerForm.Password)" />
-                <label class="field-label">Confirmar senha</label><InputText class="text-input" @bind-Value="managerForm.ConfirmPassword" type="password" autocomplete="new-password" /><ValidationMessage For="@(() => managerForm.ConfirmPassword)" />
-                <button class="button button-primary full-button" type="submit" disabled="@busy">@(busy ? "Criando..." : "Criar gestor")</button>
-            </EditForm>
-        </section>
-    }
-    @if (Session.CanCreateProfessor)
-    {
-        <section class="panel form-panel">
-            <div class="panel-heading"><div><h2>Novo professor</h2><p>Somente Gestor pode criar uma conta Professor.</p></div></div>
-            <EditForm Model="professorForm" OnValidSubmit="CreateProfessorAsync">
-                <DataAnnotationsValidator />
-                <label class="field-label">Nome completo</label><InputText class="text-input" @bind-Value="professorForm.Name" /><ValidationMessage For="@(() => professorForm.Name)" />
-                <label class="field-label">E-mail</label><InputText class="text-input" @bind-Value="professorForm.Email" /><ValidationMessage For="@(() => professorForm.Email)" />
-                <div class="form-row">
-                    <div><label class="field-label">CPF</label><InputText class="text-input" @bind-Value="professorForm.Cpf" inputmode="numeric" /><ValidationMessage For="@(() => professorForm.Cpf)" /></div>
-                    <div><label class="field-label">Telefone</label><InputText class="text-input" @bind-Value="professorForm.Phone" inputmode="numeric" /><ValidationMessage For="@(() => professorForm.Phone)" /></div>
-                </div>
-                <label class="field-label">Data de nascimento</label><InputDate class="text-input" @bind-Value="professorForm.BirthDate" /><ValidationMessage For="@(() => professorForm.BirthDate)" />
-                <label class="field-label">Senha</label><InputText class="text-input" @bind-Value="professorForm.Password" type="password" autocomplete="new-password" /><ValidationMessage For="@(() => professorForm.Password)" />
-                <label class="field-label">Confirmar senha</label><InputText class="text-input" @bind-Value="professorForm.ConfirmPassword" type="password" autocomplete="new-password" /><ValidationMessage For="@(() => professorForm.ConfirmPassword)" />
-                <button class="button button-primary full-button" type="submit" disabled="@busy">@(busy ? "Criando..." : "Criar professor")</button>
-            </EditForm>
-        </section>
-    }
-    <section class="panel list-panel">
-        <div class="panel-heading"><div><h2>Equipe docente</h2><p>Professores ativos na plataforma</p></div><span class="count-pill">@instructors.Count</span></div>
-        @if (instructors.Count == 0) { <div class="empty-state"><div class="empty-icon">♧</div><strong>Nenhum professor cadastrado</strong><span>Gestores podem cadastrar docentes para vinculá-los às turmas.</span></div> }
+
+<PageHeader Eyebrow="Pessoas" Title="Equipe" Subtitle="@(Session.CanCreateManager ? "Como administrador, você cria gestores. Gestores cadastram os professores." : "Como gestor, você cadastra os professores da instituição.")" />
+
+<Feedback Message="@message" IsError="@isError" />
+
+<div class="cols">
+    <div class="card sticky">
+        @if (Session.User is null)
+        {
+            <div class="loading"><span class="spinner"></span></div>
+        }
+        else if (!Session.CanCreateManager && !Session.CanCreateProfessor)
+        {
+            <EmptyState IconName="lock" Title="Sem permissão" Text="Seu perfil não cria contas de equipe." />
+        }
         else
         {
-            <div class="table-wrap"><table><thead><tr><th>PROFESSOR</th><th>IDENTIFICAÇÃO</th></tr></thead><tbody>
-                @foreach (var teacher in instructors)
-                {
-                    <tr><td><div class="table-person"><span class="avatar avatar-small">@GetInitials(teacher.Name)</span><strong>@teacher.Name</strong></div></td><td><span class="badge badge-violet">Docente</span></td></tr>
-                }
-            </tbody></table></div>
+            <div class="card-head"><div><h2>@(Session.CanCreateManager ? "Novo gestor" : "Novo professor")</h2><p>A conta já nasce com o perfil definido.</p></div></div>
+            <EditForm Model="form" OnValidSubmit="CreateAsync" FormName="equipe">
+                <DataAnnotationsValidator />
+                <div class="field"><label for="e-name">Nome completo</label><InputText id="e-name" class="input" @bind-Value="form.Name" /><ValidationMessage For="@(() => form.Name)" /></div>
+                <div class="field"><label for="e-email">E-mail</label><InputText id="e-email" class="input" @bind-Value="form.Email" /><ValidationMessage For="@(() => form.Email)" /></div>
+                <div class="form-row">
+                    <div class="field"><label for="e-cpf">CPF</label><InputText id="e-cpf" class="input" @bind-Value="form.Cpf" inputmode="numeric" placeholder="000.000.000-00" /><ValidationMessage For="@(() => form.Cpf)" /></div>
+                    <div class="field"><label for="e-phone">Telefone</label><InputText id="e-phone" class="input" @bind-Value="form.Phone" inputmode="numeric" placeholder="(11) 90000-0000" /><ValidationMessage For="@(() => form.Phone)" /></div>
+                </div>
+                <div class="field"><label for="e-birth">Data de nascimento</label><InputDate id="e-birth" class="input" @bind-Value="form.BirthDate" /><ValidationMessage For="@(() => form.BirthDate)" /></div>
+                <div class="form-row">
+                    <div class="field"><label for="e-pass">Senha inicial</label><InputText id="e-pass" type="password" class="input" @bind-Value="form.Password" autocomplete="new-password" /><ValidationMessage For="@(() => form.Password)" /></div>
+                    <div class="field"><label for="e-pass2">Confirmar</label><InputText id="e-pass2" type="password" class="input" @bind-Value="form.ConfirmPassword" autocomplete="new-password" /><ValidationMessage For="@(() => form.ConfirmPassword)" /></div>
+                </div>
+                <button class="btn btn-primary" type="submit" disabled="@busy">@(Session.CanCreateManager ? "Criar gestor" : "Criar professor")</button>
+            </EditForm>
         }
-    </section>
+    </div>
+
+    <div class="card">
+        <div class="card-head"><div><h2>Gestores e professores</h2><p>Contas ativas da equipe.</p></div><span class="count-pill">@(staff?.Count ?? 0)</span></div>
+        @if (staff is null)
+        {
+            <div class="loading"><span class="spinner"></span> Carregando…</div>
+        }
+        else if (staff.Count == 0)
+        {
+            <EmptyState IconName="users" Title="Equipe vazia" Text="Cadastre o primeiro membro da equipe usando o formulário." />
+        }
+        else
+        {
+            <div class="table-wrap">
+                <table>
+                    <thead><tr><th>Nome</th><th>E-mail</th><th>Perfil</th></tr></thead>
+                    <tbody>
+                        @foreach (var person in staff)
+                        {
+                            <tr>
+                                <td><div class="person"><div class="avatar sm">@UiFormat.Initials(person.Name)</div><strong>@person.Name</strong></div></td>
+                                <td>@person.Email</td>
+                                <td><span class="badge @(person.Role == UserRole.Gestor ? "badge-blue" : "badge-violet")">@UiFormat.RoleLabel(person.Role)</span></td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
 </div>
 
 @code {
-    private List<InstructorRow> instructors = [];
-    private AccountRegistrationForm managerForm = new();
-    private AccountRegistrationForm professorForm = new();
+    private List<StaffRow>? staff;
+    private AccountRegistrationForm form = new();
     private string? message;
-    private string alertClass = "alert-success";
+    private bool isError;
     private bool busy;
 
     protected override async Task OnInitializedAsync()
     {
-        if (!Session.CanManage) { Navigation.NavigateTo(Session.CanAssignStudents ? "/alunos" : "/login"); return; }
+        await Session.InitializeAsync();
         await LoadAsync();
     }
 
-    private async Task LoadAsync() => instructors = await Academic.GetInstructorsAsync();
-
-    private async Task CreateManagerAsync()
+    private async Task LoadAsync()
     {
-        await CreateAsync(async () =>
-        {
-            await Accounts.CreateManagerAsync(
-                Session.User!.Role, managerForm.Name, managerForm.Email, managerForm.Cpf, managerForm.Phone,
-                managerForm.BirthDate, managerForm.Password, managerForm.ConfirmPassword);
-            managerForm = new AccountRegistrationForm();
-            message = "Gestor cadastrado com sucesso.";
-        });
+        try { staff = await Academic.GetStaffAsync(); }
+        catch (UnauthorizedAccessException ex) { message = ex.Message; isError = true; staff ??= new(); }
     }
 
-    private async Task CreateProfessorAsync()
-    {
-        await CreateAsync(async () =>
-        {
-            await Accounts.CreateProfessorAsync(
-                Session.User!.Role, professorForm.Name, professorForm.Email, professorForm.Cpf, professorForm.Phone,
-                professorForm.BirthDate, professorForm.Password, professorForm.ConfirmPassword);
-            professorForm = new AccountRegistrationForm();
-            message = "Professor cadastrado com sucesso.";
-            await LoadAsync();
-        });
-    }
-
-    private async Task CreateAsync(Func<Task> operation)
+    private async Task CreateAsync()
     {
         busy = true;
-        message = null;
         try
         {
-            await operation();
-            alertClass = "alert-success";
-        }
-        catch (AccountConflictException ex)
-        {
-            message = ex.Message;
-            alertClass = "alert-error";
-        }
-        catch (Exception ex) when (ex is ArgumentException or UnauthorizedAccessException)
-        {
-            message = ex.Message;
-            alertClass = "alert-error";
-        }
-        finally
-        {
-            busy = false;
-        }
-    }
+            var actor = await Session.RequireAsync(UserRole.Admin, UserRole.Gestor);
+            if (actor.Role == UserRole.Admin)
+                await Accounts.CreateManagerAsync(actor.Role, form.Name, form.Email, form.Cpf, form.Phone, form.BirthDate, form.Password, form.ConfirmPassword);
+            else
+                await Accounts.CreateProfessorAsync(actor.Role, form.Name, form.Email, form.Cpf, form.Phone, form.BirthDate, form.Password, form.ConfirmPassword);
 
-    private static string GetInitials(string name) => string.Join("", name.Split(' ', StringSplitOptions.RemoveEmptyEntries).Take(2).Select(x => char.ToUpperInvariant(x[0])));
+            message = (actor.Role == UserRole.Admin ? "Gestor" : "Professor") + " criado com sucesso."; isError = false;
+            form = new AccountRegistrationForm();
+            await LoadAsync();
+        }
+        catch (Exception ex) when (ex is ArgumentException or AccountConflictException or UnauthorizedAccessException)
+        {
+            message = ex.Message; isError = true;
+        }
+        finally { busy = false; }
+    }
 }

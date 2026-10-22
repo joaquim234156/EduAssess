@@ -1,91 +1,81 @@
 @page "/cadastro"
+@layout AuthLayout
 @inject AccountRegistrationService Accounts
-@inject NavigationManager Navigation
 
 <PageTitle>Criar conta | EduAssess</PageTitle>
-<div class="login-page">
-    <section class="login-brand-panel">
-        <a class="brand login-brand" href="/"><span class="brand-mark">E</span><span>Edu<span>Assess</span><small>GESTÃO ACADÊMICA</small></span></a>
-        <div class="login-message">
-            <div class="login-kicker">SEU PRÓXIMO PASSO</div>
-            <h1>Crie sua conta<br />na EduAssess.</h1>
-            <p>Depois do cadastro, um Admin, Gestor ou Professor poderá atribuir seu perfil acadêmico.</p>
+
+<div class="auth">
+    <aside class="auth-aside">
+        <Logo Light="true" />
+        <div>
+            <div class="eyebrow">Seu primeiro passo</div>
+            <h1>Crie sua conta no <span class="mark">EduAssess.</span></h1>
+            <p>Depois do cadastro, um administrador, gestor ou professor atribui o seu perfil acadêmico e libera o seu painel.</p>
+            <ul class="auth-points">
+                <li><Icon Name="check-circle" Size="20" /> Cadastro em menos de um minuto</li>
+                <li><Icon Name="check-circle" Size="20" /> Conta sem privilégios até a atribuição do perfil</li>
+                <li><Icon Name="check-circle" Size="20" /> Seus dados protegidos com criptografia</li>
+            </ul>
         </div>
-        <div class="login-footnote">EDUASSESS <span>•</span> PLATAFORMA EDUCACIONAL</div>
-    </section>
-    <section class="login-form-panel">
-        <div class="login-form-wrap">
-            <div class="eyebrow">NOVO CADASTRO</div>
+        <div class="auth-foot">EDUASSESS · PLATAFORMA EDUCACIONAL</div>
+    </aside>
+
+    <section class="auth-main">
+        <div class="auth-card">
+            <a class="back" href="/"><Icon Name="arrow-left" Size="16" /> Voltar ao site</a>
+            <div class="eyebrow">Novo cadastro</div>
             <h2>Criar uma conta</h2>
-            <p class="muted">Contas novas não recebem perfil privilegiado automaticamente.</p>
-            @if (!string.IsNullOrWhiteSpace(message))
-            {
-                <div class="alert @alertClass">@message</div>
-            }
+            <p class="sub">Preencha seus dados para começar.</p>
+
             @if (created)
             {
-                <a class="button button-primary login-submit" href="/login">Ir para entrar <span>→</span></a>
+                <div class="alert alert-success" role="status"><Icon Name="check-circle" Size="18" /><span>Conta criada! Aguarde um administrador, gestor ou professor atribuir o seu perfil de aluno.</span></div>
+                <a class="btn btn-primary btn-lg btn-block" href="/login">Ir para o login <Icon Name="arrow-right" Size="18" /></a>
             }
             else
             {
-                <EditForm Model="form" OnValidSubmit="RegisterAsync">
+                <Feedback Message="@error" IsError="true" />
+                <EditForm Model="form" OnValidSubmit="RegisterAsync" FormName="cadastro">
                     <DataAnnotationsValidator />
-                    <label class="field-label">Nome completo</label>
-                    <InputText class="text-input" @bind-Value="form.Name" autocomplete="name" />
-                    <ValidationMessage For="@(() => form.Name)" />
-                    <label class="field-label">E-mail</label>
-                    <InputText class="text-input" @bind-Value="form.Email" autocomplete="email" />
-                    <ValidationMessage For="@(() => form.Email)" />
+                    <div class="field"><label for="r-name">Nome completo</label><InputText id="r-name" class="input" @bind-Value="form.Name" autocomplete="name" /><ValidationMessage For="@(() => form.Name)" /></div>
+                    <div class="field"><label for="r-email">E-mail</label><InputText id="r-email" class="input" @bind-Value="form.Email" autocomplete="email" /><ValidationMessage For="@(() => form.Email)" /></div>
                     <div class="form-row">
-                        <div><label class="field-label">CPF</label><InputText class="text-input" @bind-Value="form.Cpf" inputmode="numeric" /><ValidationMessage For="@(() => form.Cpf)" /></div>
-                        <div><label class="field-label">Telefone</label><InputText class="text-input" @bind-Value="form.Phone" inputmode="numeric" autocomplete="tel" /><ValidationMessage For="@(() => form.Phone)" /></div>
+                        <div class="field"><label for="r-cpf">CPF</label><InputText id="r-cpf" class="input" @bind-Value="form.Cpf" inputmode="numeric" placeholder="000.000.000-00" /><ValidationMessage For="@(() => form.Cpf)" /></div>
+                        <div class="field"><label for="r-phone">Telefone</label><InputText id="r-phone" class="input" @bind-Value="form.Phone" inputmode="numeric" autocomplete="tel" placeholder="(11) 90000-0000" /><ValidationMessage For="@(() => form.Phone)" /></div>
                     </div>
-                    <label class="field-label">Data de nascimento</label>
-                    <InputDate class="text-input" @bind-Value="form.BirthDate" />
-                    <ValidationMessage For="@(() => form.BirthDate)" />
-                    <label class="field-label">Senha</label>
-                    <InputText class="text-input" @bind-Value="form.Password" type="password" autocomplete="new-password" />
-                    <ValidationMessage For="@(() => form.Password)" />
-                    <label class="field-label">Confirmar senha</label>
-                    <InputText class="text-input" @bind-Value="form.ConfirmPassword" type="password" autocomplete="new-password" />
-                    <ValidationMessage For="@(() => form.ConfirmPassword)" />
-                    <button class="button button-primary login-submit" type="submit" disabled="@busy">@(busy ? "Criando conta..." : "Criar conta") <span>→</span></button>
+                    <div class="field"><label for="r-birth">Data de nascimento</label><InputDate id="r-birth" class="input" @bind-Value="form.BirthDate" /><ValidationMessage For="@(() => form.BirthDate)" /></div>
+                    <div class="form-row">
+                        <div class="field"><label for="r-pass">Senha</label><InputText id="r-pass" type="password" class="input" @bind-Value="form.Password" autocomplete="new-password" /><ValidationMessage For="@(() => form.Password)" /></div>
+                        <div class="field"><label for="r-pass2">Confirmar senha</label><InputText id="r-pass2" type="password" class="input" @bind-Value="form.ConfirmPassword" autocomplete="new-password" /><ValidationMessage For="@(() => form.ConfirmPassword)" /></div>
+                    </div>
+                    <button class="btn btn-primary btn-lg btn-block" type="submit" disabled="@busy">@(busy ? "Criando conta…" : "Criar conta") <Icon Name="arrow-right" Size="18" /></button>
                 </EditForm>
-                <p class="muted">Já tem uma conta? <a href="/login">Entrar</a></p>
+                <p class="auth-switch">Já tem uma conta? <a href="/login">Entrar</a></p>
             }
         </div>
     </section>
 </div>
 
 @code {
-    private AccountRegistrationForm form = new();
-    private string? message;
-    private string alertClass = "alert-success";
+    private readonly AccountRegistrationForm form = new();
+    private string? error;
     private bool busy;
     private bool created;
 
     private async Task RegisterAsync()
     {
         busy = true;
-        message = null;
+        error = null;
         try
         {
             await Accounts.RegisterUserAsync(
                 form.Name, form.Email, form.Cpf, form.Phone, form.BirthDate,
                 form.Password, form.ConfirmPassword);
-            message = "Conta criada. Aguarde um Admin, Gestor ou Professor atribuir seu perfil de aluno.";
-            alertClass = "alert-success";
             created = true;
         }
-        catch (AccountConflictException ex)
+        catch (Exception ex) when (ex is AccountConflictException or ArgumentException)
         {
-            message = ex.Message;
-            alertClass = "alert-error";
-        }
-        catch (ArgumentException ex)
-        {
-            message = ex.Message;
-            alertClass = "alert-error";
+            error = ex.Message;
         }
         finally
         {

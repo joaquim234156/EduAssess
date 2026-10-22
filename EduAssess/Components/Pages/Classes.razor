@@ -1,82 +1,133 @@
 @page "/turmas"
-@inject UiSession Session
-@inject AcademicDashboardService Academic
-@inject NavigationManager Navigation
+@layout AppLayout
+@attribute [Authorize(Policy = "Gestao")]
+@inject AcademicService Academic
 
 <PageTitle>Turmas | EduAssess</PageTitle>
-<div class="page-heading"><div><div class="eyebrow">ORGANIZAÇÃO ACADÊMICA</div><h1>Turmas</h1><p>Conecte cada formação aos professores e estudantes.</p></div></div>
-@if (!string.IsNullOrWhiteSpace(message)) { <div class="alert @alertClass">@message</div> }
-<div class="page-columns">
-    @if (Session.CanManage)
-    {
-        <section class="panel form-panel">
-            <div class="panel-heading"><div><h2>Nova turma</h2><p>Escolha um curso e um professor.</p></div></div>
-            <EditForm Model="form" OnValidSubmit="CreateAsync">
-                <DataAnnotationsValidator />
-                <label class="field-label">Nome da turma</label><InputText class="text-input" @bind-Value="form.Name" placeholder="Ex.: Administração — Noite" /><ValidationMessage For="@(() => form.Name)" />
-                <label class="field-label">Curso</label><InputSelect class="text-input" @bind-Value="form.CourseId"><option value="">Selecione um curso</option>@foreach (var course in courses) { <option value="@course.Id">@course.Name</option> }</InputSelect><ValidationMessage For="@(() => form.CourseId)" />
-                <label class="field-label">Professor</label><InputSelect class="text-input" @bind-Value="form.InstructorId"><option value="">Selecione um professor</option>@foreach (var teacher in instructors) { <option value="@teacher.Id">@teacher.Name</option> }</InputSelect><ValidationMessage For="@(() => form.InstructorId)" />
-                <button class="button button-primary full-button" type="submit">Criar turma</button>
-                @if (instructors.Count == 0) { <div class="form-hint">Cadastre um usuário com perfil Professor antes de criar turmas.</div> }
-            </EditForm>
-        </section>
-    }
-    <section class="panel list-panel">
-        <div class="panel-heading"><div><h2>Turmas cadastradas</h2><p>Turmas ativas e seus responsáveis</p></div><span class="count-pill">@classes.Count</span></div>
-        @if (classes.Count == 0) { <div class="empty-state"><div class="empty-icon">▦</div><strong>Nenhuma turma cadastrada</strong><span>Crie uma turma para organizar seus alunos.</span></div> }
+
+<PageHeader Eyebrow="Instituição" Title="Turmas" Subtitle="Organize as turmas por curso e defina o professor responsável por cada uma." />
+
+<Feedback Message="@message" IsError="@isError" />
+
+<div class="cols">
+    <div class="card sticky">
+        <div class="card-head"><div><h2>Nova turma</h2><p>Escolha o curso e o professor.</p></div></div>
+        @if (courses is not null && (courses.Count == 0 || teachers!.Count == 0))
+        {
+            <div class="hint" style="margin-top:0">
+                Para criar uma turma é preciso ter ao menos um
+                @if (courses.Count == 0) { <a href="/cursos"><b>curso</b></a> }
+                @if (courses.Count == 0 && teachers!.Count == 0) { <span> e um </span> }
+                @if (teachers!.Count == 0) { <a href="/equipe"><b>professor</b></a> }
+                cadastrado.
+            </div>
+        }
         else
         {
-            <div class="table-wrap"><table><thead><tr><th>TURMA</th><th>CURSO</th><th>PROFESSOR</th><th>PERÍODO</th></tr></thead><tbody>
-                @foreach (var item in classes)
-                {
-                    <tr><td><div class="table-person"><span class="class-avatar">▦</span><strong>@item.Name</strong></div></td><td>@item.CourseName</td><td>@item.InstructorName</td><td><span class="badge badge-violet">Período @item.Period</span></td></tr>
-                }
-            </tbody></table></div>
+            <EditForm Model="form" OnValidSubmit="CreateAsync" FormName="turma">
+                <DataAnnotationsValidator />
+                <div class="field"><label for="t-nome">Nome da turma</label><InputText id="t-nome" class="input" @bind-Value="form.Name" placeholder="Ex.: Administração — Noite" /><ValidationMessage For="@(() => form.Name)" /></div>
+                <div class="field"><label for="t-curso">Curso</label>
+                    <InputSelect id="t-curso" class="select" @bind-Value="form.CourseId">
+                        <option value="">Selecione</option>
+                        @foreach (var course in courses ?? new()) { <option value="@course.Id">@course.Name</option> }
+                    </InputSelect>
+                    <ValidationMessage For="@(() => form.CourseId)" />
+                </div>
+                <div class="field"><label for="t-prof">Professor responsável</label>
+                    <InputSelect id="t-prof" class="select" @bind-Value="form.TeacherId">
+                        <option value="">Selecione</option>
+                        @foreach (var teacher in teachers ?? new()) { <option value="@teacher.Id">@teacher.Name</option> }
+                    </InputSelect>
+                    <ValidationMessage For="@(() => form.TeacherId)" />
+                </div>
+                <button class="btn btn-primary" type="submit" disabled="@busy">Criar turma</button>
+            </EditForm>
         }
-    </section>
+    </div>
+
+    <div class="card">
+        <div class="card-head"><div><h2>Turmas ativas</h2><p>Alunos matriculados em cada turma.</p></div><span class="count-pill">@(classes?.Count ?? 0)</span></div>
+        @if (classes is null)
+        {
+            <div class="loading"><span class="spinner"></span> Carregando…</div>
+        }
+        else if (classes.Count == 0)
+        {
+            <EmptyState IconName="layers" Title="Nenhuma turma criada" Text="Crie a primeira turma para começar a matricular alunos." />
+        }
+        else
+        {
+            <div class="table-wrap">
+                <table>
+                    <thead><tr><th>Turma</th><th>Curso</th><th>Professor</th><th class="num">Alunos</th></tr></thead>
+                    <tbody>
+                        @foreach (var item in classes)
+                        {
+                            <tr>
+                                <td><strong>@item.Name</strong><span class="cell-sub">@item.Period º período</span></td>
+                                <td>@item.CourseName</td>
+                                <td><div class="person"><div class="avatar sm">@UiFormat.Initials(item.InstructorName)</div>@item.InstructorName</div></td>
+                                <td class="num"><span class="badge badge-gray">@item.StudentCount</span></td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
 </div>
 
 @code {
-    private List<ClassRow> classes = [];
-    private List<CourseRow> courses = [];
-    private List<InstructorRow> instructors = [];
-    private ClassForm form = new();
+    private List<ClassRow>? classes;
+    private List<CourseRow>? courses;
+    private List<InstructorRow>? teachers;
+    private readonly ClassForm form = new();
     private string? message;
-    private string alertClass = "alert-success";
+    private bool isError;
+    private bool busy;
 
-    protected override async Task OnInitializedAsync()
-    {
-        if (!Session.CanManage) { Navigation.NavigateTo(Session.CanAssignStudents ? "/alunos" : "/login"); return; }
-        await LoadAsync();
-    }
+    protected override async Task OnInitializedAsync() => await LoadAsync();
 
     private async Task LoadAsync()
     {
-        classes = await Academic.GetClassesAsync();
-        courses = await Academic.GetCoursesAsync();
-        instructors = await Academic.GetInstructorsAsync();
+        try
+        {
+            courses = await Academic.GetCoursesAsync();
+            teachers = await Academic.GetInstructorsAsync();
+            classes = await Academic.GetClassesAsync();
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            message = ex.Message; isError = true;
+            courses ??= new(); teachers ??= new(); classes ??= new();
+        }
     }
 
     private async Task CreateAsync()
     {
+        busy = true;
         try
         {
-            if (form.CourseId == Guid.Empty || form.InstructorId == Guid.Empty)
-                throw new ArgumentException("Selecione um curso e um professor.");
-            await Academic.CreateClassAsync(form.Name, form.CourseId, form.InstructorId);
-            message = "Turma criada com sucesso.";
-            alertClass = "alert-success";
-            form = new ClassForm();
+            await Academic.CreateClassAsync(form.Name, form.CourseId ?? Guid.Empty, form.TeacherId ?? Guid.Empty);
+            message = "Turma criada com sucesso."; isError = false;
+            form.Name = ""; form.CourseId = null; form.TeacherId = null;
             await LoadAsync();
         }
-        catch (Exception ex) when (ex is ArgumentException or UnauthorizedAccessException)
-        { message = ex.Message; alertClass = "alert-error"; }
+        catch (Exception ex) when (ex is ArgumentException or UnauthorizedAccessException) { message = ex.Message; isError = true; }
+        finally { busy = false; }
     }
 
     private sealed class ClassForm
     {
-        [Required(ErrorMessage = "Informe o nome da turma.")][StringLength(150)] public string Name { get; set; } = "";
-        [Required(ErrorMessage = "Selecione um curso.")] public Guid CourseId { get; set; }
-        [Required(ErrorMessage = "Selecione um professor.")] public Guid InstructorId { get; set; }
+        [Required(ErrorMessage = "Informe o nome da turma.")]
+        [StringLength(150, MinimumLength = 2, ErrorMessage = "Use entre 2 e 150 caracteres.")]
+        public string Name { get; set; } = "";
+
+        [Required(ErrorMessage = "Selecione o curso.")]
+        public Guid? CourseId { get; set; }
+
+        [Required(ErrorMessage = "Selecione o professor.")]
+        public Guid? TeacherId { get; set; }
     }
 }

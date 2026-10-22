@@ -1,10 +1,20 @@
 @baseUrl = http://localhost:5062
-@adminToken = {{adminToken}}
-@gestorToken = {{gestorToken}}
-@professorToken = {{professorToken}}
-@accountId = {{accountId}}
+# Cole aqui o token devolvido por POST /auth/login (ou use variáveis do REST Client).
+@adminToken = COLE_O_TOKEN_AQUI
+@gestorToken = COLE_O_TOKEN_AQUI
+@professorToken = COLE_O_TOKEN_AQUI
+@accountId = ID_DA_CONTA
 
-### Public registration always creates a non-privileged User
+### Login (conta de desenvolvimento criada na primeira execução)
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "admin@eduassess.local",
+  "password": "Admin@12345!"
+}
+
+### Cadastro público: sempre cria uma conta sem privilégios (perfil User)
 POST {{baseUrl}}/auth/register
 Content-Type: application/json
 
@@ -18,7 +28,7 @@ Content-Type: application/json
   "confirmPassword": "SenhaSegura123"
 }
 
-### Admin creates a manager
+### Admin cria um gestor
 POST {{baseUrl}}/auth/users/managers
 Authorization: Bearer {{adminToken}}
 Content-Type: application/json
@@ -33,7 +43,7 @@ Content-Type: application/json
   "confirmPassword": "SenhaSegura123"
 }
 
-### Gestor creates a professor
+### Gestor cria um professor
 POST {{baseUrl}}/auth/users/professors
 Authorization: Bearer {{gestorToken}}
 Content-Type: application/json
@@ -48,10 +58,37 @@ Content-Type: application/json
   "confirmPassword": "SenhaSegura123"
 }
 
-### Admin, Gestor or Professor lists accounts awaiting student assignment
+### Admin, Gestor ou Professor lista contas aguardando perfil de aluno
 GET {{baseUrl}}/auth/users/pending-students
 Authorization: Bearer {{professorToken}}
 
-### Admin, Gestor or Professor assigns an existing account as student
+### Admin, Gestor ou Professor atribui o perfil de aluno
 POST {{baseUrl}}/auth/users/{{accountId}}/assign-student
+Authorization: Bearer {{professorToken}}
+
+### Gestão: cria um curso
+POST {{baseUrl}}/cursos/create
+Authorization: Bearer {{gestorToken}}
+Content-Type: application/json
+
+{
+  "nome": "Pedagogia",
+  "duracaoEmAnos": 4,
+  "descricao": "Formação de professores."
+}
+
+### Gestão: lista cursos
+GET {{baseUrl}}/cursos/list
+Authorization: Bearer {{gestorToken}}
+
+### Gestão: lista turmas
+GET {{baseUrl}}/turmas/list
+Authorization: Bearer {{gestorToken}}
+
+### Qualquer usuário autenticado: lista disciplinas
+GET {{baseUrl}}/disciplina/list
+Authorization: Bearer {{professorToken}}
+
+### Aluno (ou qualquer usuário) consulta as próprias notas
+GET {{baseUrl}}/notas/minhas
 Authorization: Bearer {{professorToken}}

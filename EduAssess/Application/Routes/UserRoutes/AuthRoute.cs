@@ -1,4 +1,4 @@
-﻿using EduAssess.Data;
+using EduAssess.Data;
 using EduAssess.EduAssess.Aplication.DTOs.User;
 using EduAssess.EduAssess.Aplication.Services;
 using EduAssess.Models;
@@ -168,7 +168,7 @@ namespace EduAssess.Application.Routes
                     return Results.Ok(new
                     {
                         message = "Login successful",
-                        user = new { user.Id, user.Email, user.Role },
+                        user = new { user.Id, user.Email, Role = user.Role.ToString() },
                         token
                     });
                 })
@@ -177,16 +177,16 @@ namespace EduAssess.Application.Routes
             route.MapGet("users",
                 async (AppDbContext context) =>
                 {
-                    var users = await context.Users.Where(u => u.Ativa == true).Select(u => new UserResponseDTO(u.Id, u.Name, u.Email, u.Cpf, u.Telefone, u.DataNascimento, u.Ativa)).ToListAsync();
+                    var users = await context.Users.AsNoTracking().Where(u => u.Ativa).OrderBy(u => u.Name).Select(u => new UserResponseDTO(u.Id, u.Name, u.Email, u.Cpf, u.Telefone, u.DataNascimento, u.Ativa)).ToListAsync();
                     return Results.Ok(users);
                 }
-            ).RequireAuthorization("Admin");
+            ).RequireAuthorization("Gestao");
 
             route.MapGet("users/{id:guid}",
                 async (Guid id, AppDbContext context, ClaimsPrincipal principal, CancellationToken cancellationToken) =>
                 {
                     var currentUserId = principal.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-                    if (!principal.IsInRole("Admin") && currentUserId != id.ToString())
+                    if (!principal.IsInRole("Admin") && !principal.IsInRole("Gestor") && currentUserId != id.ToString())
                         return Results.Forbid();
 
                     var user = await context.Users.FindAsync([id], cancellationToken);
@@ -204,7 +204,7 @@ namespace EduAssess.Application.Routes
                         return Results.BadRequest(errors);
 
                     var currentUserId = userLogado.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-                    var isAdmin = userLogado.IsInRole("Admin");
+                    var isAdmin = userLogado.IsInRole("Admin") || userLogado.IsInRole("Gestor");
 
                     if (!isAdmin && currentUserId != id.ToString())
                     {
@@ -225,7 +225,7 @@ namespace EduAssess.Application.Routes
                     return Results.Ok(new
                     {
                         message = "User updated successfully",
-                        user = new { user.Id, user.Email, user.Role }
+                        user = new { user.Id, user.Email, Role = user.Role.ToString() }
                     });
                 }
             ).RequireAuthorization();
@@ -287,13 +287,14 @@ namespace EduAssess.Application.Routes
             ).RequireAuthorization();
 
             route.MapDelete("users/{id:guid}",
-                async (Guid id, AppDbContext context) =>
+                async (Guid id, AppDbContext context, ClaimsPrincipal principal) =>
                 {
+                    if (principal.FindFirst(ClaimTypes.NameIdentifier)?.Value == id.ToString())
+                        return Results.BadRequest(new { message = "Você não pode desativar a própria conta." });
+
                     var user = await context.Users.FindAsync(id);
 
-                    if (user == null)
-                        return Results.NotFound(new { message = "User not found" });
-                    if (!user.Ativa)
+                    if (user == null || !user.Ativa)
                         return Results.NotFound(new { message = "User not found" });
 
                     user.Disable();

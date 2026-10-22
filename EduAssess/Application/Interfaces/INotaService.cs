@@ -1,4 +1,4 @@
-﻿using EduAssess.Application.DTOs.Nota;
+using EduAssess.Application.DTOs.Nota;
 
 namespace EduAssess.Application.Interfaces
 {
@@ -6,6 +6,7 @@ namespace EduAssess.Application.Interfaces
     {
         Task<NotaResponseDTO> RegistrarNotaAsync(NotaRequest request);
         Task<IEnumerable<NotaResponseDTO>> ObterNotasPorMatriculaAsync(Guid idMatricula);
+        Task<IEnumerable<NotaResponseDTO>> ObterNotasDoAlunoAsync(Guid idAluno);
         Task<IEnumerable<NotaResponseDTO>> ListarTodasAsync();
     }
 }

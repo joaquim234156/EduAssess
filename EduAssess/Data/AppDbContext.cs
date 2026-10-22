@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Linq;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
@@ -16,6 +16,7 @@ namespace EduAssess.Data
         public DbSet<MatriculaModel> Matriculas { get; set; } = null!;
         public DbSet<DisciplinaModel> Disciplinas { get; set; } = null!;
         public DbSet<NotaModel> Notas { get; set; } = null!;
+        public DbSet<ContatoModel> Contatos { get; set; } = null!;
 
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)

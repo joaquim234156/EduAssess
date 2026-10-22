@@ -1,80 +1,88 @@
 @page "/login"
+@layout AuthLayout
+@using global::EduAssess.Data
 @inject UiSession Session
 @inject NavigationManager Navigation
 
 <PageTitle>Entrar | EduAssess</PageTitle>
-<div class="login-page">
-    <section class="login-brand-panel">
-        <a class="brand login-brand" href="/"><span class="brand-mark">E</span><span>Edu<span>Assess</span><small>GESTÃO ACADÊMICA</small></span></a>
-        <div class="login-message">
-            <div class="login-kicker">APRENDER. EVOLUIR. CONQUISTAR.</div>
-            <h1>O próximo passo<br />da educação começa aqui.</h1>
-            <p>Uma plataforma completa para acompanhar cursos, turmas e o desenvolvimento de cada aluno.</p>
-            <div class="login-decoration"><span>✦</span><span>✳</span><span>＋</span></div>
+
+<div class="auth">
+    <aside class="auth-aside">
+        <Logo Light="true" />
+        <div>
+            <div class="eyebrow">Aprender · Evoluir · Conquistar</div>
+            <h1>O próximo passo da educação começa <span class="mark">aqui.</span></h1>
+            <p>Acompanhe cursos, turmas, notas e o desenvolvimento de cada aluno em uma plataforma única.</p>
+            <ul class="auth-points">
+                <li><Icon Name="check-circle" Size="20" /> Painel próprio para cada perfil</li>
+                <li><Icon Name="check-circle" Size="20" /> Notas e médias sempre atualizadas</li>
+                <li><Icon Name="check-circle" Size="20" /> Acesso protegido e auditado</li>
+            </ul>
         </div>
-        <div class="login-footnote">EDUASSESS <span>•</span> PLATAFORMA EDUCACIONAL</div>
-    </section>
-    <section class="login-form-panel">
-        <div class="login-form-wrap">
-            <div class="mobile-brand brand"><span class="brand-mark">E</span><span>Edu<span>Assess</span></span></div>
-            <div class="eyebrow">BEM-VINDO DE VOLTA</div>
+        <div class="auth-foot">EDUASSESS · PLATAFORMA EDUCACIONAL</div>
+    </aside>
+
+    <section class="auth-main">
+        <div class="auth-card">
+            <a class="back" href="/"><Icon Name="arrow-left" Size="16" /> Voltar ao site</a>
+            <div class="eyebrow">Bem-vindo de volta</div>
             <h2>Acesse sua conta</h2>
-            <p class="muted">Entre com suas credenciais para continuar.</p>
-            <EditForm Model="form" OnValidSubmit="SignInAsync">
-                <DataAnnotationsValidator />
-                @if (!string.IsNullOrWhiteSpace(error))
-                {
-                    <div class="alert alert-error">@error</div>
-                }
-                <label class="field-label" for="email">E-mail</label>
-                <InputText id="email" class="text-input" @bind-Value="form.Email" placeholder="voce@instituicao.edu.br" autocomplete="username" />
-                <ValidationMessage For="@(() => form.Email)" />
-                <label class="field-label" for="password">Senha</label>
-                <InputText id="password" type="password" class="text-input" @bind-Value="form.Password" placeholder="Digite sua senha" autocomplete="current-password" />
-                <ValidationMessage For="@(() => form.Password)" />
-                <button class="button button-primary login-submit" type="submit" disabled="@busy">@(busy ? "Entrando..." : "Entrar na plataforma") <span>→</span></button>
-            </EditForm>
-            <p class="muted">Ainda não tem conta? <a href="/cadastro">Criar conta</a></p>
-            <div class="login-security"><span>◈</span> Seus dados estão protegidos com segurança.</div>
+            <p class="sub">Entre com suas credenciais para continuar.</p>
+
+            @if (!string.IsNullOrEmpty(ErrorMessage))
+            {
+                <div class="alert alert-error" role="alert"><Icon Name="alert" Size="18" /><span>@ErrorMessage</span></div>
+            }
+
+            <form method="post" action="/ui/login">
+                <input type="hidden" name="returnUrl" value="@ReturnUrl" />
+                <div class="field">
+                    <label for="email">E-mail</label>
+                    <input id="email" name="email" type="email" class="input" value="@Email" placeholder="voce@instituicao.edu.br" autocomplete="username" required maxlength="150" />
+                </div>
+                <div class="field">
+                    <label for="password">Senha</label>
+                    <input id="password" name="password" type="password" class="input" placeholder="Digite sua senha" autocomplete="current-password" required maxlength="72" />
+                </div>
+                <label class="check" style="margin-bottom:22px"><input type="checkbox" name="remember" /> Manter conectado neste dispositivo</label>
+                <button class="btn btn-primary btn-lg btn-block" type="submit">Entrar na plataforma <Icon Name="arrow-right" Size="18" /></button>
+            </form>
+
+            <p class="auth-switch">Ainda não tem conta? <a href="/cadastro">Criar conta</a></p>
+
+            @if (ShowDemoHint)
+            {
+                <div class="auth-demo">
+                    <b>Ambiente de desenvolvimento</b>
+                    Admin: <code>@DatabaseInitializer.DevAdminEmail</code> / <code>@DatabaseInitializer.DevAdminPassword</code><br />
+                    Demo: <code>gestor@eduassess.demo</code>, <code>professor@eduassess.demo</code>, <code>aluno@eduassess.demo</code> / <code>@DatabaseInitializer.DemoPassword</code>
+                </div>
+            }
         </div>
     </section>
 </div>
 
 @code {
-    private readonly LoginForm form = new();
-    private string? error;
-    private bool busy;
+    [Inject] private IHostEnvironment Environment { get; set; } = default!;
 
-    protected override void OnInitialized()
+    [SupplyParameterFromQuery(Name = "erro")] private string? Error { get; set; }
+    [SupplyParameterFromQuery(Name = "email")] private string? Email { get; set; }
+    [SupplyParameterFromQuery(Name = "ReturnUrl")] private string? ReturnUrl { get; set; }
+
+    private bool ShowDemoHint => Environment.IsDevelopment();
+
+    private string? ErrorMessage => Error switch
     {
-        if (Session.IsSignedIn)
-            Navigation.NavigateTo(Session.User?.Role == UserRole.Professor ? "/alunos" : "/");
-    }
+        "credenciais" => "E-mail ou senha incorretos. Confira os dados e tente novamente.",
+        "campos" => "Informe o e-mail e a senha para entrar.",
+        null or "" => null,
+        _ => "Não foi possível entrar. Tente novamente."
+    };
 
-    private async Task SignInAsync()
+    protected override async Task OnInitializedAsync()
     {
-        busy = true;
-        error = null;
-        try
-        {
-            if (await Session.SignInAsync(form.Email, form.Password))
-                Navigation.NavigateTo(Session.User?.Role == UserRole.Professor ? "/alunos" : "/");
-            else
-                error = "Credenciais inválidas ou perfil sem permissão para acessar o painel.";
-        }
-        finally
-        {
-            busy = false;
-        }
-    }
-
-    private sealed class LoginForm
-    {
-        [Required(ErrorMessage = "Informe seu e-mail.")]
-        [EmailAddress(ErrorMessage = "Informe um e-mail válido.")]
-        public string Email { get; set; } = "";
-
-        [Required(ErrorMessage = "Informe sua senha.")]
-        public string Password { get; set; } = "";
+        await Session.InitializeAsync();
+        if (Session.User is not null)
+            Navigation.NavigateTo(UiFormat.HomePath(Session.User.Role), forceLoad: true);
     }
 }

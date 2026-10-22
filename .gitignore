@@ -365,3 +365,7 @@ FodyWeavers.xsd
 *.db
 *.db-shm
 *.db-wal
+
+# EduAssess: segredos e banco locais
+EduAssess/App_Data/
+*.sqlite*

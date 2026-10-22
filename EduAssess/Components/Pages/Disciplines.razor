@@ -1,0 +1,145 @@
+@page "/disciplinas"
+@layout AppLayout
+@attribute [Authorize(Policy = "Gestao")]
+@inject AcademicService Academic
+
+<PageTitle>Disciplinas | EduAssess</PageTitle>
+
+<PageHeader Eyebrow="Instituição" Title="Disciplinas" Subtitle="Cada disciplina tem um professor responsável — é nela que as notas são lançadas." />
+
+<Feedback Message="@message" IsError="@isError" />
+
+<div class="cols">
+    <div class="card sticky">
+        <div class="card-head"><div><h2>@(editingId is null ? "Nova disciplina" : "Editar disciplina")</h2><p>Vincule a disciplina a um professor ativo.</p></div></div>
+        @if (teachers is not null && teachers.Count == 0)
+        {
+            <div class="hint" style="margin-top:0">Ainda não há professores cadastrados. Peça a um gestor para criar professores em <a href="/equipe"><b>Equipe</b></a>.</div>
+        }
+        else
+        {
+            <EditForm Model="form" OnValidSubmit="SaveAsync" FormName="disciplina">
+                <DataAnnotationsValidator />
+                <div class="field"><label for="d-nome">Nome da disciplina</label><InputText id="d-nome" class="input" @bind-Value="form.Name" placeholder="Ex.: Gestão de Pessoas" /><ValidationMessage For="@(() => form.Name)" /></div>
+                <div class="field"><label for="d-prof">Professor responsável</label>
+                    <InputSelect id="d-prof" class="select" @bind-Value="form.TeacherId">
+                        <option value="">Selecione</option>
+                        @foreach (var teacher in teachers ?? new()) { <option value="@teacher.Id">@teacher.Name</option> }
+                    </InputSelect>
+                    <ValidationMessage For="@(() => form.TeacherId)" />
+                </div>
+                <div class="field"><label for="d-desc">Descrição <span class="opt">(opcional)</span></label><InputTextArea id="d-desc" class="textarea" @bind-Value="form.Description" /><ValidationMessage For="@(() => form.Description)" /></div>
+                <div class="form-actions">
+                    <button class="btn btn-primary" type="submit" disabled="@busy">@(editingId is null ? "Cadastrar disciplina" : "Salvar alterações")</button>
+                    @if (editingId is not null) { <button class="btn btn-ghost" type="button" @onclick="CancelEdit">Cancelar</button> }
+                </div>
+            </EditForm>
+        }
+    </div>
+
+    <div class="card">
+        <div class="card-head"><div><h2>Disciplinas ativas</h2><p>Catálogo de disciplinas da instituição.</p></div><span class="count-pill">@(disciplines?.Count ?? 0)</span></div>
+        @if (disciplines is null)
+        {
+            <div class="loading"><span class="spinner"></span> Carregando…</div>
+        }
+        else if (disciplines.Count == 0)
+        {
+            <EmptyState IconName="file" Title="Nenhuma disciplina cadastrada" Text="Cadastre a primeira disciplina para poder lançar notas." />
+        }
+        else
+        {
+            <div class="table-wrap">
+                <table>
+                    <thead><tr><th>Disciplina</th><th>Professor</th><th></th></tr></thead>
+                    <tbody>
+                        @foreach (var item in disciplines)
+                        {
+                            <tr>
+                                <td><strong>@item.Name</strong><span class="cell-sub">@(string.IsNullOrWhiteSpace(item.Description) ? "Sem descrição" : item.Description)</span></td>
+                                <td><div class="person"><div class="avatar sm">@UiFormat.Initials(item.TeacherName)</div>@item.TeacherName</div></td>
+                                <td><div class="row-actions">
+                                    <button class="btn-text" type="button" @onclick="() => Edit(item)">Editar</button>
+                                    <button class="btn-text danger" type="button" @onclick="() => DisableAsync(item)">Desativar</button>
+                                </div></td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    private List<DisciplineRow>? disciplines;
+    private List<InstructorRow>? teachers;
+    private DisciplineForm form = new();
+    private Guid? editingId;
+    private string? message;
+    private bool isError;
+    private bool busy;
+
+    protected override async Task OnInitializedAsync() => await LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        try
+        {
+            teachers = await Academic.GetInstructorsAsync();
+            disciplines = await Academic.GetDisciplinesAsync();
+        }
+        catch (UnauthorizedAccessException ex) { Fail(ex.Message); disciplines ??= new(); teachers ??= new(); }
+    }
+
+    private async Task SaveAsync()
+    {
+        busy = true;
+        try
+        {
+            await Academic.SaveDisciplineAsync(editingId, form.Name, form.Description, form.TeacherId ?? Guid.Empty);
+            Ok(editingId is null ? "Disciplina cadastrada com sucesso." : "Disciplina atualizada com sucesso.");
+            CancelEdit();
+            await LoadAsync();
+        }
+        catch (Exception ex) when (ex is ArgumentException or InvalidOperationException or UnauthorizedAccessException) { Fail(ex.Message); }
+        finally { busy = false; }
+    }
+
+    private void Edit(DisciplineRow item)
+    {
+        editingId = item.Id;
+        form = new DisciplineForm { Name = item.Name, Description = item.Description, TeacherId = item.TeacherId };
+        message = null;
+    }
+
+    private void CancelEdit() { editingId = null; form = new DisciplineForm(); }
+
+    private async Task DisableAsync(DisciplineRow item)
+    {
+        try
+        {
+            await Academic.DisableDisciplineAsync(item.Id);
+            Ok($"Disciplina “{item.Name}” desativada.");
+            if (editingId == item.Id) CancelEdit();
+            await LoadAsync();
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or UnauthorizedAccessException) { Fail(ex.Message); }
+    }
+
+    private void Ok(string text) { message = text; isError = false; }
+    private void Fail(string text) { message = text; isError = true; }
+
+    private sealed class DisciplineForm
+    {
+        [Required(ErrorMessage = "Informe o nome da disciplina.")]
+        [StringLength(100, MinimumLength = 3, ErrorMessage = "Use entre 3 e 100 caracteres.")]
+        public string Name { get; set; } = "";
+
+        [Required(ErrorMessage = "Selecione o professor responsável.")]
+        public Guid? TeacherId { get; set; }
+
+        [StringLength(500, ErrorMessage = "Use até 500 caracteres.")]
+        public string Description { get; set; } = "";
+    }
+}

@@ -1,87 +1,110 @@
 @page "/alunos"
+@layout AppLayout
+@attribute [Authorize(Policy = "AtribuirAluno")]
 @inject UiSession Session
-@inject AcademicDashboardService Academic
+@inject AcademicService Academic
 @inject AccountRegistrationService Accounts
-@inject NavigationManager Navigation
 
 <PageTitle>Alunos | EduAssess</PageTitle>
-<div class="page-heading"><div><div class="eyebrow">COMUNIDADE ACADÊMICA</div><h1>Alunos</h1><p>Consulte e atribua o perfil de aluno às contas cadastradas.</p></div></div>
-@if (!string.IsNullOrWhiteSpace(message)) { <div class="alert @alertClass">@message</div> }
-<div class="page-columns">
-    @if (Session.CanAssignStudents)
-    {
-        <section class="panel form-panel">
-            <div class="panel-heading"><div><h2>Contas para atribuir</h2><p>Admin, Gestor ou Professor pode atribuir o perfil de aluno.</p></div><span class="count-pill">@pendingUsers.Count</span></div>
-            @if (pendingUsers.Count == 0)
-            {
-                <div class="empty-state"><strong>Nenhuma conta pendente</strong><span>As novas contas aparecerão aqui após o cadastro.</span></div>
-            }
-            else
-            {
-                <div class="table-wrap"><table><thead><tr><th>CONTA</th><th>E-MAIL</th><th></th></tr></thead><tbody>
-                    @foreach (var user in pendingUsers)
-                    {
-                        <tr>
-                            <td><strong>@user.Name</strong></td>
-                            <td>@user.Email</td>
-                            <td><button class="button button-primary" type="button" disabled="@busy" @onclick="() => AssignAsStudentAsync(user.Id)">Atribuir como aluno</button></td>
-                        </tr>
-                    }
-                </tbody></table></div>
-            }
-        </section>
-    }
-    <section class="panel list-panel">
-        <div class="panel-heading"><div><h2>Estudantes</h2><p>Alunos ativos na plataforma</p></div><span class="count-pill">@students.Count</span></div>
-        @if (students.Count == 0) { <div class="empty-state"><div class="empty-icon">♙</div><strong>Nenhum aluno cadastrado</strong><span>As contas atribuídas aparecerão aqui.</span></div> }
+
+<PageHeader Eyebrow="Pessoas" Title="Alunos" Subtitle="Contas recém-criadas ficam aguardando um perfil. Atribua o perfil de aluno para liberar o acesso." />
+
+<Feedback Message="@message" IsError="@isError" />
+
+<div class="stack">
+    <div class="card">
+        <div class="card-head"><div><h2>Aguardando perfil</h2><p>Pessoas que criaram conta e ainda não têm acesso acadêmico.</p></div><span class="count-pill">@(pending?.Count ?? 0)</span></div>
+        @if (pending is null)
+        {
+            <div class="loading"><span class="spinner"></span> Carregando…</div>
+        }
+        else if (pending.Count == 0)
+        {
+            <EmptyState IconName="check-circle" Title="Tudo em dia" Text="Não há contas aguardando atribuição de perfil." />
+        }
         else
         {
-            <div class="table-wrap"><table><thead><tr><th>ALUNO</th><th>E-MAIL</th><th>TELEFONE</th></tr></thead><tbody>
-                @foreach (var student in students)
-                {
-                    <tr><td><div class="table-person"><span class="avatar avatar-small">@GetInitials(student.Name)</span><strong>@student.Name</strong></div></td><td>@student.Email</td><td>@student.Phone</td></tr>
-                }
-            </tbody></table></div>
+            <div class="table-wrap">
+                <table>
+                    <thead><tr><th>Nome</th><th>E-mail</th><th>Telefone</th><th></th></tr></thead>
+                    <tbody>
+                        @foreach (var person in pending)
+                        {
+                            <tr>
+                                <td><div class="person"><div class="avatar sm">@UiFormat.Initials(person.Name)</div><strong>@person.Name</strong></div></td>
+                                <td>@person.Email</td>
+                                <td>@person.Phone</td>
+                                <td><div class="row-actions"><button class="btn btn-primary btn-sm" type="button" @onclick="() => AssignAsync(person)"><Icon Name="cap" Size="16" /> Atribuir como aluno</button></div></td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
         }
-    </section>
+    </div>
+
+    <div class="card">
+        <div class="card-head"><div><h2>Alunos ativos</h2><p>Estudantes com perfil de aluno.</p></div><span class="count-pill">@(students?.Count ?? 0)</span></div>
+        @if (students is null)
+        {
+            <div class="loading"><span class="spinner"></span> Carregando…</div>
+        }
+        else if (students.Count == 0)
+        {
+            <EmptyState IconName="cap" Title="Nenhum aluno ainda" Text="Atribua o perfil de aluno a uma conta pendente." />
+        }
+        else
+        {
+            <div class="table-wrap">
+                <table>
+                    <thead><tr><th>Nome</th><th>E-mail</th><th>Telefone</th></tr></thead>
+                    <tbody>
+                        @foreach (var person in students)
+                        {
+                            <tr>
+                                <td><div class="person"><div class="avatar sm">@UiFormat.Initials(person.Name)</div><strong>@person.Name</strong></div></td>
+                                <td>@person.Email</td>
+                                <td>@person.Phone</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
 </div>
 
 @code {
-    private List<PersonRow> students = [];
-    private List<PersonRow> pendingUsers = [];
+    private List<PersonRow>? pending;
+    private List<PersonRow>? students;
     private string? message;
-    private string alertClass = "alert-success";
-    private bool busy;
+    private bool isError;
 
-    protected override async Task OnInitializedAsync()
+    protected override async Task OnInitializedAsync() => await LoadAsync();
+
+    private async Task LoadAsync()
     {
-        if (!Session.CanAssignStudents) { Navigation.NavigateTo("/login"); return; }
-        await LoadAsync();
-    }
-
-private async Task LoadAsync()
-{
-    students = await Academic.GetStudentsAsync();
-    pendingUsers = await Accounts.GetPendingStudentAssignmentsAsync(Session.User!.Role);
-}
-
-    private async Task AssignAsStudentAsync(Guid userId)
-    {
-        busy = true;
         try
         {
-            await Accounts.AssignAsStudentAsync(Session.User!.Role, userId);
-            message = "Perfil de aluno atribuído com sucesso.";
-            alertClass = "alert-success";
-            await LoadAsync();
+            var actor = await Session.RequireAsync(UserRole.Admin, UserRole.Gestor, UserRole.Professor);
+            pending = await Accounts.GetPendingStudentAssignmentsAsync(actor.Role);
+            students = await Academic.GetStudentsAsync();
         }
-        catch (Exception ex) when (ex is ArgumentException or UnauthorizedAccessException or KeyNotFoundException or InvalidOperationException)
-        { message = ex.Message; alertClass = "alert-error"; }
-        finally
-        {
-            busy = false;
-        }
+        catch (UnauthorizedAccessException ex) { message = ex.Message; isError = true; pending ??= new(); students ??= new(); }
     }
 
-    private static string GetInitials(string name) => string.Join("", name.Split(' ', StringSplitOptions.RemoveEmptyEntries).Take(2).Select(x => char.ToUpperInvariant(x[0])));
+    private async Task AssignAsync(PersonRow person)
+    {
+        try
+        {
+            var actor = await Session.RequireAsync(UserRole.Admin, UserRole.Gestor, UserRole.Professor);
+            await Accounts.AssignAsStudentAsync(actor.Role, person.Id);
+            message = $"{person.Name} agora é aluno."; isError = false;
+            await LoadAsync();
+        }
+        catch (Exception ex) when (ex is KeyNotFoundException or UnauthorizedAccessException or InvalidOperationException)
+        {
+            message = ex.Message; isError = true;
+        }
+    }
 }

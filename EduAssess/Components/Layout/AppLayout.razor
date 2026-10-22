@@ -1,0 +1,112 @@
+@inherits LayoutComponentBase
+@inject UiSession Session
+
+<div class="shell" style="background:#f3f1ea">
+    <input type="checkbox" id="menu-toggle" class="menu-toggle" aria-hidden="true" checked="@menuOpen" @onchange="OnMenuChanged" />
+    <aside class="sidebar">
+        <Logo Light="true" Href="@homePath" />
+
+        @if (Session.IsSignedIn)
+        {
+            @if (Session.CanManage)
+            {
+                <div class="nav-group">
+                    <span>Instituição</span>
+                    <NavLink class="nav-link" href="/painel" Match="NavLinkMatch.All" @onclick="CloseMenu"><Icon Name="dashboard" /> Visão geral</NavLink>
+                    <NavLink class="nav-link" href="/cursos" @onclick="CloseMenu"><Icon Name="book" /> Cursos</NavLink>
+                    <NavLink class="nav-link" href="/disciplinas" @onclick="CloseMenu"><Icon Name="file" /> Disciplinas</NavLink>
+                    <NavLink class="nav-link" href="/turmas" @onclick="CloseMenu"><Icon Name="layers" /> Turmas</NavLink>
+                </div>
+                <div class="nav-group">
+                    <span>Pessoas</span>
+                    <NavLink class="nav-link" href="/equipe" @onclick="CloseMenu"><Icon Name="users" /> Equipe</NavLink>
+                    <NavLink class="nav-link" href="/alunos" @onclick="CloseMenu"><Icon Name="cap" /> Alunos</NavLink>
+                    <NavLink class="nav-link" href="/matriculas" @onclick="CloseMenu"><Icon Name="clipboard" /> Matrículas</NavLink>
+                </div>
+                <div class="nav-group">
+                    <span>Avaliação</span>
+                    <NavLink class="nav-link" href="/notas" @onclick="CloseMenu"><Icon Name="pen" /> Notas</NavLink>
+                    <NavLink class="nav-link" href="/contatos" @onclick="CloseMenu"><Icon Name="inbox" /> Solicitações</NavLink>
+                </div>
+            }
+            else if (Session.IsProfessor)
+            {
+                <div class="nav-group">
+                    <span>Docência</span>
+                    <NavLink class="nav-link" href="/professor" Match="NavLinkMatch.All" @onclick="CloseMenu"><Icon Name="dashboard" /> Meu painel</NavLink>
+                    <NavLink class="nav-link" href="/notas" @onclick="CloseMenu"><Icon Name="pen" /> Lançar notas</NavLink>
+                    <NavLink class="nav-link" href="/alunos" @onclick="CloseMenu"><Icon Name="cap" /> Alunos</NavLink>
+                </div>
+            }
+            else if (Session.User?.Role == UserRole.Aluno)
+            {
+                <div class="nav-group">
+                    <span>Estudante</span>
+                    <NavLink class="nav-link" href="/aluno" Match="NavLinkMatch.All" @onclick="CloseMenu"><Icon Name="dashboard" /> Meu painel</NavLink>
+                </div>
+            }
+            else
+            {
+                <div class="nav-group">
+                    <span>Conta</span>
+                    <NavLink class="nav-link" href="/aguardando" Match="NavLinkMatch.All" @onclick="CloseMenu"><Icon Name="clock" /> Status do acesso</NavLink>
+                </div>
+            }
+
+            <div class="nav-group">
+                <span>Minha área</span>
+                <NavLink class="nav-link" href="/conta" @onclick="CloseMenu"><Icon Name="user-circle" /> Minha conta</NavLink>
+            </div>
+
+            <div class="sidebar-foot">
+                <div class="who">
+                    <div class="avatar">@UiFormat.Initials(Session.User?.Name)</div>
+                    <div>
+                        <strong>@Session.User?.Name</strong>
+                        <small>@(Session.User is null ? "" : UiFormat.RoleLabel(Session.User.Role))</small>
+                    </div>
+                </div>
+                <form method="post" action="/ui/logout">
+                    <button type="submit" class="signout"><Icon Name="logout" Size="18" /> Sair da conta</button>
+                </form>
+            </div>
+        }
+    </aside>
+    <label for="menu-toggle" class="menu-scrim" aria-label="Fechar menu"></label>
+
+    <div class="main">
+        <header class="topbar">
+            <div style="display:flex;align-items:center;gap:14px">
+                <label for="menu-toggle" class="menu-burger" aria-label="Abrir menu"><Icon Name="menu" Size="22" /></label>
+                <div class="hello">
+                    @UiFormat.LongDate(DateTime.Now)
+                    <b>Olá, @UiFormat.FirstName(Session.User?.Name)</b>
+                </div>
+            </div>
+            <div class="topbar-right">
+                @if (Session.User is not null)
+                {
+                    <span class="badge-role">@UiFormat.RoleLabel(Session.User.Role)</span>
+                }
+            </div>
+        </header>
+        <div class="page">@Body</div>
+        <footer class="page-foot">EduAssess · Plataforma de gestão acadêmica</footer>
+    </div>
+</div>
+
+@code {
+    private bool menuOpen;
+    private string homePath = "/painel";
+
+    protected override async Task OnInitializedAsync()
+    {
+        await Session.InitializeAsync();
+        if (Session.User is not null)
+            homePath = UiFormat.HomePath(Session.User.Role);
+    }
+
+    private void OnMenuChanged(ChangeEventArgs e) => menuOpen = e.Value is true;
+
+    private void CloseMenu() => menuOpen = false;
+}
