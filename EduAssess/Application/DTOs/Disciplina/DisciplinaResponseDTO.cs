@@ -4,6 +4,7 @@ namespace EduAssess.Application.DTOs.Disciplina
         Guid IdDisciplina,
         string NomeDisciplina,
         string DescricaoDisciplina,
-        Guid IdProfessor
+        Guid IdProfessor,
+        bool Ativa
         );
 }

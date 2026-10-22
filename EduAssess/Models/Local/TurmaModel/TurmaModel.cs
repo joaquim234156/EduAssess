@@ -11,15 +11,15 @@ namespace EduAssess.Models.Local
             CursoId = cursoId;
             Periodo = 1;
             Nome = nome;
-            Ativo = true;
+            Ativa = true;
         }
 
         public Guid Id { get; init; }
         public Guid ProfessorId { get; private set; }
         public Guid CursoId { get; private set; }
         public int Periodo { get; private set; } = 0;
-        public string Nome { get; private set; } = null;
-        public bool Ativo { get; private set; }
+        public string Nome { get; private set; } = string.Empty;
+        public bool Ativa { get; private set; }
         public CursoModel Curso { get; private set; } = null!;
         public UserModel Professor { get; private set; } = null!;
 
@@ -33,12 +33,12 @@ namespace EduAssess.Models.Local
 
         public void Disable()
         {
-            Ativo = false;
+            Ativa = false;
         }
 
         public void Enable()
         {
-            Ativo = true;
+            Ativa = true;
         }
     }
 }

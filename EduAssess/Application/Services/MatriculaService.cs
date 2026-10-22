@@ -32,7 +32,8 @@ namespace EduAssess.Application.Services
                 matricula.Id,
                 matricula.UsuarioId,
                 matricula.TurmaId,
-                matricula.DataMatricula
+                matricula.DataMatricula,
+                matricula.Ativa
             );
         }
 
@@ -48,7 +49,8 @@ namespace EduAssess.Application.Services
                 matricula.Id,
                 matricula.UsuarioId,
                 matricula.TurmaId,
-                matricula.DataMatricula
+                matricula.DataMatricula,
+                matricula.Ativa
             );
         }
 
@@ -72,7 +74,8 @@ namespace EduAssess.Application.Services
                 m.Id,
                 m.UsuarioId,
                 m.TurmaId,
-                m.DataMatricula
+                m.DataMatricula,
+                m.Ativa
             ));
         }
 
@@ -88,7 +91,8 @@ namespace EduAssess.Application.Services
                 matricula.Id,
                 matricula.UsuarioId,
                 matricula.TurmaId,
-                matricula.DataMatricula
+                matricula.DataMatricula,
+                matricula.Ativa
             );
         }
     }
