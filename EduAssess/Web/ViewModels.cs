@@ -1,4 +1,5 @@
 using EduAssess.Models;
+using EduAssess.Models.Local;
 
 namespace EduAssess.Web;
 

@@ -1,6 +1,8 @@
 using System.Data;
 using System.Text;
 using EduAssess.Models;
+using EduAssess.Models.Global;
+using EduAssess.Models.Local;
 using Microsoft.EntityFrameworkCore;
 
 namespace EduAssess.Data;

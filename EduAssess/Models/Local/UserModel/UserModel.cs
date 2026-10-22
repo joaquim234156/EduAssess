@@ -7,11 +7,11 @@ namespace EduAssess.Models.Local
 {
     public enum UserRole
     {
-        Admin = 4,
-        Professor = 3,
+        Admin = 0,
+        Professor = 1,
         Gestor = 2,
-        Aluno = 1,
-        User = 0
+        Aluno = 3,
+        User = 4
     }
     public class UserModel
     {
