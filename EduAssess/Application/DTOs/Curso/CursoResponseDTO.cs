@@ -1,4 +1,4 @@
-﻿namespace EduAssess.Application.DTOs.Curso
+namespace EduAssess.Application.DTOs.Curso
 {
     public record CursoResponseDTO
         (

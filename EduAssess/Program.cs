@@ -1,3 +1,6 @@
+using System.Security.Claims;
+using System.Text;
+using System.Threading.RateLimiting;
 using EduAssess.Application.Interfaces;
 using EduAssess.Application.Routes;
 using EduAssess.Application.Services;
@@ -9,14 +12,10 @@ using EduAssess.Web;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Localization;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Metadata.Internal;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
-using System.Security.Claims;
-using System.Security.Cryptography.Xml;
-using System.Text;
-using System.Threading.RateLimiting;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -157,20 +156,6 @@ builder.Services.AddRateLimiter(options =>
                 QueueLimit = 0
             }));
 });
-builder.Services.AddRateLimiter(options =>
-{
-    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
-    options.AddPolicy("public-auth", context =>
-        RateLimitPartition.GetFixedWindowLimiter(
-            context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
-            _ => new FixedWindowRateLimiterOptions
-            {
-                PermitLimit = 10,
-                Window = TimeSpan.FromMinutes(1),
-                QueueLimit = 0,
-                AutoReplenishment = true
-            }));
-});
 
 // ───────────── Banco de dados ─────────────
 // A fábrica cria contextos curtos (um por operação) para o painel Blazor; a API recebe um contexto por requisição.
@@ -188,8 +173,6 @@ builder.Services.AddScoped<AcademicService>();
 builder.Services.AddScoped<AccountRegistrationService>();
 builder.Services.AddScoped<AccountProfileService>();
 builder.Services.AddScoped<ContactService>();
-
-//Services
 builder.Services.AddScoped<INotaService, NotaService>();
 builder.Services.AddScoped<ICursoService, CursoService>();
 builder.Services.AddScoped<IDisciplinaService, DisciplinaService>();
@@ -206,7 +189,7 @@ builder.Services.AddSwaggerGen(c =>
         Scheme = "bearer",
         BearerFormat = "JWT",
         In = ParameterLocation.Header,
-        Description = "Insira o token JWT abaixo:"
+        Description = "Insira o token JWT abaixo (obtido em POST /auth/login):"
     });
     c.AddSecurityRequirement(new OpenApiSecurityRequirement
     {
@@ -220,19 +203,9 @@ builder.Services.AddSwaggerGen(c =>
     });
 });
 
-builder.Services.AddDbContext<AppDbContext>(options =>
-{
-    var conn = builder.Configuration.GetConnectionString("DefaultConnection") ?? "Data Source=eduassess.db";
-    options.UseSqlite(conn);
-});
-
 var app = builder.Build();
 
-
-app.UseHttpsRedirection();
-app.UseStaticFiles();
-
-// Pega o modo de execução (App, ApiOnly, Full)
+// APP_MODE: Full (padrão: painel + API + Swagger), App (painel + API, sem Swagger), ApiOnly (somente API + Swagger).
 var appMode = builder.Configuration.GetValue<string>("APP_MODE") ?? "Full";
 
 if (!app.Environment.IsDevelopment())
@@ -299,42 +272,3 @@ static class ApiPaths
     public static bool IsApi(PathString path) =>
         Prefixes.Any(prefix => (path.Value ?? "").StartsWith(prefix + "/", StringComparison.OrdinalIgnoreCase));
 }
-
-//using (var scope = app.Services.CreateScope())
-//{
-//    var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-
-//    try
-//    {
-//        context.Database.Migrate();
-//    }
-//    catch (Exception ex)
-//    {
-//        Console.WriteLine($"Erro ao aplicar migrations: {ex.Message}");
-//    }
-
-//    try
-//    {
-//        if (!context.Users.Any())
-//        {
-//            var adminUser = new UserModel(
-//                name: "Admin",
-//                email: "admin@eduassess.com",
-//                cpf: "00000000000",
-//                tel: "0000000000",
-//                dataNascimento: DateOnly.FromDateTime(new DateTime(1990, 1, 1, 0, 0, 0, DateTimeKind.Utc)),
-//                password: "Admin1234",
-//                role: UserRole.Admin
-//            );
-
-//            context.Users.Add(adminUser);
-//            context.SaveChanges();
-//        }
-//    }
-//    catch (Exception ex)
-//    {
-//        Console.WriteLine($"Erro ao criar admin: {ex.Message}");
-//    }
-//}
-
-//app.Run();
