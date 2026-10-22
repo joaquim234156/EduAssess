@@ -25,4 +25,4 @@
 
         public MatriculaModel Matricula { get; private set; } = null!;
     }
-}
+}

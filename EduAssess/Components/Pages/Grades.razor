@@ -1,85 +1,140 @@
 @page "/notas"
+@layout AppLayout
+@attribute [Authorize(Policy = "Docencia")]
 @inject UiSession Session
-@inject AcademicDashboardService Academic
-@inject NavigationManager Navigation
+@inject AcademicService Academic
 
 <PageTitle>Notas | EduAssess</PageTitle>
-<div class="page-heading"><div><div class="eyebrow">ACOMPANHAMENTO DE DESEMPENHO</div><h1>Notas</h1><p>Registre avaliações e acompanhe o progresso acadêmico.</p></div></div>
-@if (!string.IsNullOrWhiteSpace(message)) { <div class="alert @alertClass">@message</div> }
-<div class="page-columns">
-    @if (Session.CanManage)
-    {
-        <section class="panel form-panel">
-            <div class="panel-heading"><div><h2>Lançar avaliação</h2><p>Adicione um resultado a uma matrícula.</p></div></div>
-            <EditForm Model="form" OnValidSubmit="CreateAsync">
-                <DataAnnotationsValidator />
-                <label class="field-label">Aluno / turma</label><InputSelect class="text-input" @bind-Value="form.EnrollmentId"><option value="">Selecione a matrícula</option>@foreach (var enrollment in enrollments) { <option value="@enrollment.Id">@enrollment.Label</option> }</InputSelect><ValidationMessage For="@(() => form.EnrollmentId)" />
-                <label class="field-label">Disciplina</label><InputSelect class="text-input" @bind-Value="form.DisciplinaId"><option value="">Selecione a disciplina</option>@foreach (var discipline in disciplines) { <option value="@discipline.Id">@discipline.Name</option> }</InputSelect><ValidationMessage For="@(() => form.DisciplinaId)" />
-                <label class="field-label">Avaliação</label><InputText class="text-input" @bind-Value="form.Description" placeholder="Ex.: Prova 1, Trabalho final" /><ValidationMessage For="@(() => form.Description)" />
-                <label class="field-label">Nota</label><InputNumber class="text-input" @bind-Value="form.Value" min="0" max="10" step="0.01" /><ValidationMessage For="@(() => form.Value)" />
-                <button class="button button-primary full-button" type="submit">Salvar nota</button>
-            </EditForm>
-        </section>
-    }
-    <section class="panel list-panel">
-        <div class="panel-heading"><div><h2>Notas lançadas</h2><p>Avaliações registradas por matrícula</p></div><span class="count-pill">@grades.Count</span></div>
-        @if (grades.Count == 0) { <div class="empty-state"><div class="empty-icon">✎</div><strong>Nenhuma nota lançada</strong><span>Os resultados registrados aparecerão aqui.</span></div> }
+
+<PageHeader Eyebrow="Avaliação" Title="Notas" Subtitle="@(Session.IsProfessor ? "Lance notas para os alunos das suas turmas, nas disciplinas sob sua responsabilidade." : "Registre avaliações por matrícula e disciplina e acompanhe o histórico.")" />
+
+<Feedback Message="@message" IsError="@isError" />
+
+<div class="cols">
+    <div class="card sticky">
+        <div class="card-head"><div><h2>Lançar nota</h2><p>Escala de 0 a 10.</p></div></div>
+        @if (enrollments is not null && (enrollments.Count == 0 || disciplines!.Count == 0))
+        {
+            <div class="hint" style="margin-top:0">
+                @if (enrollments.Count == 0) { <span>Não há matrículas ativas@(Session.IsProfessor ? " nas suas turmas" : "").</span> }
+                @if (disciplines!.Count == 0) { <span> Não há disciplinas @(Session.IsProfessor ? "sob sua responsabilidade" : "ativas") — @(Session.CanManage ? "cadastre em Disciplinas." : "peça a um gestor para vinculá-las a você.")</span> }
+            </div>
+        }
         else
         {
-            <div class="table-wrap"><table><thead><tr><th>ALUNO</th><th>TURMA</th><th>AVALIAÇÃO</th><th>NOTA</th><th>LANÇAMENTO</th></tr></thead><tbody>
-                @foreach (var item in grades)
-                {
-                    <tr><td><strong>@item.StudentName</strong></td><td>@item.ClassName</td><td>@item.Description</td><td><span class="grade-value">@item.Value.ToString("0.##")</span></td><td>@item.CreatedAt.ToLocalTime().ToString("dd/MM/yyyy")</td></tr>
-                }
-            </tbody></table></div>
+            <EditForm Model="form" OnValidSubmit="CreateAsync" FormName="nota">
+                <DataAnnotationsValidator />
+                <div class="field"><label for="n-mat">Aluno / turma</label>
+                    <InputSelect id="n-mat" class="select" @bind-Value="form.EnrollmentId">
+                        <option value="">Selecione</option>
+                        @foreach (var item in enrollments ?? new()) { <option value="@item.Id">@item.Label</option> }
+                    </InputSelect>
+                    <ValidationMessage For="@(() => form.EnrollmentId)" />
+                </div>
+                <div class="field"><label for="n-disc">Disciplina</label>
+                    <InputSelect id="n-disc" class="select" @bind-Value="form.DisciplineId">
+                        <option value="">Selecione</option>
+                        @foreach (var item in disciplines ?? new()) { <option value="@item.Id">@item.Name</option> }
+                    </InputSelect>
+                    <ValidationMessage For="@(() => form.DisciplineId)" />
+                </div>
+                <div class="form-row">
+                    <div class="field"><label for="n-desc">Avaliação</label><InputText id="n-desc" class="input" @bind-Value="form.Description" placeholder="Ex.: Prova 1" /><ValidationMessage For="@(() => form.Description)" /></div>
+                    <div class="field"><label for="n-val">Nota</label><InputNumber id="n-val" class="input" @bind-Value="form.Value" step="0.1" min="0" max="10" /><ValidationMessage For="@(() => form.Value)" /></div>
+                </div>
+                <button class="btn btn-primary" type="submit" disabled="@busy">Lançar nota</button>
+            </EditForm>
         }
-    </section>
+    </div>
+
+    <div class="card">
+        <div class="card-head"><div><h2>Notas lançadas</h2><p>@(Session.IsProfessor ? "Notas dos alunos das suas turmas." : "Todas as notas da instituição.")</p></div><span class="count-pill">@(grades?.Count ?? 0)</span></div>
+        @if (grades is null)
+        {
+            <div class="loading"><span class="spinner"></span> Carregando…</div>
+        }
+        else if (grades.Count == 0)
+        {
+            <EmptyState IconName="pen" Title="Nenhuma nota lançada" Text="As avaliações registradas aparecerão aqui." />
+        }
+        else
+        {
+            <div class="table-wrap">
+                <table>
+                    <thead><tr><th>Aluno</th><th>Disciplina</th><th>Lançamento</th><th class="num">Nota</th></tr></thead>
+                    <tbody>
+                        @foreach (var item in grades)
+                        {
+                            <tr>
+                                <td><strong>@item.StudentName</strong><span class="cell-sub">@item.ClassName</span></td>
+                                <td>@item.DisciplineName<span class="cell-sub">@item.Description</span></td>
+                                <td>@UiFormat.Date(item.CreatedAt)<span class="cell-sub">por @item.LaunchedBy</span></td>
+                                <td class="num"><GradeBadge Value="item.Value" /></td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
 </div>
 
 @code {
-    private List<GradeRow> grades = [];
-    private List<EnrollmentOption> enrollments = [];
-    private List<DisciplineOption> disciplines = [];
-    private GradeForm form = new();
+    private List<GradeRow>? grades;
+    private List<EnrollmentOption>? enrollments;
+    private List<DisciplineOption>? disciplines;
+    private readonly GradeForm form = new();
     private string? message;
-    private string alertClass = "alert-success";
+    private bool isError;
+    private bool busy;
 
     protected override async Task OnInitializedAsync()
     {
-        if (!Session.CanManage) { Navigation.NavigateTo(Session.CanAssignStudents ? "/alunos" : "/login"); return; }
+        await Session.InitializeAsync();
         await LoadAsync();
     }
 
     private async Task LoadAsync()
     {
-        grades = await Academic.GetGradesAsync();
-        enrollments = await Academic.GetEnrollmentOptionsAsync();
-        disciplines = await Academic.GetDisciplineOptionsAsync();
+        try
+        {
+            enrollments = await Academic.GetEnrollmentOptionsAsync();
+            disciplines = await Academic.GetDisciplineOptionsAsync();
+            grades = await Academic.GetGradesAsync();
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            message = ex.Message; isError = true;
+            enrollments ??= new(); disciplines ??= new(); grades ??= new();
+        }
     }
 
     private async Task CreateAsync()
     {
+        busy = true;
         try
         {
-            var enrollment = enrollments.FirstOrDefault(x => x.Id == form.EnrollmentId)
-                ?? throw new ArgumentException("Selecione uma matrícula válida.");
-            if (form.DisciplinaId == Guid.Empty)
-                throw new ArgumentException("Selecione uma disciplina válida.");
-            await Academic.CreateGradeAsync(form.EnrollmentId, enrollment.UserId, form.DisciplinaId, form.Description, form.Value);
-            message = "Nota lançada com sucesso.";
-            alertClass = "alert-success";
-            form = new GradeForm();
+            await Academic.CreateGradeAsync(form.EnrollmentId ?? Guid.Empty, form.DisciplineId ?? Guid.Empty, form.Description, form.Value);
+            message = "Nota lançada com sucesso."; isError = false;
+            form.Description = ""; form.Value = 0;
             await LoadAsync();
         }
-        catch (Exception ex) when (ex is ArgumentException or UnauthorizedAccessException)
-        { message = ex.Message; alertClass = "alert-error"; }
+        catch (Exception ex) when (ex is ArgumentException or UnauthorizedAccessException) { message = ex.Message; isError = true; }
+        finally { busy = false; }
     }
 
     private sealed class GradeForm
     {
-        [Required(ErrorMessage = "Selecione uma matrícula.")] public Guid EnrollmentId { get; set; }
-        [Required(ErrorMessage = "Selecione uma disciplina.")] public Guid DisciplinaId { get; set; }
-        [Required(ErrorMessage = "Informe a avaliação.")][StringLength(120)] public string Description { get; set; } = "";
+        [Required(ErrorMessage = "Selecione o aluno.")]
+        public Guid? EnrollmentId { get; set; }
+
+        [Required(ErrorMessage = "Selecione a disciplina.")]
+        public Guid? DisciplineId { get; set; }
+
+        [Required(ErrorMessage = "Informe a avaliação.")]
+        [StringLength(120, MinimumLength = 2, ErrorMessage = "Use entre 2 e 120 caracteres.")]
+        public string Description { get; set; } = "";
+
         [Range(typeof(decimal), "0", "10", ErrorMessage = "A nota deve estar entre 0 e 10.")]
         public decimal Value { get; set; }
     }

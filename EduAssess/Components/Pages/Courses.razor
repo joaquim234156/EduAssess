@@ -1,97 +1,133 @@
 @page "/cursos"
-@inject UiSession Session
-@inject AcademicDashboardService Academic
-@inject NavigationManager Navigation
+@layout AppLayout
+@attribute [Authorize(Policy = "Gestao")]
+@inject AcademicService Academic
 
 <PageTitle>Cursos | EduAssess</PageTitle>
-<div class="page-heading"><div><div class="eyebrow">CATÁLOGO ACADÊMICO</div><h1>Cursos</h1><p>Gerencie as formações disponíveis na instituição.</p></div></div>
-@if (!string.IsNullOrWhiteSpace(message)) { <div class="alert @alertClass">@message</div> }
-<div class="page-columns">
-    @if (Session.CanManage)
-    {
-        <section class="panel form-panel">
-            <div class="panel-heading"><div><h2>@(editingId is null ? "Novo curso" : "Editar curso")</h2><p>Preencha os dados da formação.</p></div></div>
-            <EditForm Model="form" OnValidSubmit="SaveAsync">
-                <DataAnnotationsValidator />
-                <label class="field-label">Nome do curso</label><InputText class="text-input" @bind-Value="form.Name" placeholder="Ex.: Administração" />
-                <ValidationMessage For="@(() => form.Name)" />
-                <label class="field-label">Descrição</label><InputTextArea class="text-input textarea" @bind-Value="form.Description" placeholder="Apresente os objetivos do curso" />
-                <label class="field-label">Duração (anos)</label><InputNumber class="text-input" @bind-Value="form.Duration" min="1" />
-                <div class="form-actions"><button class="button button-primary" type="submit">@(editingId is null ? "Cadastrar curso" : "Salvar alterações")</button>@if (editingId is not null) { <button class="button button-quiet" type="button" @onclick="ResetForm">Cancelar</button> }</div>
-            </EditForm>
-        </section>
-    }
-    <section class="panel list-panel">
-        <div class="panel-heading"><div><h2>Todos os cursos</h2><p>@courses.Count formações disponíveis</p></div><span class="count-pill">@courses.Count</span></div>
-        @if (courses.Count == 0)
+
+<PageHeader Eyebrow="Instituição" Title="Cursos" Subtitle="Cadastre os cursos oferecidos e acompanhe quantas turmas cada um possui." />
+
+<Feedback Message="@message" IsError="@isError" />
+
+<div class="cols">
+    <div class="card sticky">
+        <div class="card-head"><div><h2>@(editingId is null ? "Novo curso" : "Editar curso")</h2><p>@(editingId is null ? "Informe os dados do curso." : "Altere os dados e salve.")</p></div></div>
+        <EditForm Model="form" OnValidSubmit="SaveAsync" FormName="curso">
+            <DataAnnotationsValidator />
+            <div class="field"><label for="c-nome">Nome do curso</label><InputText id="c-nome" class="input" @bind-Value="form.Name" placeholder="Ex.: Administração" /><ValidationMessage For="@(() => form.Name)" /></div>
+            <div class="field"><label for="c-dur">Duração (anos)</label><InputNumber id="c-dur" class="input" @bind-Value="form.Duration" min="1" max="20" /><ValidationMessage For="@(() => form.Duration)" /></div>
+            <div class="field"><label for="c-desc">Descrição <span class="opt">(opcional)</span></label><InputTextArea id="c-desc" class="textarea" @bind-Value="form.Description" /><ValidationMessage For="@(() => form.Description)" /></div>
+            <div class="form-actions">
+                <button class="btn btn-primary" type="submit" disabled="@busy">@(editingId is null ? "Cadastrar curso" : "Salvar alterações")</button>
+                @if (editingId is not null)
+                {
+                    <button class="btn btn-ghost" type="button" @onclick="CancelEdit">Cancelar</button>
+                }
+            </div>
+        </EditForm>
+    </div>
+
+    <div class="card">
+        <div class="card-head"><div><h2>Cursos ativos</h2><p>Gerencie o catálogo da instituição.</p></div><span class="count-pill">@(courses?.Count ?? 0)</span></div>
+        @if (courses is null)
         {
-            <div class="empty-state"><div class="empty-icon">▤</div><strong>Nenhum curso cadastrado</strong><span>Cadastre o primeiro curso para começar.</span></div>
+            <div class="loading"><span class="spinner"></span> Carregando…</div>
+        }
+        else if (courses.Count == 0)
+        {
+            <EmptyState IconName="book" Title="Nenhum curso cadastrado" Text="Use o formulário ao lado para criar o primeiro curso." />
         }
         else
         {
             <div class="course-grid">
                 @foreach (var course in courses)
                 {
-                    <article class="course-card"><div class="course-card-top"><span class="stat-icon icon-violet">▤</span><span class="badge badge-violet">@course.Duration @(course.Duration == 1 ? "ano" : "anos")</span></div><h3>@course.Name</h3><p>@(string.IsNullOrWhiteSpace(course.Description) ? "Sem descrição cadastrada." : course.Description)</p>
-                        @if (Session.CanManage) { <div class="card-actions"><button class="text-button" @onclick="() => Edit(course)">Editar</button><button class="text-button danger-text" @onclick="() => DisableAsync(course)">Desativar</button></div> }
-                    </article>
+                    <div class="course-card">
+                        <div class="top"><div class="ico"><Icon Name="book" Size="20" /></div><span class="badge badge-violet">@course.Duration @(course.Duration == 1 ? "ano" : "anos")</span></div>
+                        <h3>@course.Name</h3>
+                        <p>@(string.IsNullOrWhiteSpace(course.Description) ? "Sem descrição." : course.Description)</p>
+                        <div class="foot">
+                            <span class="badge badge-gray">@course.ClassCount @(course.ClassCount == 1 ? "turma" : "turmas")</span>
+                            <div class="row-actions">
+                                <button class="btn-text" type="button" @onclick="() => Edit(course)">Editar</button>
+                                <button class="btn-text danger" type="button" @onclick="() => DisableAsync(course)">Desativar</button>
+                            </div>
+                        </div>
+                    </div>
                 }
             </div>
         }
-    </section>
+    </div>
 </div>
 
 @code {
-    private List<CourseRow> courses = [];
+    private List<CourseRow>? courses;
     private CourseForm form = new();
     private Guid? editingId;
     private string? message;
-    private string alertClass = "alert-success";
+    private bool isError;
+    private bool busy;
 
-    protected override async Task OnInitializedAsync()
+    protected override async Task OnInitializedAsync() => await LoadAsync();
+
+    private async Task LoadAsync()
     {
-        if (!Session.CanManage) { Navigation.NavigateTo(Session.CanAssignStudents ? "/alunos" : "/login"); return; }
-        await LoadAsync();
+        try { courses = await Academic.GetCoursesAsync(); }
+        catch (UnauthorizedAccessException ex) { Fail(ex.Message); courses = new(); }
     }
-
-    private async Task LoadAsync() => courses = await Academic.GetCoursesAsync();
 
     private async Task SaveAsync()
     {
+        busy = true;
         try
         {
             await Academic.SaveCourseAsync(editingId, form.Name, form.Description, form.Duration);
-            message = editingId is null ? "Curso cadastrado com sucesso." : "Curso atualizado com sucesso.";
-            alertClass = "alert-success";
-            ResetForm();
+            Ok(editingId is null ? "Curso cadastrado com sucesso." : "Curso atualizado com sucesso.");
+            CancelEdit();
             await LoadAsync();
         }
-        catch (Exception ex) when (ex is ArgumentException or InvalidOperationException or UnauthorizedAccessException)
-        { message = ex.Message; alertClass = "alert-error"; }
+        catch (Exception ex) when (ex is ArgumentException or InvalidOperationException or UnauthorizedAccessException) { Fail(ex.Message); }
+        finally { busy = false; }
     }
 
     private void Edit(CourseRow course)
     {
         editingId = course.Id;
         form = new CourseForm { Name = course.Name, Description = course.Description, Duration = course.Duration };
+        message = null;
+    }
+
+    private void CancelEdit()
+    {
+        editingId = null;
+        form = new CourseForm();
     }
 
     private async Task DisableAsync(CourseRow course)
     {
-        try { await Academic.DisableCourseAsync(course.Id); message = "Curso desativado."; alertClass = "alert-success"; await LoadAsync(); }
-        catch (Exception ex) when (ex is InvalidOperationException or UnauthorizedAccessException) { message = ex.Message; alertClass = "alert-error"; }
+        try
+        {
+            await Academic.DisableCourseAsync(course.Id);
+            Ok($"Curso “{course.Name}” desativado.");
+            if (editingId == course.Id) CancelEdit();
+            await LoadAsync();
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or UnauthorizedAccessException) { Fail(ex.Message); }
     }
 
-    private void ResetForm() { editingId = null; form = new CourseForm(); }
+    private void Ok(string text) { message = text; isError = false; }
+    private void Fail(string text) { message = text; isError = true; }
 
     private sealed class CourseForm
     {
         [Required(ErrorMessage = "Informe o nome do curso.")]
         [StringLength(60, MinimumLength = 3, ErrorMessage = "Use entre 3 e 60 caracteres.")]
         public string Name { get; set; } = "";
-        [StringLength(500, ErrorMessage = "A descrição deve ter até 500 caracteres.")]
+
+        [Range(1, 20, ErrorMessage = "Informe de 1 a 20 anos.")]
+        public int Duration { get; set; } = 4;
+
+        [StringLength(500, ErrorMessage = "Use até 500 caracteres.")]
         public string Description { get; set; } = "";
-        [Range(1, 20, ErrorMessage = "Informe uma duração válida.")]
-        public int Duration { get; set; } = 1;
     }
 }

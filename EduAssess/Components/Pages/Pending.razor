@@ -1,0 +1,33 @@
+@page "/aguardando"
+@layout AppLayout
+@attribute [Authorize]
+@inject UiSession Session
+@inject NavigationManager Navigation
+
+<PageTitle>Aguardando perfil | EduAssess</PageTitle>
+
+@if (!waiting)
+{
+    <div class="loading"><span class="spinner"></span> Abrindo o seu painel…</div>
+}
+else
+{
+    <div class="card center-card">
+        <div class="ico"><Icon Name="clock" Size="32" /></div>
+        <h1>Sua conta está aguardando um perfil</h1>
+        <p>Seu cadastro foi criado com sucesso. Assim que um administrador, gestor ou professor atribuir o perfil de aluno, o seu painel acadêmico será liberado — basta entrar novamente.</p>
+        <form method="post" action="/ui/logout"><button class="btn btn-primary" type="submit">Sair e voltar depois</button></form>
+    </div>
+}
+
+@code {
+    private bool waiting;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await Session.RequireAsync();
+        var role = Session.User!.Role;
+        if (role == UserRole.User) { waiting = true; return; }
+        Navigation.NavigateTo(UiFormat.HomePath(role), replace: true);
+    }
+}

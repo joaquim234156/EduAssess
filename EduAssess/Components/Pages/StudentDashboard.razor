@@ -1,84 +1,108 @@
-﻿@page "/aluno"
-@inject UiSession Session
-@inject NavigationManager Navigation
+@page "/aluno"
+@layout AppLayout
+@attribute [Authorize(Policy = "Aluno")]
+@inject AcademicService Academic
 
 <PageTitle>Meu painel | EduAssess</PageTitle>
 
-<div class="page-heading">
-    <div>
-        <div class="eyebrow">ÁREA DO ESTUDANTE</div>
+@if (overview is null)
+{
+    @if (error is not null) { <Feedback Message="@error" IsError="true" /> }
+    else { <div class="loading"><span class="spinner"></span> Carregando seu boletim…</div> }
+}
+else
+{
+    <PageHeader Eyebrow="Painel do estudante" Title="Meu desempenho" Subtitle="Suas turmas, notas e médias por disciplina." />
 
-        <h1>
-            Olá, @Session.User?.Name!
-        </h1>
-
-        <p>
-            Acompanhe suas turmas, avaliações e seu
-            desempenho acadêmico.
-        </p>
-    </div>
-</div>
-
-<div class="content-grid">
-
-    <section class="panel">
-        <div class="panel-heading">
+    <div class="card">
+        <div class="hero-card">
+            <div class="avg-ring" style="--p:@(overview.OverallAverage.HasValue ? (overview.OverallAverage.Value * 10).ToString("0", System.Globalization.CultureInfo.InvariantCulture) : "0")"><b>@UiFormat.Grade(overview.OverallAverage)</b></div>
             <div>
-                <h2>Minhas turmas</h2>
-                <p>Consulte suas turmas matriculadas.</p>
+                <h2>Média geral</h2>
+                <p>@(overview.Grades.Count == 0 ? "Você ainda não recebeu notas. Assim que elas forem lançadas, sua média aparece aqui." : $"Calculada com {overview.Grades.Count} {(overview.Grades.Count == 1 ? "nota" : "notas")} em {overview.Averages.Count} {(overview.Averages.Count == 1 ? "disciplina" : "disciplinas")}.")</p>
             </div>
         </div>
+    </div>
 
-        <div class="empty-state compact">
-            <div class="empty-icon">▦</div>
-            <strong>Nenhuma turma carregada</strong>
-            <span>
-                Vamos conectar esta área ao banco de dados
-                na próxima etapa.
-            </span>
+    <div class="grid-2" style="margin-top:24px">
+        <div class="card">
+            <div class="card-head"><div><h2>Média por disciplina</h2><p>Faixas: verde a partir de 7, amarelo de 5 a 6,9, vermelho abaixo de 5.</p></div></div>
+            @if (overview.Averages.Count == 0)
+            {
+                <EmptyState IconName="chart" Title="Sem médias ainda" Text="As médias aparecem depois do primeiro lançamento." />
+            }
+            else
+            {
+                <div class="perf">
+                    @foreach (var item in overview.Averages)
+                    {
+                        var band = UiFormat.GradeBand(item.Average);
+                        <div class="perf-row">
+                            <div class="meta"><div><strong>@item.DisciplineName</strong><small>@item.Count @(item.Count == 1 ? "avaliação" : "avaliações")</small></div><b>@UiFormat.Grade(item.Average)</b></div>
+                            <div class="perf-track"><div class="perf-fill @(band is "mid" ? "mid" : band is "low" ? "low" : "")" style="width:@((item.Average * 10).ToString("0.##", System.Globalization.CultureInfo.InvariantCulture))%"></div></div>
+                        </div>
+                    }
+                </div>
+            }
         </div>
-    </section>
 
-    <section class="panel">
-        <div class="panel-heading">
-            <div>
-                <h2>Minhas avaliações</h2>
-                <p>Atividades disponíveis para você responder.</p>
+        <div class="card">
+            <div class="card-head"><div><h2>Minhas turmas</h2><p>Matrículas vinculadas à sua conta.</p></div></div>
+            @if (overview.Enrollments.Count == 0)
+            {
+                <EmptyState IconName="layers" Title="Sem matrículas" Text="Peça à secretaria para matricular você em uma turma." />
+            }
+            else
+            {
+                <div class="mini-list">
+                    @foreach (var item in overview.Enrollments)
+                    {
+                        <div class="item">
+                            <div><strong>@item.ClassName</strong><small>@item.CourseName · Prof. @item.TeacherName</small></div>
+                            <span class="badge @(item.Active ? "badge-green" : "badge-gray")">@(item.Active ? "Ativa" : "Encerrada")</span>
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+    </div>
+
+    <div class="card" style="margin-top:24px">
+        <div class="card-head"><div><h2>Histórico de notas</h2><p>Todas as avaliações lançadas para você.</p></div><span class="count-pill">@overview.Grades.Count</span></div>
+        @if (overview.Grades.Count == 0)
+        {
+            <EmptyState IconName="pen" Title="Nenhuma nota lançada" Text="Quando um professor lançar uma avaliação, ela aparece aqui." />
+        }
+        else
+        {
+            <div class="table-wrap">
+                <table>
+                    <thead><tr><th>Disciplina</th><th>Avaliação</th><th>Turma</th><th>Data</th><th class="num">Nota</th></tr></thead>
+                    <tbody>
+                        @foreach (var grade in overview.Grades)
+                        {
+                            <tr>
+                                <td><strong>@grade.DisciplineName</strong></td>
+                                <td>@grade.Description</td>
+                                <td>@grade.ClassName</td>
+                                <td>@UiFormat.Date(grade.CreatedAt)</td>
+                                <td class="num"><GradeBadge Value="grade.Value" /></td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
             </div>
-        </div>
-
-        <div class="empty-state compact">
-            <div class="empty-icon">✎</div>
-            <strong>Nenhuma avaliação carregada</strong>
-            <span>
-                Em breve, suas avaliações aparecerão aqui.
-            </span>
-        </div>
-    </section>
-
-</div>
-
-<section class="welcome-banner">
-    <div class="welcome-spark">✦</div>
-
-    <div>
-        <strong>Seu aprendizado em primeiro lugar</strong>
-        <p>
-            Acompanhe seu progresso e continue evoluindo.
-        </p>
+        }
     </div>
-
-    <div class="banner-decoration">
-        EDU<span>+</span>
-    </div>
-</section>
+}
 
 @code {
-    protected override void OnInitialized()
+    private StudentOverview? overview;
+    private string? error;
+
+    protected override async Task OnInitializedAsync()
     {
-        if (!Session.IsSignedIn)
-        {
-            Navigation.NavigateTo("/login");
-        }
+        try { overview = await Academic.GetStudentOverviewAsync(); }
+        catch (UnauthorizedAccessException ex) { error = ex.Message; }
     }
 }

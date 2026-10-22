@@ -1,0 +1,14 @@
+<a class="brand @(Light ? "brand-light" : "")" href="@Href" aria-label="EduAssess">
+    <svg width="38" height="38" viewBox="0 0 36 36" aria-hidden="true">
+        <rect width="36" height="36" rx="10" fill="@(Light ? "#d9f36a" : "#0f4c43")" />
+        <rect x="9" y="9" width="18" height="4.5" rx="2.25" fill="@(Light ? "#0b2420" : "#ffffff")" />
+        <rect x="9" y="15.75" width="12" height="4.5" rx="2.25" fill="@(Light ? "#14665a" : "#d9f36a")" />
+        <rect x="9" y="22.5" width="18" height="4.5" rx="2.25" fill="@(Light ? "#0b2420" : "#ffffff")" />
+    </svg>
+    <span>Edu<b>Assess</b></span>
+</a>
+
+@code {
+    [Parameter] public bool Light { get; set; }
+    [Parameter] public string Href { get; set; } = "/";
+}
