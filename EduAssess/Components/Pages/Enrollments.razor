@@ -1,81 +1,141 @@
 @page "/matriculas"
-@inject UiSession Session
-@inject AcademicDashboardService Academic
-@inject NavigationManager Navigation
+@layout AppLayout
+@attribute [Authorize(Policy = "Gestao")]
+@inject AcademicService Academic
 
 <PageTitle>Matrículas | EduAssess</PageTitle>
-<div class="page-heading"><div><div class="eyebrow">VÍNCULOS ACADÊMICOS</div><h1>Matrículas</h1><p>Acompanhe os alunos vinculados às turmas.</p></div></div>
-@if (!string.IsNullOrWhiteSpace(message)) { <div class="alert @alertClass">@message</div> }
-<div class="page-columns">
-    @if (Session.CanManage)
-    {
-        <section class="panel form-panel">
-            <div class="panel-heading"><div><h2>Nova matrícula</h2><p>Vincule um aluno a uma turma ativa.</p></div></div>
-            <EditForm Model="form" OnValidSubmit="CreateAsync">
-                <DataAnnotationsValidator />
-                <label class="field-label">Aluno</label><InputSelect class="text-input" @bind-Value="form.StudentId"><option value="">Selecione um aluno</option>@foreach (var student in students) { <option value="@student.Id">@student.Name</option> }</InputSelect><ValidationMessage For="@(() => form.StudentId)" />
-                <label class="field-label">Turma</label><InputSelect class="text-input" @bind-Value="form.ClassId"><option value="">Selecione uma turma</option>@foreach (var item in classes) { <option value="@item.Id">@item.Name — @item.CourseName</option> }</InputSelect><ValidationMessage For="@(() => form.ClassId)" />
-                <button class="button button-primary full-button" type="submit">Registrar matrícula</button>
-            </EditForm>
-        </section>
-    }
-    <section class="panel list-panel">
-        <div class="panel-heading"><div><h2>Todas as matrículas</h2><p>Histórico acadêmico dos estudantes</p></div><span class="count-pill">@enrollments.Count</span></div>
-        @if (enrollments.Count == 0) { <div class="empty-state"><div class="empty-icon">▣</div><strong>Nenhuma matrícula registrada</strong><span>As matrículas aparecerão aqui.</span></div> }
+
+<PageHeader Eyebrow="Pessoas" Title="Matrículas" Subtitle="Vincule alunos às turmas. Só matrículas ativas recebem notas." />
+
+<Feedback Message="@message" IsError="@isError" />
+
+<div class="cols">
+    <div class="card sticky">
+        <div class="card-head"><div><h2>Nova matrícula</h2><p>Escolha o aluno e a turma.</p></div></div>
+        @if (students is not null && (students.Count == 0 || classes!.Count == 0))
+        {
+            <div class="hint" style="margin-top:0">
+                Para matricular é preciso ter
+                @if (students.Count == 0) { <a href="/alunos"><b>alunos</b></a> }
+                @if (students.Count == 0 && classes!.Count == 0) { <span> e </span> }
+                @if (classes!.Count == 0) { <a href="/turmas"><b>turmas</b></a> }
+                cadastrados.
+            </div>
+        }
         else
         {
-            <div class="table-wrap"><table><thead><tr><th>ALUNO</th><th>CURSO / TURMA</th><th>DATA</th><th>STATUS</th></tr></thead><tbody>
-                @foreach (var item in enrollments)
-                {
-                    <tr><td><div class="table-person"><span class="avatar avatar-small">@GetInitials(item.StudentName)</span><strong>@item.StudentName</strong></div></td><td><span class="cell-primary">@item.CourseName</span><span class="cell-secondary">@item.ClassName</span></td><td>@item.EnrolledAt.ToLocalTime().ToString("dd/MM/yyyy")</td><td><span class="badge @(item.Active ? "badge-green" : "badge-gray")">@(item.Active ? "Ativa" : "Inativa")</span></td></tr>
-                }
-            </tbody></table></div>
+            <EditForm Model="form" OnValidSubmit="CreateAsync" FormName="matricula">
+                <DataAnnotationsValidator />
+                <div class="field"><label for="m-aluno">Aluno</label>
+                    <InputSelect id="m-aluno" class="select" @bind-Value="form.StudentId">
+                        <option value="">Selecione</option>
+                        @foreach (var student in students ?? new()) { <option value="@student.Id">@student.Name</option> }
+                    </InputSelect>
+                    <ValidationMessage For="@(() => form.StudentId)" />
+                </div>
+                <div class="field"><label for="m-turma">Turma</label>
+                    <InputSelect id="m-turma" class="select" @bind-Value="form.ClassId">
+                        <option value="">Selecione</option>
+                        @foreach (var item in classes ?? new()) { <option value="@item.Id">@item.Name — @item.CourseName</option> }
+                    </InputSelect>
+                    <ValidationMessage For="@(() => form.ClassId)" />
+                </div>
+                <button class="btn btn-primary" type="submit" disabled="@busy">Matricular aluno</button>
+            </EditForm>
         }
-    </section>
+    </div>
+
+    <div class="card">
+        <div class="card-head"><div><h2>Todas as matrículas</h2><p>Da mais recente para a mais antiga.</p></div><span class="count-pill">@(enrollments?.Count ?? 0)</span></div>
+        @if (enrollments is null)
+        {
+            <div class="loading"><span class="spinner"></span> Carregando…</div>
+        }
+        else if (enrollments.Count == 0)
+        {
+            <EmptyState IconName="clipboard" Title="Nenhuma matrícula" Text="Matricule o primeiro aluno em uma turma." />
+        }
+        else
+        {
+            <div class="table-wrap">
+                <table>
+                    <thead><tr><th>Aluno</th><th>Turma</th><th>Status</th><th></th></tr></thead>
+                    <tbody>
+                        @foreach (var item in enrollments)
+                        {
+                            <tr>
+                                <td><div class="person"><div class="avatar sm">@UiFormat.Initials(item.StudentName)</div><strong>@item.StudentName</strong></div></td>
+                                <td>@item.ClassName<span class="cell-sub">@item.CourseName</span></td>
+                                <td><span class="badge @(item.Active ? "badge-green" : "badge-gray")">@(item.Active ? "Ativa" : "Encerrada")</span><span class="cell-sub">desde @UiFormat.Date(item.EnrolledAt)</span></td>
+                                <td><div class="row-actions">
+                                    @if (item.Active) { <button class="btn-text danger" type="button" @onclick="() => EndAsync(item)">Encerrar</button> }
+                                </div></td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
 </div>
 
 @code {
-    private List<EnrollmentRow> enrollments = [];
-    private List<PersonRow> students = [];
-    private List<ClassRow> classes = [];
-    private EnrollmentForm form = new();
+    private List<EnrollmentRow>? enrollments;
+    private List<PersonRow>? students;
+    private List<ClassRow>? classes;
+    private readonly EnrollmentForm form = new();
     private string? message;
-    private string alertClass = "alert-success";
+    private bool isError;
+    private bool busy;
 
-    protected override async Task OnInitializedAsync()
-    {
-        if (!Session.CanManage) { Navigation.NavigateTo(Session.IsStudent ? "/aluno" : Session.CanAssignStudents ? "/alunos" : "/login"); return; }
-        await LoadAsync();
-    }
+    protected override async Task OnInitializedAsync() => await LoadAsync();
 
     private async Task LoadAsync()
     {
-        enrollments = await Academic.GetEnrollmentsAsync();
-        students = await Academic.GetStudentsAsync();
-        classes = await Academic.GetClassesAsync();
+        try
+        {
+            students = await Academic.GetStudentsAsync();
+            classes = await Academic.GetClassesAsync();
+            enrollments = await Academic.GetEnrollmentsAsync();
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            message = ex.Message; isError = true;
+            students ??= new(); classes ??= new(); enrollments ??= new();
+        }
     }
 
     private async Task CreateAsync()
     {
+        busy = true;
         try
         {
-            if (form.StudentId == Guid.Empty || form.ClassId == Guid.Empty)
-                throw new ArgumentException("Selecione um aluno e uma turma.");
-            await Academic.CreateEnrollmentAsync(form.StudentId, form.ClassId);
-            message = "Matrícula registrada com sucesso.";
-            alertClass = "alert-success";
-            form = new EnrollmentForm();
+            await Academic.CreateEnrollmentAsync(form.StudentId ?? Guid.Empty, form.ClassId ?? Guid.Empty);
+            message = "Matrícula realizada com sucesso."; isError = false;
+            form.StudentId = null; form.ClassId = null;
             await LoadAsync();
         }
-        catch (Exception ex) when (ex is ArgumentException or UnauthorizedAccessException)
-        { message = ex.Message; alertClass = "alert-error"; }
+        catch (Exception ex) when (ex is ArgumentException or UnauthorizedAccessException) { message = ex.Message; isError = true; }
+        finally { busy = false; }
     }
 
-    private static string GetInitials(string name) => string.Join("", name.Split(' ', StringSplitOptions.RemoveEmptyEntries).Take(2).Select(x => char.ToUpperInvariant(x[0])));
+    private async Task EndAsync(EnrollmentRow item)
+    {
+        try
+        {
+            await Academic.EndEnrollmentAsync(item.Id);
+            message = $"Matrícula de {item.StudentName} encerrada."; isError = false;
+            await LoadAsync();
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or UnauthorizedAccessException) { message = ex.Message; isError = true; }
+    }
 
     private sealed class EnrollmentForm
     {
-        [Required(ErrorMessage = "Selecione um aluno.")] public Guid StudentId { get; set; }
-        [Required(ErrorMessage = "Selecione uma turma.")] public Guid ClassId { get; set; }
+        [Required(ErrorMessage = "Selecione o aluno.")]
+        public Guid? StudentId { get; set; }
+
+        [Required(ErrorMessage = "Selecione a turma.")]
+        public Guid? ClassId { get; set; }
     }
 }

@@ -17,7 +17,7 @@
       "applicationUrl": "http://localhost:5062",
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Development",
-        "APP_MODE": "App"
+        "APP_MODE": "Full"
       }
     },
     "Swagger (HTTPS)": {

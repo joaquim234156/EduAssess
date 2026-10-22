@@ -1,0 +1,142 @@
+@page "/painel"
+@layout AppLayout
+@attribute [Authorize]
+@inject UiSession Session
+@inject AcademicService Academic
+@inject NavigationManager Navigation
+
+<PageTitle>Visão geral | EduAssess</PageTitle>
+
+@if (redirecting)
+{
+    <div class="loading"><span class="spinner"></span> Abrindo o seu painel…</div>
+}
+else if (summary is null)
+{
+    @if (error is not null)
+    {
+        <Feedback Message="@error" IsError="true" />
+    }
+    else
+    {
+        <div class="loading"><span class="spinner"></span> Carregando indicadores…</div>
+    }
+}
+else
+{
+    <PageHeader Eyebrow="Painel da gestão" Title="Visão geral" Subtitle="Indicadores da instituição, atualizados no momento em que cada dado é lançado.">
+        <a class="btn btn-primary" href="/matriculas"><Icon Name="plus" Size="18" /> Nova matrícula</a>
+    </PageHeader>
+
+    <div class="stats-grid">
+        <div class="stat"><div class="ico"><Icon Name="book" Size="22" /></div><strong>@summary.CourseCount</strong><div class="label">Cursos ativos</div><small>@summary.ClassCount turmas em andamento</small></div>
+        <div class="stat t-sun"><div class="ico"><Icon Name="cap" Size="22" /></div><strong>@summary.StudentCount</strong><div class="label">Alunos</div><small>@summary.TeacherCount professores na equipe</small></div>
+        <div class="stat t-blue"><div class="ico"><Icon Name="clipboard" Size="22" /></div><strong>@summary.EnrollmentCount</strong><div class="label">Matrículas ativas</div><small>vínculos aluno ↔ turma</small></div>
+        <div class="stat t-coral"><div class="ico"><Icon Name="chart" Size="22" /></div><strong>@UiFormat.Grade(summary.AverageGrade)</strong><div class="label">Média geral</div><small>@summary.GradeCount notas lançadas</small></div>
+    </div>
+
+    <div class="grid-2">
+        <div class="card">
+            <div class="card-head">
+                <div><h2>Desempenho por curso</h2><p>Média das notas lançadas em cada curso ativo.</p></div>
+                <span class="count-pill">@summary.Performance.Count</span>
+            </div>
+            @if (summary.Performance.Count == 0)
+            {
+                <EmptyState IconName="chart" Title="Sem cursos ativos" Text="Cadastre um curso para começar a acompanhar o desempenho." />
+            }
+            else
+            {
+                <div class="perf">
+                    @foreach (var item in summary.Performance)
+                    {
+                        var band = UiFormat.GradeBand(item.Average);
+                        <div class="perf-row">
+                            <div class="meta">
+                                <div><strong>@item.CourseName</strong><small>@item.GradeCount @(item.GradeCount == 1 ? "nota" : "notas")</small></div>
+                                <b>@UiFormat.Grade(item.Average)</b>
+                            </div>
+                            <div class="perf-track">
+                                <div class="perf-fill @(band is "mid" ? "mid" : band is "low" ? "low" : "")" style="width:@(item.Average.HasValue ? (item.Average.Value * 10).ToString("0.##", System.Globalization.CultureInfo.InvariantCulture) : "0")%"></div>
+                                <div class="perf-goal" style="left:70%"></div>
+                            </div>
+                        </div>
+                    }
+                </div>
+                <div class="perf-legend"><span>0</span><span><i></i>Meta 7,0</span><span>10</span></div>
+            }
+        </div>
+
+        <div class="stack">
+            <div class="card">
+                <div class="card-head"><div><h2>Atenção</h2><p>O que precisa de uma ação sua.</p></div></div>
+                <a class="shortcut" href="/alunos">
+                    <div class="ico"><Icon Name="user" Size="20" /></div>
+                    <div><strong>@summary.PendingAccounts @(summary.PendingAccounts == 1 ? "conta aguardando perfil" : "contas aguardando perfil")</strong><small>Atribua o perfil de aluno</small></div>
+                    <Icon Name="arrow-right" Size="18" />
+                </a>
+                <a class="shortcut" href="/contatos">
+                    <div class="ico"><Icon Name="inbox" Size="20" /></div>
+                    <div><strong>@summary.UnreadContacts @(summary.UnreadContacts == 1 ? "solicitação nova" : "solicitações novas")</strong><small>Formulário do site</small></div>
+                    <Icon Name="arrow-right" Size="18" />
+                </a>
+                <a class="shortcut" href="/notas">
+                    <div class="ico"><Icon Name="pen" Size="20" /></div>
+                    <div><strong>Lançar notas</strong><small>Registre avaliações por disciplina</small></div>
+                    <Icon Name="arrow-right" Size="18" />
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="card" style="margin-top:24px">
+        <div class="card-head"><div><h2>Matrículas recentes</h2><p>Últimos vínculos criados entre alunos e turmas.</p></div><a class="link-arrow" href="/matriculas">Ver todas</a></div>
+        @if (summary.RecentEnrollments.Count == 0)
+        {
+            <EmptyState IconName="clipboard" Title="Nenhuma matrícula ainda" Text="Matricule um aluno em uma turma para vê-lo aqui." />
+        }
+        else
+        {
+            <div class="table-wrap">
+                <table>
+                    <thead><tr><th>Aluno</th><th>Turma</th><th>Curso</th><th>Data</th><th>Status</th></tr></thead>
+                    <tbody>
+                        @foreach (var item in summary.RecentEnrollments)
+                        {
+                            <tr>
+                                <td><div class="person"><div class="avatar sm">@UiFormat.Initials(item.StudentName)</div><strong>@item.StudentName</strong></div></td>
+                                <td>@item.ClassName</td>
+                                <td>@item.CourseName</td>
+                                <td>@UiFormat.Date(item.EnrolledAt)</td>
+                                <td><span class="badge @(item.Active ? "badge-green" : "badge-gray")">@(item.Active ? "Ativa" : "Encerrada")</span></td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+}
+
+@code {
+    private DashboardSummary? summary;
+    private string? error;
+    private bool redirecting;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await Session.InitializeAsync();
+        if (Session.User is null)
+            return;
+
+        if (!Session.CanManage)
+        {
+            redirecting = true;
+            Navigation.NavigateTo(UiFormat.HomePath(Session.User.Role), replace: true);
+            return;
+        }
+
+        try { summary = await Academic.GetDashboardAsync(); }
+        catch (UnauthorizedAccessException ex) { error = ex.Message; }
+    }
+}
