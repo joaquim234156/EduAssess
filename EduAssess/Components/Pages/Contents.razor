@@ -1,0 +1,31 @@
+@page "/conteudos"
+
+<PageTitle>Conteúdos | EduAssess</PageTitle>
+
+<section class="page-hero">
+    <div class="container">
+        <div class="eyebrow">Conteúdos</div>
+        <h1>Ideias que ajudam a educação <span class="mark">a avançar.</span></h1>
+        <p>Conversas sobre avaliação, dados e gestão acadêmica para instituições que querem transformar informação em próximos passos.</p>
+    </div>
+</section>
+
+<section class="section">
+    <div class="container" style="max-width:920px">
+        @foreach (var article in Articles.All)
+        {
+            <article class="article-full" id="@article.Slug">
+                <span class="kicker" style="font-size:.74rem;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:var(--forest-500)">@article.Kicker</span>
+                <h2>@article.Title</h2>
+                @foreach (var paragraph in article.Body)
+                {
+                    <p>@paragraph</p>
+                }
+            </article>
+        }
+        <div class="cta-band">
+            <h2>Quer conversar sobre o desafio da sua instituição?</h2>
+            <a class="btn btn-light btn-lg" href="/#contato">Fale com a gente <Icon Name="arrow-up-right" Size="18" /></a>
+        </div>
+    </div>
+</section>

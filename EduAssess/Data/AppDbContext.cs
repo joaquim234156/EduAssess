@@ -19,6 +19,7 @@ namespace EduAssess.Data
         public DbSet<NotaModel> Notas { get; set; } = null!;
         public DbSet<QuestaoModel> Questoes {get; set;} = null!;
 
+        public DbSet<ContatoModel> Contatos { get; set; } = null!;
         public DbSet<InstituicaoModel> Instituicoes { get; set; } = null!;
         public DbSet<UnidadeModel> Unidades { get; set; } = null!;
         public DbSet<UsuarioInstituicaoModel> UsuariosInstituicoes { get; set; } = null!;

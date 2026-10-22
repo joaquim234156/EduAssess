@@ -1,0 +1,117 @@
+@page "/conta"
+@layout AppLayout
+@attribute [Authorize]
+@inject AccountProfileService Profile
+
+<PageTitle>Minha conta | EduAssess</PageTitle>
+
+<PageHeader Eyebrow="Minha área" Title="Minha conta" Subtitle="Atualize seus dados de contato e a sua senha." />
+
+@if (loaded is null)
+{
+    <div class="loading"><span class="spinner"></span> Carregando…</div>
+}
+else
+{
+    <div class="grid-2" style="grid-template-columns:minmax(0,1fr) minmax(0,1fr)">
+        <div class="card">
+            <div class="card-head"><div><h2>Dados pessoais</h2><p>Perfil: <span class="badge badge-violet">@UiFormat.RoleLabel(loaded.Role)</span></p></div></div>
+            <Feedback Message="@profileMessage" IsError="@profileError" />
+            <EditForm Model="profileForm" OnValidSubmit="SaveProfileAsync" FormName="perfil">
+                <DataAnnotationsValidator />
+                <div class="field"><label for="a-name">Nome</label><InputText id="a-name" class="input" @bind-Value="profileForm.Name" /><ValidationMessage For="@(() => profileForm.Name)" /></div>
+                <div class="field"><label for="a-email">E-mail</label><InputText id="a-email" class="input" @bind-Value="profileForm.Email" /><ValidationMessage For="@(() => profileForm.Email)" /></div>
+                <div class="field"><label for="a-phone">Telefone</label><InputText id="a-phone" class="input" @bind-Value="profileForm.Phone" inputmode="numeric" /><ValidationMessage For="@(() => profileForm.Phone)" /></div>
+                <button class="btn btn-primary" type="submit" disabled="@busy">Salvar dados</button>
+            </EditForm>
+        </div>
+
+        <div class="card">
+            <div class="card-head"><div><h2>Alterar senha</h2><p>Use ao menos 8 caracteres.</p></div></div>
+            <Feedback Message="@passwordMessage" IsError="@passwordError" />
+            <EditForm Model="passwordForm" OnValidSubmit="ChangePasswordAsync" FormName="senha">
+                <DataAnnotationsValidator />
+                <div class="field"><label for="p-cur">Senha atual</label><InputText id="p-cur" type="password" class="input" @bind-Value="passwordForm.Current" autocomplete="current-password" /><ValidationMessage For="@(() => passwordForm.Current)" /></div>
+                <div class="field"><label for="p-new">Nova senha</label><InputText id="p-new" type="password" class="input" @bind-Value="passwordForm.New" autocomplete="new-password" /><ValidationMessage For="@(() => passwordForm.New)" /></div>
+                <div class="field"><label for="p-conf">Confirmar nova senha</label><InputText id="p-conf" type="password" class="input" @bind-Value="passwordForm.Confirm" autocomplete="new-password" /><ValidationMessage For="@(() => passwordForm.Confirm)" /></div>
+                <button class="btn btn-primary" type="submit" disabled="@busy">Alterar senha</button>
+            </EditForm>
+        </div>
+    </div>
+}
+
+@code {
+    private ProfileData? loaded;
+    private readonly ProfileForm profileForm = new();
+    private readonly PasswordForm passwordForm = new();
+    private string? profileMessage, passwordMessage;
+    private bool profileError, passwordError, busy;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            loaded = await Profile.GetAsync();
+            profileForm.Name = loaded.Name;
+            profileForm.Email = loaded.Email;
+            profileForm.Phone = loaded.Phone;
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            profileMessage = ex.Message; profileError = true;
+        }
+    }
+
+    private async Task SaveProfileAsync()
+    {
+        busy = true;
+        try
+        {
+            await Profile.UpdateAsync(profileForm.Name, profileForm.Email, profileForm.Phone);
+            profileMessage = "Dados atualizados. O nome e o e-mail no menu são atualizados na próxima página que você abrir."; profileError = false;
+        }
+        catch (Exception ex) when (ex is ArgumentException or AccountConflictException or UnauthorizedAccessException) { profileMessage = ex.Message; profileError = true; }
+        finally { busy = false; }
+    }
+
+    private async Task ChangePasswordAsync()
+    {
+        busy = true;
+        try
+        {
+            await Profile.ChangePasswordAsync(passwordForm.Current, passwordForm.New, passwordForm.Confirm);
+            passwordMessage = "Senha alterada com sucesso."; passwordError = false;
+            passwordForm.Current = passwordForm.New = passwordForm.Confirm = "";
+        }
+        catch (Exception ex) when (ex is ArgumentException or UnauthorizedAccessException) { passwordMessage = ex.Message; passwordError = true; }
+        finally { busy = false; }
+    }
+
+    private sealed class ProfileForm
+    {
+        [Required(ErrorMessage = "Informe o nome.")]
+        [StringLength(100, MinimumLength = 3, ErrorMessage = "Use entre 3 e 100 caracteres.")]
+        public string Name { get; set; } = "";
+
+        [Required(ErrorMessage = "Informe o e-mail.")]
+        [EmailAddress(ErrorMessage = "E-mail inválido.")]
+        public string Email { get; set; } = "";
+
+        [Required(ErrorMessage = "Informe o telefone.")]
+        public string Phone { get; set; } = "";
+    }
+
+    private sealed class PasswordForm
+    {
+        [Required(ErrorMessage = "Informe a senha atual.")]
+        public string Current { get; set; } = "";
+
+        [Required(ErrorMessage = "Defina a nova senha.")]
+        [StringLength(72, MinimumLength = 8, ErrorMessage = "Use entre 8 e 72 caracteres.")]
+        public string New { get; set; } = "";
+
+        [Required(ErrorMessage = "Confirme a nova senha.")]
+        [Compare(nameof(New), ErrorMessage = "As senhas não coincidem.")]
+        public string Confirm { get; set; } = "";
+    }
+}

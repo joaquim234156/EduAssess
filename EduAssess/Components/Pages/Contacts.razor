@@ -1,0 +1,72 @@
+@page "/contatos"
+@layout AppLayout
+@attribute [Authorize(Policy = "Gestao")]
+@inject AcademicService Academic
+
+<PageTitle>Solicitações | EduAssess</PageTitle>
+
+<PageHeader Eyebrow="Avaliação" Title="Solicitações de contato" Subtitle="Pedidos enviados pelo formulário “Vamos conversar” do site." />
+
+<Feedback Message="@message" IsError="@isError" />
+
+<div class="card">
+    <div class="card-head"><div><h2>Caixa de entrada</h2><p>Mais recentes primeiro.</p></div><span class="count-pill">@(contacts?.Count ?? 0)</span></div>
+    @if (contacts is null)
+    {
+        <div class="loading"><span class="spinner"></span> Carregando…</div>
+    }
+    else if (contacts.Count == 0)
+    {
+        <EmptyState IconName="inbox" Title="Nenhuma solicitação" Text="Quando alguém preencher o formulário do site, o pedido aparece aqui." />
+    }
+    else
+    {
+        <div class="table-wrap">
+            <table>
+                <thead><tr><th>Contato</th><th>Instituição</th><th>Mensagem</th><th>Recebida</th><th></th></tr></thead>
+                <tbody>
+                    @foreach (var item in contacts)
+                    {
+                        <tr class="@(item.Read ? "" : "unread")">
+                            <td>
+                                <strong>@item.Name</strong>
+                                <span class="cell-sub"><a href="mailto:@item.Email">@item.Email</a>@(string.IsNullOrWhiteSpace(item.Phone) ? "" : " · " + item.Phone)</span>
+                            </td>
+                            <td>@item.Institution<span class="cell-sub">@item.Role</span></td>
+                            <td><div class="contact-msg">@(string.IsNullOrWhiteSpace(item.Message) ? "—" : item.Message)</div></td>
+                            <td>@UiFormat.DateTimeShort(item.CreatedAt)</td>
+                            <td><div class="row-actions">
+                                @if (!item.Read) { <button class="btn-text" type="button" @onclick="() => MarkReadAsync(item)"><Icon Name="check" Size="16" /> Marcar como lida</button> }
+                                else { <span class="badge badge-gray">Lida</span> }
+                            </div></td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>
+
+@code {
+    private List<ContactRow>? contacts;
+    private string? message;
+    private bool isError;
+
+    protected override async Task OnInitializedAsync() => await LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        try { contacts = await Academic.GetContactsAsync(); }
+        catch (UnauthorizedAccessException ex) { message = ex.Message; isError = true; contacts ??= new(); }
+    }
+
+    private async Task MarkReadAsync(ContactRow item)
+    {
+        try
+        {
+            await Academic.MarkContactReadAsync(item.Id);
+            await LoadAsync();
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or UnauthorizedAccessException) { message = ex.Message; isError = true; }
+    }
+}

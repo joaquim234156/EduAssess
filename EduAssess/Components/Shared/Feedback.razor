@@ -1,0 +1,12 @@
+@if (!string.IsNullOrWhiteSpace(Message))
+{
+    <div class="alert @(IsError ? "alert-error" : "alert-success")" role="@(IsError ? "alert" : "status")">
+        <Icon Name="@(IsError ? "alert" : "check-circle")" Size="18" />
+        <span>@Message</span>
+    </div>
+}
+
+@code {
+    [Parameter] public string? Message { get; set; }
+    [Parameter] public bool IsError { get; set; }
+}
