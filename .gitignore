@@ -365,5 +365,7 @@ FodyWeavers.xsd
 *.db
 *.db-shm
 *.db-wal
-/EduAssess/Application/DTOs/Turma/TurmaRequestPut.cs
-/EduAssess/Models/TurmaModel/TurmaModel.cs
+
+# EduAssess: segredos e banco locais
+EduAssess/App_Data/
+*.sqlite*

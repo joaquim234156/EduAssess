@@ -1,4 +1,4 @@
-﻿namespace EduAssess.Application.DTOs.Matricula
+namespace EduAssess.Application.DTOs.Matricula
 {
     public record MatriculaRequest(
         Guid usuarioId,
