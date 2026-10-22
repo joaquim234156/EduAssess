@@ -69,15 +69,19 @@ namespace EduAssess.Application.Services
 
         public async Task<IEnumerable<MatriculaResponseDTO>> ListarMatriculasAsync()
         {
-            var matriculas = await _context.Matriculas.ToListAsync();
-            return matriculas.Select(m => new MatriculaResponseDTO(
-                m.Id,
-                m.UsuarioId,
-                m.TurmaId,
-                m.DataMatricula,
-                m.Ativa
-            ));
+            return await _context.Matriculas
+                .AsNoTracking()
+                .OrderByDescending(m => m.DataMatricula)
+                .Select(m => new MatriculaResponseDTO(
+                    m.Id,
+                    m.UsuarioId,
+                    m.TurmaId,
+                    m.DataMatricula,
+                    m.Ativa
+                ))
+                .ToListAsync();
         }
+
 
         public async Task<MatriculaResponseDTO> ObterMatriculaPorIdAsync(Guid id)
         {
