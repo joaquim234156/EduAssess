@@ -1,4 +1,4 @@
-﻿namespace EduAssess.Models
+﻿namespace EduAssess.Models.Local
 {
     public class DisciplinaModel
     {
@@ -14,20 +14,25 @@
         }
 
         public Guid Id { get; init; }
-        public Guid ProfessorId{get; private set;}
+        public Guid ProfessorId{ get; private set;}
         public string Nome { get; private set; } = null!;
         public string Descricao { get; private set; } = null!;
         public bool Ativa {get; private set;}
 
         public void UpdateDisciplina(string nome, string descricao, Guid professorId)
         {
-            ProfessorId = professorId;
             Nome = nome;
             Descricao = descricao;
+            ProfessorId = professorId;
         }
         public void Disable()
         {
             Ativa = false;
+        }
+
+        public void Enable()
+        {
+            Ativa = true;
         }
     }
 }

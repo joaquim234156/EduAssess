@@ -80,7 +80,7 @@ namespace EduAssess.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Cursos");
+                    b.ToTable("Cursos", (string)null);
                 });
 
             modelBuilder.Entity("EduAssess.Models.DisciplinaModel", b =>
@@ -105,7 +105,7 @@ namespace EduAssess.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Disciplinas");
+                    b.ToTable("Disciplinas", (string)null);
                 });
 
             modelBuilder.Entity("EduAssess.Models.MatriculaModel", b =>
@@ -135,7 +135,7 @@ namespace EduAssess.Migrations
 
                     b.HasIndex("UsuarioId");
 
-                    b.ToTable("Matriculas");
+                    b.ToTable("Matriculas", (string)null);
                 });
 
             modelBuilder.Entity("EduAssess.Models.NotaModel", b =>
@@ -167,7 +167,66 @@ namespace EduAssess.Migrations
 
                     b.HasIndex("MatriculaId");
 
-                    b.ToTable("Notas");
+                    b.ToTable("Notas", (string)null);
+                });
+
+            modelBuilder.Entity("EduAssess.Models.QuestaoModel", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Alternativa1")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Alternativa2")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Alternativa3")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Alternativa4")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Alternativa5")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("AlternativaCorreta")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Assunto")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("Ativa")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("Dificuldade")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<Guid>("DisciplinaId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Enunciado")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Explicacao")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("ProfessorId")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("Questoes", (string)null);
                 });
 
             modelBuilder.Entity("EduAssess.Models.TurmaModel", b =>
@@ -198,7 +257,7 @@ namespace EduAssess.Migrations
 
                     b.HasIndex("ProfessorId");
 
-                    b.ToTable("Turmas");
+                    b.ToTable("Turmas", (string)null);
                 });
 
             modelBuilder.Entity("EduAssess.Models.UserModel", b =>
@@ -241,7 +300,7 @@ namespace EduAssess.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Users");
+                    b.ToTable("Users", (string)null);
                 });
 
             modelBuilder.Entity("EduAssess.Models.MatriculaModel", b =>
