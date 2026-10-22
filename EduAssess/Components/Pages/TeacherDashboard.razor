@@ -1,0 +1,80 @@
+@page "/professor"
+@layout AppLayout
+@attribute [Authorize(Policy = "Professor")]
+@inject AcademicService Academic
+
+<PageTitle>Meu painel | EduAssess</PageTitle>
+
+@if (overview is null)
+{
+    @if (error is not null) { <Feedback Message="@error" IsError="true" /> }
+    else { <div class="loading"><span class="spinner"></span> Carregando seu painel…</div> }
+}
+else
+{
+    <PageHeader Eyebrow="Painel do professor" Title="Meu painel" Subtitle="Suas turmas, seus alunos e as últimas avaliações lançadas.">
+        <a class="btn btn-primary" href="/notas"><Icon Name="pen" Size="18" /> Lançar notas</a>
+    </PageHeader>
+
+    <div class="stats-grid">
+        <div class="stat"><div class="ico"><Icon Name="layers" Size="22" /></div><strong>@overview.Classes.Count</strong><div class="label">Turmas</div><small>sob sua responsabilidade</small></div>
+        <div class="stat t-sun"><div class="ico"><Icon Name="cap" Size="22" /></div><strong>@overview.StudentCount</strong><div class="label">Alunos</div><small>matrículas ativas nas suas turmas</small></div>
+        <div class="stat t-blue"><div class="ico"><Icon Name="file" Size="22" /></div><strong>@overview.DisciplineCount</strong><div class="label">Disciplinas</div><small>vinculadas a você</small></div>
+        <div class="stat t-coral"><div class="ico"><Icon Name="pen" Size="22" /></div><strong>@overview.GradeCount</strong><div class="label">Notas lançadas</div><small>por você</small></div>
+    </div>
+
+    <div class="grid-2">
+        <div class="card">
+            <div class="card-head"><div><h2>Minhas turmas</h2><p>Turmas ativas em que você é o responsável.</p></div></div>
+            @if (overview.Classes.Count == 0)
+            {
+                <EmptyState IconName="layers" Title="Nenhuma turma atribuída" Text="Quando um gestor vincular você a uma turma, ela aparece aqui." />
+            }
+            else
+            {
+                <div class="table-wrap">
+                    <table>
+                        <thead><tr><th>Turma</th><th>Curso</th><th class="num">Alunos</th></tr></thead>
+                        <tbody>
+                            @foreach (var item in overview.Classes)
+                            {
+                                <tr><td><strong>@item.Name</strong></td><td>@item.CourseName</td><td class="num"><span class="badge badge-gray">@item.StudentCount</span></td></tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </div>
+
+        <div class="card">
+            <div class="card-head"><div><h2>Últimas notas</h2><p>Avaliações mais recentes.</p></div></div>
+            @if (overview.RecentGrades.Count == 0)
+            {
+                <EmptyState IconName="pen" Title="Sem notas ainda" Text="Lance a primeira nota na página de notas." />
+            }
+            else
+            {
+                <div class="mini-list">
+                    @foreach (var grade in overview.RecentGrades)
+                    {
+                        <div class="item">
+                            <div><strong>@grade.StudentName</strong><small>@grade.DisciplineName · @grade.Description</small></div>
+                            <GradeBadge Value="grade.Value" />
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+    </div>
+}
+
+@code {
+    private TeacherOverview? overview;
+    private string? error;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try { overview = await Academic.GetTeacherOverviewAsync(); }
+        catch (UnauthorizedAccessException ex) { error = ex.Message; }
+    }
+}

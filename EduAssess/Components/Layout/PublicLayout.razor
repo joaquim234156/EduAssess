@@ -1,0 +1,65 @@
+@inherits LayoutComponentBase
+
+<header class="site-header">
+    <div class="container">
+        <Logo />
+        <input type="checkbox" id="nav-toggle" class="nav-toggle" aria-hidden="true" />
+        <label for="nav-toggle" class="nav-burger" aria-label="Abrir menu"><Icon Name="menu" Size="22" /></label>
+        <nav class="site-nav" aria-label="Principal">
+            <NavLink href="/" Match="NavLinkMatch.All">Início</NavLink>
+            <a href="/#solucao">A solução</a>
+            <NavLink href="/quem-somos">Quem somos</NavLink>
+            <a href="/#recursos">Recursos</a>
+            <NavLink href="/metodo">O método</NavLink>
+            <AuthorizeView>
+                <Authorized>
+                    <a class="btn btn-primary btn-sm" href="/painel">Ir para o painel <Icon Name="arrow-right" Size="16" /></a>
+                </Authorized>
+                <NotAuthorized>
+                    <a class="btn btn-primary btn-sm" href="/login">Acessar plataforma <Icon Name="arrow-up-right" Size="16" /></a>
+                </NotAuthorized>
+            </AuthorizeView>
+        </nav>
+    </div>
+</header>
+
+<main>@Body</main>
+
+<footer class="site-footer">
+    <div class="container">
+        <div class="footer-grid">
+            <div>
+                <Logo Light="true" />
+                <p>Gestão acadêmica que prepara o futuro: cursos, turmas, matrículas e notas conectados em uma só plataforma.</p>
+            </div>
+            <div>
+                <h4>Plataforma</h4>
+                <ul>
+                    <li><a href="/#solucao">A solução</a></li>
+                    <li><a href="/metodo">O método</a></li>
+                    <li><a href="/#recursos">Recursos</a></li>
+                    <li><a href="/#dados">Dados e indicadores</a></li>
+                </ul>
+            </div>
+            <div>
+                <h4>Institucional</h4>
+                <ul>
+                    <li><a href="/quem-somos">Quem somos</a></li>
+                    <li><a href="/conteudos">Conteúdos</a></li>
+                    <li><a href="/#contato">Contato</a></li>
+                </ul>
+            </div>
+            <div>
+                <h4>Acesso</h4>
+                <ul>
+                    <li><a href="/login">Entrar</a></li>
+                    <li><a href="/cadastro">Criar conta</a></li>
+                </ul>
+            </div>
+        </div>
+        <div class="footer-bottom">
+            <span>© @DateTime.Now.Year EduAssess. Todos os direitos reservados.</span>
+            <span>Feito para quem educa.</span>
+        </div>
+    </div>
+</footer>
