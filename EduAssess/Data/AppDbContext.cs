@@ -1,5 +1,5 @@
-﻿using EduAssess.Models.Global;
-using EduAssess.Models.Local;
+using System;
+using System.Linq;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using System;
@@ -17,13 +17,7 @@ namespace EduAssess.Data
         public DbSet<MatriculaModel> Matriculas { get; set; } = null!;
         public DbSet<DisciplinaModel> Disciplinas { get; set; } = null!;
         public DbSet<NotaModel> Notas { get; set; } = null!;
-        public DbSet<QuestaoModel> Questoes {get; set;} = null!;
-
         public DbSet<ContatoModel> Contatos { get; set; } = null!;
-        public DbSet<InstituicaoModel> Instituicoes { get; set; } = null!;
-        public DbSet<UnidadeModel> Unidades { get; set; } = null!;
-        public DbSet<UsuarioInstituicaoModel> UsuariosInstituicoes { get; set; } = null!;
-
 
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
