@@ -1,9 +1,8 @@
-﻿using EduAssess.Application.DTOs.Nota;
+using System.Security.Claims;
+using EduAssess.Application.DTOs.Nota;
 using EduAssess.Application.Interfaces;
 using EduAssess.Data;
-using EduAssess.Models.Local;
 using Microsoft.EntityFrameworkCore;
-using System.Security.Claims;
 
 namespace EduAssess.Application.Routes
 {
@@ -13,72 +12,62 @@ namespace EduAssess.Application.Routes
         {
             var route = app.MapGroup("notas").WithTags("Notas");
 
-            route.MapPost("registrar", async (NotaRequest req, ClaimsPrincipal user, AppDbContext context, INotaService notaService) =>
+            route.MapPost("registrar", async (NotaRequest req, INotaService notaService, ClaimsPrincipal principal) =>
             {
                 if (!MiniValidation.MiniValidator.TryValidate(req, out var errors))
                     return Results.BadRequest(errors);
 
-                if (req.idMatricula == Guid.Empty || req.idDisciplina == Guid.Empty)
-                    return Results.BadRequest(new { message = "Informe IDs válidos para matrícula e disciplina." });
-
-                // Vincula a nota ao professor autenticado, sem confiar em um idUsuario enviado no JSON.
-                var userId = user.FindFirstValue(ClaimTypes.NameIdentifier);
-                if (!Guid.TryParse(userId, out var professorId))
-                    return Results.Unauthorized();
-
-                // Confirma o perfil ativo no banco antes de registrar o autor da nota.
-                var professorAtivo = await context.Users.AnyAsync(u =>
-                    u.Id == professorId && u.Ativa && u.Role == UserRole.Professor);
-                if (!professorAtivo)
+                // Professores só lançam notas em seu próprio nome.
+                var currentUserId = principal.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                if (principal.IsInRole("Professor") && currentUserId != req.idUsuario.ToString())
                     return Results.Forbid();
 
-                // Professor só lança nota em matrícula ativa de uma turma que lhe foi atribuída.
-                var matriculaDoProfessor = await context.Matriculas.AnyAsync(m =>
-                    m.Id == req.idMatricula && m.Ativa && m.Turma.ProfessorId == professorId);
-                if (!matriculaDoProfessor)
-                    return Results.BadRequest(new { message = "A matrícula não existe, está inativa ou não pertence a uma turma do professor." });
-
-                // Impede que o professor registre nota para disciplina de outro professor.
-                var disciplinaDoProfessor = await context.Disciplinas.AnyAsync(d =>
-                    d.Id == req.idDisciplina && d.Ativa && d.ProfessorId == professorId);
-                if (!disciplinaDoProfessor)
-                    return Results.BadRequest(new { message = "A disciplina não existe, está inativa ou não pertence ao professor autenticado." });
-
-                var resultado = await notaService.RegistrarNotaAsync(req, professorId);
-                return Results.Ok(resultado);
-            }).RequireAuthorization("Professor");
+                try
+                {
+                    var resultado = await notaService.RegistrarNotaAsync(req);
+                    return Results.Ok(resultado);
+                }
+                catch (KeyNotFoundException ex)
+                {
+                    return Results.NotFound(new { message = ex.Message });
+                }
+                catch (ArgumentException ex)
+                {
+                    return Results.BadRequest(new { message = ex.Message });
+                }
+            }).RequireAuthorization("Docencia");
 
             route.MapGet("listar", async (INotaService notaService) =>
             {
                 var notas = await notaService.ListarTodasAsync();
                 return Results.Ok(notas);
-            }).RequireAuthorization("Professor");
+            }).RequireAuthorization("Gestao");
 
-            route.MapGet("aluno/{idMatricula:guid}", async (Guid idMatricula, INotaService notaService) =>
+            route.MapGet("minhas", async (INotaService notaService, ClaimsPrincipal principal) =>
             {
-                var notasDoAluno = await notaService.ObterNotasPorMatriculaAsync(idMatricula);
+                if (!Guid.TryParse(principal.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var userId))
+                    return Results.Unauthorized();
+                return Results.Ok(await notaService.ObterNotasDoAlunoAsync(userId));
+            }).RequireAuthorization();
 
-                if (!notasDoAluno.Any())
-                    return Results.NotFound(new { mensagem = "Nenhuma nota encontrada para este aluno." });
+            route.MapGet("aluno/{idMatricula:guid}", async (Guid idMatricula, INotaService notaService, AppDbContext context, ClaimsPrincipal principal) =>
+            {
+                // Docência vê qualquer matrícula; o aluno só vê as notas da própria matrícula.
+                if (!principal.IsInRole("Admin") && !principal.IsInRole("Gestor") && !principal.IsInRole("Professor"))
+                {
+                    var userId = principal.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                    var ownerId = await context.Matriculas.AsNoTracking()
+                        .Where(m => m.Id == idMatricula).Select(m => m.UsuarioId).FirstOrDefaultAsync();
+                    if (userId is null || ownerId.ToString() != userId)
+                        return Results.Forbid();
+                }
+
+                var notasDoAluno = (await notaService.ObterNotasPorMatriculaAsync(idMatricula)).ToList();
+                if (notasDoAluno.Count == 0)
+                    return Results.NotFound(new { mensagem = "Nenhuma nota encontrada para esta matrícula." });
 
                 return Results.Ok(notasDoAluno);
-            }).RequireAuthorization("Professor");
-
-            route.MapPut("atualizar/{id:guid}", async (Guid id, NotaRequest req, INotaService notaService) =>
-            {
-                if (!MiniValidation.MiniValidator.TryValidate(req, out var errors))
-                    return Results.BadRequest(errors);
-                var notaAtualizada = await notaService.AtualizarNotaAsync(id, req);
-                return Results.Ok(notaAtualizada);
-            }).RequireAuthorization("Professor");
-
-            route.MapDelete("deletar/{id:guid}", async (Guid id, INotaService notaService) =>
-            {
-                var sucesso = await notaService.DeletarNotaAsync(id);
-                if (!sucesso)
-                    return Results.NotFound(new { mensagem = "Nota não encontrada ou já deletada." });
-                return Results.Ok(new { mensagem = "Nota deletada com sucesso." });
-            }).RequireAuthorization("Professor");
+            }).RequireAuthorization();
         }
     }
 }
