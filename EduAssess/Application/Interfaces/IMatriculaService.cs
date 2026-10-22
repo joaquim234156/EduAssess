@@ -8,6 +8,6 @@ namespace EduAssess.Application.Interfaces
         Task<MatriculaResponseDTO> ObterMatriculaPorIdAsync(Guid id);
         Task<MatriculaResponseDTO> AtualizarMatriculaAsync(Guid id, MatriculaRequestPut req);
         Task<IEnumerable<MatriculaResponseDTO>> ListarMatriculasAsync();
-        Task<bool> DeletarMatriculaAsync(Guid id);  
+        Task<bool> DeletarMatriculaAsync(Guid id);
     }
 }

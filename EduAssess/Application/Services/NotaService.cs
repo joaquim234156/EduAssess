@@ -2,6 +2,7 @@ using EduAssess.Application.DTOs.Nota;
 using EduAssess.Application.Interfaces;
 using EduAssess.Data;
 using EduAssess.Models;
+using EduAssess.Models.Local;
 using Microsoft.EntityFrameworkCore;
 
 namespace EduAssess.Application.Services
@@ -15,7 +16,7 @@ namespace EduAssess.Application.Services
             _context = context;
         }
 
-        public async Task<NotaResponseDTO> RegistrarNotaAsync(NotaRequest req)
+        public async Task<NotaResponseDTO> RegistrarNotaAsync(NotaRequest req, Guid professorId)
         {
             if (req.idMatricula == Guid.Empty)
                 throw new ArgumentException("Selecione a matrícula do aluno.");
@@ -84,5 +85,29 @@ namespace EduAssess.Application.Services
             nota.Descricao,
             nota.Valor,
             nota.DataLancamento);
+
+        public async Task<NotaResponseDTO> AtualizarNotaAsync(Guid id, NotaRequest req)
+        {
+            var nota = await _context.Notas.FindAsync(id);
+            if (nota == null)
+            {
+                throw new KeyNotFoundException("Nota não encontrada.");
+            }
+            nota.UpdateNota(req.idUsuario, req.idDisciplina, req.descricao, req.valorNota);
+            await _context.SaveChangesAsync();
+            return ToDto(nota);
+        }
+
+        public async Task<bool> DeletarNotaAsync(Guid id)
+        {
+            var nota = await _context.Notas.FindAsync(id);
+            if (nota == null)
+            {
+                throw new KeyNotFoundException("Nota não encontrada.");
+            }
+            _context.Notas.Remove(nota);
+            await _context.SaveChangesAsync();
+            return true;
+        }
     }
 }

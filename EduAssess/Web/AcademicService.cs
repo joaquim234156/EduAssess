@@ -42,7 +42,7 @@ public sealed class AcademicService(IDbContextFactory<AppDbContext> dbFactory, U
 
         return new DashboardSummary(
             courses.Count,
-            await db.Turmas.CountAsync(x => x.Ativo),
+            await db.Turmas.CountAsync(x => x.Ativa),
             await db.Users.CountAsync(x => x.Ativa && x.Role == UserRole.Aluno),
             await db.Users.CountAsync(x => x.Ativa && x.Role == UserRole.Professor),
             await db.Matriculas.CountAsync(x => x.Ativa),
@@ -60,7 +60,7 @@ public sealed class AcademicService(IDbContextFactory<AppDbContext> dbFactory, U
     {
         await session.RequireAsync(Management);
         await using var db = await dbFactory.CreateDbContextAsync();
-        var classCounts = await db.Turmas.AsNoTracking().Where(t => t.Ativo).Select(t => t.CursoId).ToListAsync();
+        var classCounts = await db.Turmas.AsNoTracking().Where(t => t.Ativa).Select(t => t.CursoId).ToListAsync();
         var rows = await db.Cursos.AsNoTracking().Where(x => x.Ativo).OrderBy(x => x.Nome)
             .Select(x => new { x.Id, x.Nome, x.Descricao, x.DuracaoEmAnos }).ToListAsync();
         return rows.Select(x => new CourseRow(x.Id, x.Nome, x.Descricao, x.DuracaoEmAnos, classCounts.Count(c => c == x.Id))).ToList();
@@ -202,7 +202,7 @@ public sealed class AcademicService(IDbContextFactory<AppDbContext> dbFactory, U
         await session.RequireAsync(Management);
         await using var db = await dbFactory.CreateDbContextAsync();
         var enrolled = await db.Matriculas.AsNoTracking().Where(m => m.Ativa).Select(m => m.TurmaId).ToListAsync();
-        var rows = await db.Turmas.AsNoTracking().Where(x => x.Ativo).OrderBy(x => x.Nome)
+        var rows = await db.Turmas.AsNoTracking().Where(x => x.Ativa).OrderBy(x => x.Nome)
             .Select(x => new { x.Id, x.Nome, Curso = x.Curso.Nome, Professor = x.Professor.Name, x.Periodo })
             .ToListAsync();
         return rows.Select(x => new ClassRow(x.Id, x.Nome, x.Curso, x.Professor, x.Periodo, enrolled.Count(t => t == x.Id))).ToList();
@@ -220,7 +220,7 @@ public sealed class AcademicService(IDbContextFactory<AppDbContext> dbFactory, U
             throw new ArgumentException("Selecione um curso ativo.");
         if (!await db.Users.AnyAsync(x => x.Id == instructorId && x.Ativa && x.Role == UserRole.Professor))
             throw new ArgumentException("Selecione um professor ativo.");
-        if (await db.Turmas.AnyAsync(x => x.Ativo && x.Nome == normalizedName))
+        if (await db.Turmas.AnyAsync(x => x.Ativa && x.Nome == normalizedName))
             throw new ArgumentException("Já existe uma turma ativa com esse nome.");
 
         db.Turmas.Add(new TurmaModel(normalizedName, instructorId, courseId));
@@ -245,7 +245,7 @@ public sealed class AcademicService(IDbContextFactory<AppDbContext> dbFactory, U
         await using var db = await dbFactory.CreateDbContextAsync();
         if (!await db.Users.AnyAsync(x => x.Id == studentId && x.Ativa && x.Role == UserRole.Aluno))
             throw new ArgumentException("Selecione um aluno ativo.");
-        if (!await db.Turmas.AnyAsync(x => x.Id == classId && x.Ativo))
+        if (!await db.Turmas.AnyAsync(x => x.Id == classId && x.Ativa))
             throw new ArgumentException("Selecione uma turma ativa.");
         if (await db.Matriculas.AnyAsync(x => x.UsuarioId == studentId && x.TurmaId == classId && x.Ativa))
             throw new ArgumentException("Este aluno já está matriculado nesta turma.");
@@ -393,7 +393,7 @@ public sealed class AcademicService(IDbContextFactory<AppDbContext> dbFactory, U
         await using var db = await dbFactory.CreateDbContextAsync();
         var actorId = actor.Id;
 
-        var classes = await db.Turmas.AsNoTracking().Where(t => t.Ativo && t.ProfessorId == actorId)
+        var classes = await db.Turmas.AsNoTracking().Where(t => t.Ativa && t.ProfessorId == actorId)
             .OrderBy(t => t.Nome)
             .Select(t => new { t.Id, t.Nome, Curso = t.Curso.Nome, t.Periodo }).ToListAsync();
         var enrolled = await db.Matriculas.AsNoTracking()

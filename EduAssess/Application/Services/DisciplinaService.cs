@@ -19,13 +19,31 @@ namespace EduAssess.Application.Services
 
         public async Task<DisciplinaResponseDTO> CriarDisciplinaAsync(DisciplinaRequest req, Guid professorId)
         {
-            var disciplina = new DisciplinaModel(req.nome, req.descricao, professorId);
+            var nomeValido = req.nome?.Trim();
+            if (string.IsNullOrWhiteSpace(nomeValido))
+                throw new ArgumentException("O nome da disciplina é obrigatório.");
+
+            if (await _context.Disciplinas.AnyAsync(d => d.Ativa && d.Nome == nomeValido))
+                throw new ArgumentException("Já existe uma disciplina ativa com esse nome.");
+
+            if (!await _context.Users.AnyAsync(u => u.Id == professorId && u.Ativa && u.Role == UserRole.Professor))
+                throw new KeyNotFoundException("O professor responsável informado não foi encontrado ou está inativo.");
+
+            var disciplina = new DisciplinaModel(
+                nomeValido,
+                req.descricao ?? string.Empty,
+                professorId
+            );
+
             await _context.Disciplinas.AddAsync(disciplina);
             await _context.SaveChangesAsync();
+
             return new DisciplinaResponseDTO(
                 disciplina.Id,
                 disciplina.Nome,
-                disciplina.Descricao
+                disciplina.Descricao,
+                disciplina.ProfessorId,
+                disciplina.Ativa
             );
         }
 
@@ -35,7 +53,9 @@ namespace EduAssess.Application.Services
                 .Select(disciplina => new DisciplinaResponseDTO(
                     disciplina.Id,
                     disciplina.Nome,
-                    disciplina.Descricao
+                    disciplina.Descricao,
+                    disciplina.ProfessorId,
+                    disciplina.Ativa
                 ))
                 .ToListAsync();
         }
@@ -48,7 +68,9 @@ namespace EduAssess.Application.Services
                 .Select(disciplina => new DisciplinaResponseDTO(
                     disciplina.Id,
                     disciplina.Nome,
-                    disciplina.Descricao
+                    disciplina.Descricao,
+                    disciplina.ProfessorId,
+                    disciplina.Ativa
                 ))
                 .ToListAsync();
         }
@@ -60,7 +82,9 @@ namespace EduAssess.Application.Services
                 .Select(disciplina => new DisciplinaResponseDTO(
                     disciplina.Id,
                     disciplina.Nome,
-                    disciplina.Descricao
+                    disciplina.Descricao,
+                    disciplina.ProfessorId,
+                    disciplina.Ativa
                 ))
                 .ToListAsync();
         }
@@ -72,7 +96,9 @@ namespace EduAssess.Application.Services
                 .Select(disciplina => new DisciplinaResponseDTO(
                     disciplina.Id,
                     disciplina.Nome,
-                    disciplina.Descricao
+                    disciplina.Descricao,
+                    disciplina.ProfessorId,
+                    disciplina.Ativa
                 ))
                 .ToListAsync();
         }
@@ -87,7 +113,9 @@ namespace EduAssess.Application.Services
             return new DisciplinaResponseDTO(
                 disciplina.Id,
                 disciplina.Nome,
-                disciplina.Descricao
+                disciplina.Descricao,
+                disciplina.ProfessorId,
+                disciplina.Ativa
             );
         }
 
@@ -99,13 +127,15 @@ namespace EduAssess.Application.Services
                 throw new KeyNotFoundException("Disciplina não encontrada.");
             }
 
-            disciplina.UpdateDisciplina(req.nome, req.descricao, req.professorId);
+            disciplina.UpdateDisciplina(req.nome, req.descricao ?? string.Empty, req.professorId);
 
             await _context.SaveChangesAsync();
             return new DisciplinaResponseDTO(
                 disciplina.Id,
                 disciplina.Nome,
-                disciplina.Descricao
+                disciplina.Descricao,
+                disciplina.ProfessorId,
+                disciplina.Ativa
             );
         }
 

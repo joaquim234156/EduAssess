@@ -7,6 +7,6 @@ namespace EduAssess.Application.DTOs.Turma
         Guid IdCurso,
         Guid IdProfessor,
         int Periodo,
-        bool Ativo
+        bool Ativa
     );
 }

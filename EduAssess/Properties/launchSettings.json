@@ -1,7 +1,7 @@
 {
   "$schema": "http://json.schemastore.org/launchsettings.json",
   "profiles": {
-    "Painel + API (HTTP)": {
+    "Front + API (HTTP)": {
       "commandName": "Project",
       "dotnetRunMessages": true,
       "launchBrowser": true,
@@ -12,7 +12,7 @@
         "APP_MODE": "Full"
       }
     },
-    "Somente API + Swagger (HTTPS)": {
+    "Swagger (HTTPS)": {
       "commandName": "Project",
       "dotnetRunMessages": true,
       "launchBrowser": true,

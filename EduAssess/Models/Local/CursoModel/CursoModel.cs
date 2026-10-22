@@ -14,8 +14,8 @@
         }
 
         public Guid Id { get; init; }
-        public string Nome { get; private set; }
-        public string Descricao { get; private set; }
+        public string Nome { get; private set; } = string.Empty;
+        public string Descricao { get; private set; } = string.Empty;
         public int DuracaoEmAnos { get; private set; }
         public bool Ativo { get; private set; }
 
@@ -29,5 +29,10 @@
         {
             Ativo = false;
         }
+
+        public void Enable()
+        {
+            Ativo = true;
+        }
     }
-}
+}

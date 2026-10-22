@@ -18,7 +18,7 @@ namespace EduAssess.Application.Services
 
         public async Task<CursoResponseDTO> CriarCursoAsync(CursoRequest req)
         {
-            var curso = new CursoModel(req.nome, req.descricao, req.duracaoEmAnos);
+            var curso = new CursoModel(req.nome, req.descricao ?? string.Empty, req.duracaoEmAnos);
             await _context.Cursos.AddAsync(curso);
             await _context.SaveChangesAsync();
 
@@ -95,7 +95,7 @@ namespace EduAssess.Application.Services
             {
                 throw new KeyNotFoundException("Curso não encontrado.");
             }
-            curso.Update(req.nome, req.descricao, req.duracaoEmAnos);
+            curso.Update(req.nome, req.descricao ?? string.Empty, req.duracaoEmAnos);
             await _context.SaveChangesAsync();
             return new CursoResponseDTO(
                 curso.Id,

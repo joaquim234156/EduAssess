@@ -1,6 +1,7 @@
 using EduAssess.Application.DTOs.Matricula;
 using EduAssess.Data;
 using EduAssess.Models;
+using EduAssess.Models.Local;
 using Microsoft.EntityFrameworkCore;
 
 namespace EduAssess.Application.Routes
@@ -19,7 +20,7 @@ namespace EduAssess.Application.Routes
 
                     if (!await context.Users.AnyAsync(u => u.Id == req.usuarioId && u.Ativa && u.Role == UserRole.Aluno))
                         return Results.BadRequest(new { message = "Selecione um aluno ativo." });
-                    if (!await context.Turmas.AnyAsync(t => t.Id == req.turmaId && t.Ativo))
+                    if (!await context.Turmas.AnyAsync(t => t.Id == req.turmaId && t.Ativa))
                         return Results.BadRequest(new { message = "Selecione uma turma ativa." });
                     if (await context.Matriculas.AnyAsync(m => m.UsuarioId == req.usuarioId && m.TurmaId == req.turmaId && m.Ativa))
                         return Results.Conflict(new { message = "Este aluno já está matriculado nesta turma." });
