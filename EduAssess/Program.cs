@@ -132,29 +132,11 @@ builder.Services.AddAuthentication(options =>
 
 builder.Services.AddAuthorization(options =>
 {
-    options.AddPolicy("Admin", policy => policy.RequireRole(nameof(UserRole.Admin)));
-    options.AddPolicy("Gestor", policy => policy.RequireRole(nameof(UserRole.Gestor)));
-    options.AddPolicy("Gestao", policy => policy.RequireRole(nameof(UserRole.Admin), nameof(UserRole.Gestor)));
-    options.AddPolicy("Professor", policy => policy.RequireRole(nameof(UserRole.Professor)));
-    options.AddPolicy("Aluno", policy => policy.RequireRole(nameof(UserRole.Aluno)));
-    options.AddPolicy("Docencia", policy => policy.RequireRole(nameof(UserRole.Admin), nameof(UserRole.Gestor), nameof(UserRole.Professor)));
-    options.AddPolicy("AtribuirAluno", policy => policy.RequireRole(nameof(UserRole.Admin), nameof(UserRole.Gestor), nameof(UserRole.Professor)));
-});
-builder.Services.AddCascadingAuthenticationState();
-
-// ───────────── Limite de tentativas nas rotas públicas de autenticação ─────────────
-builder.Services.AddRateLimiter(options =>
-{
-    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
-    options.AddPolicy("public-auth", httpContext =>
-        RateLimitPartition.GetFixedWindowLimiter(
-            httpContext.Connection.RemoteIpAddress?.ToString() ?? "desconhecido",
-            _ => new FixedWindowRateLimiterOptions
-            {
-                PermitLimit = 30,
-                Window = TimeSpan.FromMinutes(1),
-                QueueLimit = 0
-            }));
+    options.AddPolicy("Admin", policy => policy.RequireRole("Admin", "Gestor"));
+    options.AddPolicy("Professor", policy => policy.RequireRole("Professor"));
+    options.AddPolicy("Gestor", policy => policy.RequireRole("Gestor"));
+    options.AddPolicy("AtribuirAluno", policy => policy.RequireRole("Admin", "Gestor", "Professor"));
+    
 });
 
 // ───────────── Banco de dados ─────────────
@@ -249,6 +231,7 @@ app.MatriculaRoutes();
 app.TurmaRoutes();
 app.DisciplinaRoutes();
 app.NotaRoutes();
+app.QuestaoRoutes();
 
 if (appMode != "ApiOnly")
 {

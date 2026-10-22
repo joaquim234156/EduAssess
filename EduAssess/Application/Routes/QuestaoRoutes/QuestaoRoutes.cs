@@ -138,7 +138,7 @@ namespace EduAssess.Application.Routes
                         resposta = response
                     });
                 })
-                .RequireAuthorization("Docente");
+                .RequireAuthorization("Professor");
             route.MapGet("get{id:guid}",
             async (Guid id, AppDbContext context) =>
                 {
@@ -285,7 +285,7 @@ namespace EduAssess.Application.Routes
                     message = "Questão atualizada com sucesso!!!",
                     resposta = response
                 });
-            });
+            }).RequireAuthorization("Professor");
             route.MapDelete("delete{id:guid}",
             async(Guid id, AppDbContext context) =>
             {
@@ -298,7 +298,7 @@ namespace EduAssess.Application.Routes
                 questao.Disable();
                 await context.SaveChangesAsync();
                 return Results.Ok(new{message = "Questão apagada com sucesso"});
-            });
+            }).RequireAuthorization("Professor");
             route.MapGet("get",
             async(Guid? disciplinaId, string? assunto, DificuldadeQuestao? dificuldade, AppDbContext context) =>
             {
