@@ -1,4 +1,4 @@
-﻿namespace EduAssess.Models
+﻿namespace EduAssess.Models.Local
 {
     public class NotaModel
     {
@@ -24,5 +24,12 @@
         public DateTime DataLancamento { get; private set; }
 
         public MatriculaModel Matricula { get; private set; } = null!;
+
+        public void UpdateNota(string descricao, decimal valor)
+        {
+            Descricao = descricao;
+            Valor = valor;
+        }
+
     }
 }

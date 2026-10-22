@@ -1,4 +1,4 @@
-namespace EduAssess.Models
+namespace EduAssess.Models.Local
 {
     public enum DificuldadeQuestao
     {
@@ -34,15 +34,15 @@ namespace EduAssess.Models
         public Guid Id {get;init;}
         public Guid ProfessorId {get; private set;}
         public Guid DisciplinaId {get;private set;}
-        public string Enunciado {get;private set;}
-        public string AlternativaCorreta{get;private set;}
-        public string Alternativa1 {get; private set;}
-        public string Alternativa2 {get; private set;}
-        public string Alternativa3 {get; private set;}
-        public string Alternativa4 {get; private set;}
-        public string Alternativa5 {get; private set;}
-        public string Assunto {get;private set;}
-        public string Explicacao {get; private set;}
+        public string Enunciado { get; private set; } = null;
+        public string AlternativaCorreta{get;private set;} = null;
+        public string Alternativa1 {get; private set;} = null;
+        public string Alternativa2 {get; private set;} = null;
+        public string Alternativa3 {get; private set;} = null;
+        public string Alternativa4 {get; private set;} = null;
+        public string Alternativa5 {get; private set;} = null;
+        public string Assunto {get;private set;} = null;
+        public string Explicacao {get; private set;} = null;
         public DificuldadeQuestao Dificuldade {get; private set;}
         public bool Ativa {get; private set;}
 
@@ -64,6 +64,11 @@ namespace EduAssess.Models
         public void Disable()
         {
             Ativa = false;
+        }
+
+        public void Enable()
+        {
+            Ativa = true;
         }
     }
 }

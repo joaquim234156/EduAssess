@@ -1,7 +1,7 @@
 ﻿using EduAssess.Application.DTOs.Nota;
 using EduAssess.Application.Interfaces;
 using EduAssess.Data;
-using EduAssess.Models;
+using EduAssess.Models.Local;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
 
@@ -62,6 +62,22 @@ namespace EduAssess.Application.Routes
                     return Results.NotFound(new { mensagem = "Nenhuma nota encontrada para este aluno." });
 
                 return Results.Ok(notasDoAluno);
+            }).RequireAuthorization("Professor");
+
+            route.MapPut("atualizar/{id:guid}", async (Guid id, NotaRequest req, INotaService notaService) =>
+            {
+                if (!MiniValidation.MiniValidator.TryValidate(req, out var errors))
+                    return Results.BadRequest(errors);
+                var notaAtualizada = await notaService.AtualizarNotaAsync(id, req);
+                return Results.Ok(notaAtualizada);
+            }).RequireAuthorization("Professor");
+
+            route.MapDelete("deletar/{id:guid}", async (Guid id, INotaService notaService) =>
+            {
+                var sucesso = await notaService.DeletarNotaAsync(id);
+                if (!sucesso)
+                    return Results.NotFound(new { mensagem = "Nota não encontrada ou já deletada." });
+                return Results.Ok(new { mensagem = "Nota deletada com sucesso." });
             }).RequireAuthorization("Professor");
         }
     }

@@ -1,16 +1,17 @@
-﻿using System.Data;
+﻿using EduAssess.Models.Global;
+using System.Data;
 using System.Globalization;
 using System.Text.Json.Serialization;
 
-namespace EduAssess.Models
+namespace EduAssess.Models.Local
 {
     public enum UserRole
     {
-        Admin = 0,
-        Professor = 1,
+        Admin = 4,
+        Professor = 3,
         Gestor = 2,
-        Aluno = 3,
-        User = 4
+        Aluno = 1,
+        User = 0
     }
     public class UserModel
     {
@@ -43,6 +44,8 @@ namespace EduAssess.Models
         public UserRole Role { get; private set; }
         public bool Ativa { get; private set; }
         public Guid IdTurma { get; private set; }
+        // NOVO: instituições em que esta pessoa atua (e com qual papel)
+        public ICollection<UsuarioInstituicaoModel> Instituicoes { get; private set; } = [];
 
         public ICollection<MatriculaModel> Matriculas { get; private set; } = [];
 
@@ -85,6 +88,11 @@ namespace EduAssess.Models
         public void Disable()
         {
             Ativa = false;
+        }
+
+        public void Enable()
+        {
+            Ativa = true;
         }
     }
 }

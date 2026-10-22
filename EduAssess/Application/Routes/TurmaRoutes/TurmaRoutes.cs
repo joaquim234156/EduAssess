@@ -1,7 +1,7 @@
 ﻿using EduAssess.Application.DTOs.Turma;
 using EduAssess.Application.Interfaces;
 using EduAssess.Data;
-using EduAssess.Models;
+using EduAssess.Models.Local;
 using Microsoft.EntityFrameworkCore;
 
 namespace EduAssess.Application.Routes
@@ -46,6 +46,13 @@ namespace EduAssess.Application.Routes
                     var turmas = await turmaService.ListarTurmasAsync();
                     return Results.Ok(new { message = "Lista de turmas", turmas });
                 }).RequireAuthorization("Admin");
+            
+            route.MapGet("list/professor/{professorId:guid}",
+                async (Guid professorId, ITurmaService turmaService) =>
+                {
+                    var turmas = await turmaService.ListarTurmasPorProfessorAsync(professorId);
+                    return Results.Ok(new { message = "Lista de turmas do professor", turmas });
+                }).RequireAuthorization("Admin");
 
             route.MapGet("get/{id:guid}",
                 async (Guid id, AppDbContext context, ITurmaService turmaService) =>
@@ -69,7 +76,7 @@ namespace EduAssess.Application.Routes
                             turma.Periodo,
                         }
                     });
-                });
+                }).RequireAuthorization("Admin");
 
             route.MapPut("update/{id:guid}",
                 async (Guid id, TurmaRequestPut req, AppDbContext context, ITurmaService turmaService) =>
@@ -109,6 +116,18 @@ namespace EduAssess.Application.Routes
                     if (!deleted)
                         return Results.BadRequest(new { message = "Erro ao deletar a turma" });
                     return Results.Ok(new { message = "Turma deletada com sucesso" });
+                }).RequireAuthorization("Admin");
+
+            route.MapPut("activate/{id:guid}",
+                async (Guid id, AppDbContext context, ITurmaService turmaService) =>
+                {
+                    var existingTurma = await context.Turmas.FirstOrDefaultAsync(t => t.Id == id);
+                    if (existingTurma == null)
+                        return Results.NotFound(new { message = "Turma não existente" });
+                    var activated = await turmaService.AtivarTurmaAsync(id);
+                    if (!activated)
+                        return Results.BadRequest(new { message = "Erro ao ativar a turma" });
+                    return Results.Ok(new { message = "Turma ativada com sucesso" });
                 }).RequireAuthorization("Admin");
         }
     }

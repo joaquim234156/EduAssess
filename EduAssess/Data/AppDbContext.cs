@@ -1,8 +1,9 @@
-﻿using System;
-using System.Linq;
+﻿using EduAssess.Models.Global;
+using EduAssess.Models.Local;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
-using EduAssess.Models;
+using System;
+using System.Linq;
 
 namespace EduAssess.Data
 {
@@ -18,9 +19,34 @@ namespace EduAssess.Data
         public DbSet<NotaModel> Notas { get; set; } = null!;
         public DbSet<QuestaoModel> Questoes {get; set;} = null!;
 
+        public DbSet<InstituicaoModel> Instituicoes { get; set; } = null!;
+        public DbSet<UnidadeModel> Unidades { get; set; } = null!;
+        public DbSet<UsuarioInstituicaoModel> UsuariosInstituicoes { get; set; } = null!;
+
+
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
+
+            modelBuilder.Entity<UsuarioInstituicaoModel>(e =>
+            {
+                // chave composta: o mesmo usuário não vincula 2x à mesma instituição
+                e.HasKey(x => new { x.UsuarioId, x.InstituicaoId });
+                e.HasOne(x => x.Usuario).WithMany(u => u.Instituicoes).HasForeignKey(x => x.UsuarioId);
+                e.HasOne(x => x.Instituicao).WithMany().HasForeignKey(x => x.InstituicaoId);
+                // guarda "Professor" no banco em vez de 2; se você reordenar o enum, os dados não se corrompem
+                e.Property(x => x.Papel).HasConversion<string>();
+            });
+
+            modelBuilder.Entity<InstituicaoModel>(e =>
+            {
+                e.HasIndex(x => x.Slug).IsUnique();
+                e.HasIndex(x => x.Cnpj).IsUnique(); // no SQLite, vários NULL são permitidos
+            });
+
+            modelBuilder.Entity<UnidadeModel>()
+                .HasIndex(x => new { x.InstituicaoId, x.Codigo }).IsUnique();
+
             var dateOnlyConverter = new ValueConverter<DateOnly, DateTime>(
                 d => d.ToDateTime(TimeOnly.MinValue),
                 d => DateOnly.FromDateTime(d));

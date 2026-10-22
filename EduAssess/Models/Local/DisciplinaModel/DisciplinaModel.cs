@@ -1,4 +1,4 @@
-﻿namespace EduAssess.Models
+﻿namespace EduAssess.Models.Local
 {
     public class DisciplinaModel
     {
@@ -28,6 +28,11 @@
         public void Disable()
         {
             Ativa = false;
+        }
+
+        public void Enable()
+        {
+            Ativa = true;
         }
     }
 }
