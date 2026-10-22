@@ -46,7 +46,7 @@ builder.Services.AddAuthorization(options =>
     options.AddPolicy("Professor", policy => policy.RequireRole("Professor"));
     options.AddPolicy("Gestor", policy => policy.RequireRole("Gestor"));
     options.AddPolicy("AtribuirAluno", policy => policy.RequireRole("Admin", "Gestor", "Professor"));
-    options.AddPolicy("Docente", policy => policy.RequireRole("Professor"));
+    
 });
 
 builder.Services.AddControllers();
@@ -128,6 +128,7 @@ app.MatriculaRoutes();
 app.TurmaRoutes();
 app.DisciplinaRoutes();
 app.NotaRoutes();
+app.QuestaoRoutes();
 
 if (appMode != "ApiOnly")
 {
