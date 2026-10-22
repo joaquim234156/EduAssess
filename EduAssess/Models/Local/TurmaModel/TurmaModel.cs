@@ -1,5 +1,5 @@
 
-namespace EduAssess.Models
+namespace EduAssess.Models.Local
 {
     public class TurmaModel
     {
@@ -18,9 +18,27 @@ namespace EduAssess.Models
         public Guid ProfessorId { get; private set; }
         public Guid CursoId { get; private set; }
         public int Periodo { get; private set; } = 0;
-        public string Nome { get; private set; }
+        public string Nome { get; private set; } = null;
         public bool Ativo { get; private set; }
         public CursoModel Curso { get; private set; } = null!;
         public UserModel Professor { get; private set; } = null!;
+
+        public void Update(string nome, Guid professorId, Guid cursoId, int periodo)
+        {
+            Nome = nome;
+            ProfessorId = professorId;
+            CursoId = cursoId;
+            Periodo = periodo;
+        }
+
+        public void Disable()
+        {
+            Ativo = false;
+        }
+
+        public void Enable()
+        {
+            Ativo = true;
+        }
     }
 }
