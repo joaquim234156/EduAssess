@@ -1,6 +1,5 @@
 using EduAssess.Application.DTOs.Questao;
 using EduAssess.Models;
-using EduAssess.Models.Local;
 
 namespace EduAssess.Application.Interfaces
 {

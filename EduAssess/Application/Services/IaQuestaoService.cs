@@ -4,7 +4,6 @@ using System.Text.Json;
 using EduAssess.Application.DTOs.Questao;
 using EduAssess.Application.Interfaces;
 using EduAssess.Models;
-using EduAssess.Models.Local;
 
 namespace EduAssess.Application.Services
 {

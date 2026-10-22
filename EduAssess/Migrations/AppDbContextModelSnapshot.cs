@@ -80,7 +80,7 @@ namespace EduAssess.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Cursos");
+                    b.ToTable("Cursos", (string)null);
                 });
 
             modelBuilder.Entity("EduAssess.Models.DisciplinaModel", b =>
@@ -105,7 +105,7 @@ namespace EduAssess.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Disciplinas");
+                    b.ToTable("Disciplinas", (string)null);
                 });
 
             modelBuilder.Entity("EduAssess.Models.MatriculaModel", b =>
@@ -135,7 +135,7 @@ namespace EduAssess.Migrations
 
                     b.HasIndex("UsuarioId");
 
-                    b.ToTable("Matriculas");
+                    b.ToTable("Matriculas", (string)null);
                 });
 
             modelBuilder.Entity("EduAssess.Models.NotaModel", b =>
@@ -167,7 +167,7 @@ namespace EduAssess.Migrations
 
                     b.HasIndex("MatriculaId");
 
-                    b.ToTable("Notas");
+                    b.ToTable("Notas", (string)null);
                 });
 
             modelBuilder.Entity("EduAssess.Models.QuestaoModel", b =>
@@ -226,7 +226,7 @@ namespace EduAssess.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Questoes");
+                    b.ToTable("Questoes", (string)null);
                 });
 
             modelBuilder.Entity("EduAssess.Models.TurmaModel", b =>
@@ -257,7 +257,7 @@ namespace EduAssess.Migrations
 
                     b.HasIndex("ProfessorId");
 
-                    b.ToTable("Turmas");
+                    b.ToTable("Turmas", (string)null);
                 });
 
             modelBuilder.Entity("EduAssess.Models.UserModel", b =>
@@ -300,7 +300,7 @@ namespace EduAssess.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Users");
+                    b.ToTable("Users", (string)null);
                 });
 
             modelBuilder.Entity("EduAssess.Models.MatriculaModel", b =>
