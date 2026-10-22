@@ -17,14 +17,26 @@ namespace EduAssess.Application.Routes
                 if (!MiniValidation.MiniValidator.TryValidate(req, out var errors))
                     return Results.BadRequest(errors);
 
-                // Professores só lançam notas em seu próprio nome.
-                var currentUserId = principal.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-                if (principal.IsInRole("Professor") && currentUserId != req.idUsuario.ToString())
-                    return Results.Forbid();
+                // 1. Extrai o ID do usuário logado diretamente do Claim com segurança
+                var currentUserIdStr = principal.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                if (string.IsNullOrEmpty(currentUserIdStr) || !Guid.TryParse(currentUserIdStr, out var currentUserId))
+                {
+                    return Results.Unauthorized();
+                }
+
+                // 2. Proteção rígida contra fraude: Se for Professor, força o idUsuario da requisição a ser o dele próprio
+                if (principal.IsInRole("Professor"))
+                {
+                    if (currentUserId != req.idUsuario)
+                    {
+                        return Results.Forbid();
+                    }
+                }
 
                 try
                 {
-                    var resultado = await notaService.RegistrarNotaAsync(req);
+                    // 3. CORREÇÃO DO ERRO: Passando o req e o currentUserId (Guid) que o método espera
+                    var resultado = await notaService.RegistrarNotaAsync(req, currentUserId);
                     return Results.Ok(resultado);
                 }
                 catch (KeyNotFoundException ex)
@@ -68,6 +80,22 @@ namespace EduAssess.Application.Routes
 
                 return Results.Ok(notasDoAluno);
             }).RequireAuthorization();
+
+            route.MapPut("atualizar/{id:guid}", async (Guid id, NotaRequest req, INotaService notaService) =>
+            {
+                if (!MiniValidation.MiniValidator.TryValidate(req, out var errors))
+                    return Results.BadRequest(errors);
+                var notaAtualizada = await notaService.AtualizarNotaAsync(id, req);
+                return Results.Ok(notaAtualizada);
+            }).RequireAuthorization("Professor");
+
+            route.MapDelete("deletar/{id:guid}", async (Guid id, INotaService notaService) =>
+            {
+                var sucesso = await notaService.DeletarNotaAsync(id);
+                if (!sucesso)
+                    return Results.NotFound(new { mensagem = "Nota não encontrada ou já deletada." });
+                return Results.Ok(new { mensagem = "Nota deletada com sucesso." });
+            }).RequireAuthorization("Professor");
         }
     }
 }

@@ -9,10 +9,7 @@ namespace EduAssess.Models.Local
   
     public class QuestaoModel
     {
-          protected QuestaoModel()
-        {
-        
-        }
+          protected QuestaoModel(){ }
         public QuestaoModel(Guid professorId, Guid disciplinaId, string enunciado, string alternativaCorreta,string alternativa1, string alternativa2, string alternativa3, string alternativa4, string alternativa5,string assunto,string explicacao, DificuldadeQuestao dificuldade = DificuldadeQuestao.Facil)
         {
             Id = Guid.NewGuid();
@@ -34,15 +31,15 @@ namespace EduAssess.Models.Local
         public Guid Id {get;init;}
         public Guid ProfessorId {get; private set;}
         public Guid DisciplinaId {get;private set;}
-        public string Enunciado { get; private set; } = null;
-        public string AlternativaCorreta{get;private set;} = null;
-        public string Alternativa1 {get; private set;} = null;
-        public string Alternativa2 {get; private set;} = null;
-        public string Alternativa3 {get; private set;} = null;
-        public string Alternativa4 {get; private set;} = null;
-        public string Alternativa5 {get; private set;} = null;
-        public string Assunto {get;private set;} = null;
-        public string Explicacao {get; private set;} = null;
+        public string Enunciado { get; private set; } = string.Empty;
+        public string AlternativaCorreta{get;private set;} = string.Empty;
+        public string Alternativa1 {get; private set;} = string.Empty;
+        public string Alternativa2 {get; private set;} = string.Empty;
+        public string Alternativa3 {get; private set;} = string.Empty;
+        public string Alternativa4 {get; private set;} = string.Empty;
+        public string Alternativa5 {get; private set;} = string.Empty;
+        public string Assunto {get;private set; } = string.Empty;
+        public string Explicacao { get; private set; } = string.Empty;
         public DificuldadeQuestao Dificuldade {get; private set;}
         public bool Ativa {get; private set;}
 

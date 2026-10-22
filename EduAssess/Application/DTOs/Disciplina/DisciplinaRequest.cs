@@ -8,6 +8,6 @@ namespace EduAssess.Application.DTOs.Disciplina
         string nome,
         [MaxLength(500, ErrorMessage = "A descrição não pode ultrapassar 500 caracteres.")]
         string? descricao,
-        Guid professorId
+        Guid? professorId = null
         );
 }
