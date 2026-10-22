@@ -4,7 +4,7 @@ using EduAssess.Application.Services;
 using EduAssess.Components;
 using EduAssess.Converters;
 using EduAssess.Data;
-using EduAssess.Models;
+using EduAssess.Models.Local;
 using EduAssess.Web;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;

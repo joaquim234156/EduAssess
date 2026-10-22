@@ -2,6 +2,7 @@
 using EduAssess.Application.Interfaces;
 using EduAssess.Data;
 using EduAssess.Models;
+using EduAssess.Models.Local;
 using Microsoft.EntityFrameworkCore;
 
 namespace EduAssess.Application.Services
@@ -59,6 +60,37 @@ namespace EduAssess.Application.Services
                     nota.DataLancamento
                 ))
                 .ToListAsync();
+        }
+
+        public async Task<NotaResponseDTO> AtualizarNotaAsync(Guid id, NotaRequest request)
+        {
+            var nota = await _context.Notas.FindAsync(id);
+            if (nota == null)
+            {
+                throw new KeyNotFoundException("Nota não encontrada.");
+            }
+            nota.UpdateNota(request.descricao, request.valorNota);
+            await _context.SaveChangesAsync();
+            return new NotaResponseDTO(
+                nota.MatriculaId,
+                nota.UsuarioId,
+                nota.DisciplinaId,
+                nota.Descricao,
+                nota.Valor,
+                nota.DataLancamento
+            );
+        }
+
+        public async Task<bool> DeletarNotaAsync(Guid id)
+        {
+            var nota = await _context.Notas.FindAsync(id);
+            if (nota == null)
+            {
+                throw new KeyNotFoundException("Nota não encontrada.");
+            }
+            _context.Notas.Remove(nota);
+            await _context.SaveChangesAsync();
+            return true;
         }
     }
 }

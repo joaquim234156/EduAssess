@@ -1,6 +1,6 @@
 ﻿using System.Text.Json.Serialization;
 
-namespace EduAssess.Models
+namespace EduAssess.Models.Local
 {
     public class MatriculaModel
     {
@@ -42,6 +42,11 @@ namespace EduAssess.Models
         public void Disable()
         {
             Ativa = false;
+        }
+
+        public void Enable()
+        {
+            Ativa = true;
         }
     }
 }
