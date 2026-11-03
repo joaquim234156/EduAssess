@@ -22,13 +22,13 @@ namespace EduAssess.Models.Global
         }
 
         public Guid Id { get; set; }
-        public string Nome { get; set; } = null;
-        public string Cnpj { get; set; } = null;
-        public string Email { get; set; } = null;
-        public string Telefone { get; set; } = null;
-        public string Endereco { get; set; } = null;
+        public string Nome { get; set; } = string.Empty;
+        public string Cnpj { get; set; } = string.Empty;
+        public string Email { get; set; } = string.Empty;
+        public string Telefone { get; set; } = string.Empty;
+        public string Endereco { get; set; } = string.Empty;
         public bool Ativa { get; set; }
-        public string Slug { get; set; } = null;
+        public string Slug { get; set; } = string.Empty;
         public DateTime CriadaEm { get; set; }
         public DateTime AtualizadaEm { get; set; }
         public List<UnidadeModel> Unidades { get; set; } = new();
