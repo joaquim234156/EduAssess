@@ -12,7 +12,7 @@ namespace EduAssess.Models.Global
             UsuarioId = usuarioId;
             InstituicaoId = instituicaoId;
             Papel = papel;
-            Ativa = ativa;
+            Ativa = true;
             VinculadoEm = DateTime.UtcNow;
         }
 

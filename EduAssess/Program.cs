@@ -264,6 +264,7 @@ app.MatriculaRoutes();
 app.TurmaRoutes();
 app.DisciplinaRoutes();
 app.NotaRoutes();
+app.QuestaoRoutes();
 
 if (appMode != "ApiOnly")
 {
