@@ -1,4 +1,9 @@
 ﻿namespace EduAssess.Application.DTOs.UsuarioInstituicao
 {
-    public record UsuarioInstituicaoRequestPut();
+    public record UsuarioInstituicaoRequestPut
+        (
+            Guid UsuarioId,
+            Guid InstituicaoId,
+            string Papel
+        );
 }
