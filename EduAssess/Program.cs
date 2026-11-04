@@ -1,5 +1,6 @@
 using EduAssess.Application.Interfaces;
 using EduAssess.Application.Routes;
+using EduAssess.Application.Routes.UnidadeRoutes;
 using EduAssess.Application.Services;
 using EduAssess.Components;
 using EduAssess.Converters;
@@ -181,6 +182,7 @@ builder.Services.AddScoped<INotaService, NotaService>();
 builder.Services.AddScoped<ICursoService, CursoService>();
 builder.Services.AddScoped<IDisciplinaService, DisciplinaService>();
 builder.Services.AddScoped<IMatriculaService, MatriculaService>();
+builder.Services.AddScoped<IUnidadeService, UnidadeService>();
 builder.Services.AddScoped<ITurmaService, TurmaService>();
 
 builder.Services.AddEndpointsApiExplorer();
@@ -265,6 +267,7 @@ app.TurmaRoutes();
 app.DisciplinaRoutes();
 app.NotaRoutes();
 app.QuestaoRoutes();
+app.UnidadeRoutes();
 
 if (appMode != "ApiOnly")
 {
