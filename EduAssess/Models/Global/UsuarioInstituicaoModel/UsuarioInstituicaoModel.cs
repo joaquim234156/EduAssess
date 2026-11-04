@@ -7,13 +7,14 @@ namespace EduAssess.Models.Global
     {
         protected UsuarioInstituicaoModel() { }
 
-        public UsuarioInstituicaoModel(Guid usuarioId, Guid instituicaoId, PapelInstituicao papel, bool ativa, DateTime vinculadoEm)
+        public UsuarioInstituicaoModel(Guid usuarioId, Guid instituicaoId, PapelInstituicao papel)
         {
             UsuarioId = usuarioId;
             InstituicaoId = instituicaoId;
             Papel = papel;
             Ativa = true;
             VinculadoEm = DateTime.UtcNow;
+            DesvinculoEm = null;
         }
 
         public Guid UsuarioId { get; private set; }
@@ -21,7 +22,19 @@ namespace EduAssess.Models.Global
         public PapelInstituicao Papel { get; set; }
         public bool Ativa { get; set; }
         public DateTime VinculadoEm { get; set; }
+        public DateTime? DesvinculoEm { get; set; }
         public UserModel? Usuario { get; set; }
         public InstituicaoModel? Instituicao { get; set; }
+
+        public void Update(PapelInstituicao papel)
+        {
+            Papel = papel;
+        }
+
+        public void Desvincular()
+        {
+            Ativa = false;
+            DesvinculoEm = DateTime.UtcNow;
+        }
     }
 }
