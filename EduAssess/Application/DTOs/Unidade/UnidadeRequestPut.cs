@@ -1,9 +1,10 @@
-﻿namespace EduAssess.Application.DTOs.Unidade
+﻿using EduAssess.Models.Global;
+
+namespace EduAssess.Application.DTOs.Unidade
 {
     public record UnidadeRequestPut(
         string Nome,
-        string Cnpj,
-        string Endereco,
-        string Telefone,
-        string Email);
+        string Sigla,
+        TipoUnidade Tipo
+        );
 }

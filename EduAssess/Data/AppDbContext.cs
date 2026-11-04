@@ -47,7 +47,7 @@ namespace EduAssess.Data
             });
 
             modelBuilder.Entity<UnidadeModel>()
-                .HasIndex(x => new { x.InstituicaoId, x.Codigo, x.Slug }).IsUnique();
+                .HasIndex(x => new { x.InstituicaoId, x.Sigla, x.Slug }).IsUnique();
 
             var dateOnlyConverter = new ValueConverter<DateOnly, DateTime>(
                 d => d.ToDateTime(TimeOnly.MinValue),
