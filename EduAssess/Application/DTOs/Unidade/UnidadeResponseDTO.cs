@@ -1,11 +1,12 @@
-﻿namespace EduAssess.Application.DTOs.Unidade
+﻿using EduAssess.Models.Global;
+
+namespace EduAssess.Application.DTOs.Unidade
 {
     public record UnidadeResponseDTO(
-        int Id,
+        Guid Id,
+        Guid InstituicaoId,
         string Nome,
-        string Cnpj,
-        string Endereco,
-        string Telefone,
-        string Email
+        TipoUnidade Tipo,
+        string Sigla
     );
 }
