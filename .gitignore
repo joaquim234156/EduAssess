@@ -369,3 +369,4 @@ FodyWeavers.xsd
 # EduAssess: segredos e banco locais
 EduAssess/App_Data/
 *.sqlite*
+EduAssess.zip
