@@ -102,11 +102,23 @@ namespace EduAssess.Migrations
                     b.Property<DateTime>("CriadaEm")
                         .HasColumnType("TEXT");
 
-                    b.Property<string>("NomeFantasia")
+                    b.Property<string>("Email")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Endereco")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Nome")
                         .IsRequired()
                         .HasColumnType("TEXT");
 
                     b.Property<string>("Slug")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Telefone")
                         .IsRequired()
                         .HasColumnType("TEXT");
 
@@ -133,10 +145,6 @@ namespace EduAssess.Migrations
                     b.Property<DateTime>("AtualizadaEm")
                         .HasColumnType("TEXT");
 
-                    b.Property<string>("Codigo")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
                     b.Property<DateTime>("CriadoEm")
                         .HasColumnType("TEXT");
 
@@ -147,12 +155,20 @@ namespace EduAssess.Migrations
                         .IsRequired()
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("Sigla")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Slug")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
                     b.Property<int>("Tipo")
                         .HasColumnType("INTEGER");
 
                     b.HasKey("Id");
 
-                    b.HasIndex("InstituicaoId", "Codigo")
+                    b.HasIndex("InstituicaoId", "Sigla", "Slug")
                         .IsUnique();
 
                     b.ToTable("Unidades");
@@ -168,6 +184,9 @@ namespace EduAssess.Migrations
 
                     b.Property<bool>("Ativa")
                         .HasColumnType("INTEGER");
+
+                    b.Property<DateTime?>("DesvinculoEm")
+                        .HasColumnType("TEXT");
 
                     b.Property<string>("Papel")
                         .IsRequired()

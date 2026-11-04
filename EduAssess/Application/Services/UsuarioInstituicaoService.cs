@@ -52,10 +52,10 @@ namespace EduAssess.Application.Services
                 .AnyAsync(ui => ui.UsuarioId == usuarioId && ui.InstituicaoId == instituicaoId);
         }
 
-        public async Task<UsuarioInstituicaoResponseDTO> VincularUsuarioInstituicaoAsync(Guid usuarioId, Guid instituicaoId, PapelInstituicao papel)
-        {
-            var usuarioInstituicao = new UsuarioInstituicaoModel(usuarioId, instituicaoId, papel);
 
+        public async Task<UsuarioInstituicaoResponseDTO> VincularUsuarioInstituicaoAsync(UsuarioInstituicaoResponseDTO req)
+        {
+            var usuarioInstituicao = new UsuarioInstituicaoModel(req.UsuarioId, req.InstituicaoId, Enum.Parse<PapelInstituicao>(req.Papel));
             await _context.UsuariosInstituicoes.AddAsync(usuarioInstituicao);
             await _context.SaveChangesAsync();
             return new UsuarioInstituicaoResponseDTO(usuarioInstituicao.UsuarioId, usuarioInstituicao.InstituicaoId, usuarioInstituicao.Papel.ToString(), usuarioInstituicao.VinculadoEm, usuarioInstituicao.DesvinculoEm);
