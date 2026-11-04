@@ -3,7 +3,9 @@ using System.Text;
 using System.Threading.RateLimiting;
 using EduAssess.Application.Interfaces;
 using EduAssess.Application.Routes;
+using EduAssess.Application.Routes.InstituicaoRoutes;
 using EduAssess.Application.Routes.UnidadeRoutes;
+using EduAssess.Application.Routes.UsuarioInstituicaoRoutes;
 using EduAssess.Application.Services;
 using EduAssess.Components;
 using EduAssess.Converters;
@@ -161,6 +163,8 @@ builder.Services.AddScoped<ICursoService, CursoService>();
 builder.Services.AddScoped<IDisciplinaService, DisciplinaService>();
 builder.Services.AddScoped<IMatriculaService, MatriculaService>();
 builder.Services.AddScoped<IUnidadeService, UnidadeService>();
+builder.Services.AddScoped<IInstituicaoService, InstituicaoService>();
+builder.Services.AddScoped<IUsuarioInstituicaoService, UsuarioInstituicaoService>();
 builder.Services.AddScoped<ITurmaService, TurmaService>();
 
 builder.Services.AddEndpointsApiExplorer();
@@ -239,7 +243,9 @@ app.TurmaRoutes();
 app.DisciplinaRoutes();
 app.NotaRoutes();
 app.QuestaoRoutes();
+app.InstituicaoRoutes();
 app.UnidadeRoutes();
+app.UsuarioInstituicaoRoutes();
 
 if (appMode != "ApiOnly")
 {
