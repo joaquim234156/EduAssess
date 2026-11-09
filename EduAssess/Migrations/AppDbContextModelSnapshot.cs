@@ -207,61 +207,6 @@ namespace EduAssess.Migrations
                     b.ToTable("UsuariosInstituicoes");
                 });
 
-            modelBuilder.Entity("EduAssess.Models.Local.DisciplinaModel", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("TEXT");
-
-                    b.Property<bool>("Ativa")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<string>("Descricao")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("Nome")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.Property<Guid>("ProfessorId")
-                        .HasColumnType("TEXT");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("Disciplinas");
-                });
-
-            modelBuilder.Entity("EduAssess.Models.Local.MatriculaModel", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("TEXT");
-
-                    b.Property<bool>("Ativa")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<DateTime>("DataExpiracao")
-                        .HasColumnType("TEXT");
-
-                    b.Property<DateTime>("DataMatricula")
-                        .HasColumnType("TEXT");
-
-                    b.Property<Guid>("TurmaId")
-                        .HasColumnType("TEXT");
-
-                    b.Property<Guid>("UsuarioId")
-                        .HasColumnType("TEXT");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("TurmaId");
-
-                    b.HasIndex("UsuarioId");
-
-                    b.ToTable("Matriculas");
-                });
-
             modelBuilder.Entity("EduAssess.Models.Local.AvaliacaoModel", b =>
                 {
                     b.Property<Guid>("Id")
@@ -326,6 +271,61 @@ namespace EduAssess.Migrations
                     b.HasKey("AvaliacaoId", "QuestaoId");
 
                     b.ToTable("AvaliacoesQuestoes");
+                });
+
+            modelBuilder.Entity("EduAssess.Models.Local.DisciplinaModel", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("Ativa")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Descricao")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Nome")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("ProfessorId")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("Disciplinas");
+                });
+
+            modelBuilder.Entity("EduAssess.Models.Local.MatriculaModel", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("Ativa")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("DataExpiracao")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("DataMatricula")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("TurmaId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("UsuarioId")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TurmaId");
+
+                    b.HasIndex("UsuarioId");
+
+                    b.ToTable("Matriculas");
                 });
 
             modelBuilder.Entity("EduAssess.Models.Local.QuestaoModel", b =>
