@@ -101,33 +101,43 @@ builder.Services.AddAuthentication(options =>
             }
 
             var factory = context.HttpContext.RequestServices.GetRequiredService<IDbContextFactory<AppDbContext>>();
-            await using var db = await factory.CreateDbContextAsync();
-            var row = await db.Users.AsNoTracking()
-                .Where(u => u.Id == userId)
-                .Select(u => new { u.Name, u.Email, u.Role, u.Ativa })
-                .FirstOrDefaultAsync();
-
-            if (row is null || !row.Ativa)
+            var logger = context.HttpContext.RequestServices.GetRequiredService<ILoggerFactory>()
+                .CreateLogger("CookieValidation");
+            try
             {
-                context.RejectPrincipal();
-                await context.HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
-                return;
-            }
+                await using var db = await factory.CreateDbContextAsync();
+                var row = await db.Users.AsNoTracking()
+                    .Where(u => u.Id == userId)
+                    .Select(u => new { u.Name, u.Email, u.Role, u.Ativa })
+                    .FirstOrDefaultAsync();
 
-            var current = context.Principal!;
-            if (current.FindFirst(ClaimTypes.Role)?.Value != row.Role.ToString()
-                || current.FindFirst(ClaimTypes.Name)?.Value != row.Name
-                || current.FindFirst(ClaimTypes.Email)?.Value != row.Email)
-            {
-                var identity = new ClaimsIdentity(new[]
+                if (row is null || !row.Ativa)
                 {
-                    new Claim(ClaimTypes.NameIdentifier, userId.ToString()),
-                    new Claim(ClaimTypes.Name, row.Name),
-                    new Claim(ClaimTypes.Email, row.Email),
-                    new Claim(ClaimTypes.Role, row.Role.ToString())
-                }, CookieAuthenticationDefaults.AuthenticationScheme);
-                context.ReplacePrincipal(new ClaimsPrincipal(identity));
-                context.ShouldRenew = true;
+                    context.RejectPrincipal();
+                    await context.HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+                    return;
+                }
+
+                var current = context.Principal!;
+                if (current.FindFirst(ClaimTypes.Role)?.Value != row.Role.ToString()
+                    || current.FindFirst(ClaimTypes.Name)?.Value != row.Name
+                    || current.FindFirst(ClaimTypes.Email)?.Value != row.Email)
+                {
+                    var identity = new ClaimsIdentity(new[]
+                    {
+                        new Claim(ClaimTypes.NameIdentifier, userId.ToString()),
+                        new Claim(ClaimTypes.Name, row.Name),
+                        new Claim(ClaimTypes.Email, row.Email),
+                        new Claim(ClaimTypes.Role, row.Role.ToString())
+                    }, CookieAuthenticationDefaults.AuthenticationScheme);
+                    context.ReplacePrincipal(new ClaimsPrincipal(identity));
+                    context.ShouldRenew = true;
+                }
+            }
+            catch (Exception ex)
+            {
+                logger.LogCritical(ex, "Falha ao validar o cookie de autenticação para o usuário {UserId}.", userId);
+                throw;
             }
         }
     };
@@ -213,7 +223,19 @@ builder.Services.AddSwaggerGen(c =>
 
 var app = builder.Build();
 
-// APP_MODE: Full (padrão: painel + API + Swagger), App (painel + API, sem Swagger), ApiOnly (somente API + Swagger).
+var appLifetime = app.Services.GetRequiredService<IHostApplicationLifetime>();
+appLifetime.ApplicationStopping.Register(() => app.Logger.LogWarning("O host está iniciando o encerramento."));
+AppDomain.CurrentDomain.UnhandledException += (_, eventArgs) =>
+    app.Logger.LogCritical(eventArgs.ExceptionObject as Exception,
+        "Exceção não tratada no processo. IsTerminating={IsTerminating}.", eventArgs.IsTerminating);
+AppDomain.CurrentDomain.ProcessExit += (_, _) =>
+    app.Logger.LogWarning("O processo EduAssess está saindo.");
+
+
+app.UseHttpsRedirection();
+app.UseStaticFiles();
+
+// Pega o modo de execução (App, ApiOnly, Full)
 var appMode = builder.Configuration.GetValue<string>("APP_MODE") ?? "Full";
 
 if (!app.Environment.IsDevelopment())
