@@ -22,7 +22,7 @@
     </PackageReference>
     <PackageReference Include="MiniValidation" Version="0.8.0" />
     <PackageReference Include="SixLabors.ImageSharp" Version="3.2.0" />
-    <PackageReference Include="Swashbuckle.AspNetCore" Version="6.6.2" />
+    <PackageReference Include="Swashbuckle.AspNetCore" Version="10.3.1" />
     <!-- NOVO: recompressão das fotos enviadas (redimensiona, tira metadados, salva em WebP). -->
   </ItemGroup>
 
