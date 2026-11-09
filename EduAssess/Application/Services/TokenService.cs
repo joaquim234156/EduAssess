@@ -5,7 +5,7 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
 
-namespace EduAssess.EduAssess.Aplication.Services
+namespace EduAssess.Application.Services
 {
     public class TokenService
     {

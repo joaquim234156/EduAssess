@@ -1,0 +1,254 @@
+@using global::EduAssess.Application.Services
+@using global::EduAssess.Models.Local
+@inject QuestaoWebService Questions
+
+@* Criador de questões reutilizável: aba "Pedir à IA" (gera, revisa, salva) e aba "Escrever à mão".
+   Usado no Banco de questões e dentro de uma avaliação (com a disciplina travada).
+   Ao salvar, devolve os IDs das questões criadas em OnSaved. *@
+
+<section class="composer">
+    <div class="tabs" role="tablist">
+        <button type="button" role="tab" class="tab @(tab == "ia" ? "on" : "")" aria-selected="@(tab == "ia")" @onclick='() => tab = "ia"'><Icon Name="sparkles" Size="16" /> Pedir à IA</button>
+        <button type="button" role="tab" class="tab @(tab == "manual" ? "on" : "")" aria-selected="@(tab == "manual")" @onclick='() => tab = "manual"'><Icon Name="pen" Size="16" /> Escrever à mão</button>
+    </div>
+
+    <Feedback Message="@message" IsError="@isError" />
+
+    @if (tab == "ia")
+    {
+        <div class="ai-form">
+            @if (FixedDiscipline is null)
+            {
+                <div class="field">
+                    <label for="c-disc">Disciplina</label>
+                    <select id="c-disc" class="select" @bind="genDiscipline">
+                        @foreach (var d in Disciplines) { <option value="@d.Id">@d.Name</option> }
+                    </select>
+                </div>
+            }
+            <div class="field">
+                <label for="c-topic">Assunto</label>
+                <input id="c-topic" class="input" @bind="genTopic" @bind:event="oninput" placeholder="Ex.: Liderança situacional" maxlength="100" />
+            </div>
+            <div class="field">
+                <label>Dificuldade</label>
+                <div class="seg" role="group" aria-label="Dificuldade">
+                    @foreach (var opt in Difficulties)
+                    {
+                        var level = opt;
+                        <button type="button" class="@(genDifficulty == level ? "on" : "")" @onclick="() => genDifficulty = level">@UiFormat.DifficultyLabel(level)</button>
+                    }
+                </div>
+            </div>
+            <div class="field">
+                <label>Quantidade</label>
+                <div class="stepper">
+                    <button type="button" aria-label="Menos" @onclick="() => genQuantity = Math.Max(1, genQuantity - 1)">−</button>
+                    <b>@genQuantity</b>
+                    <button type="button" aria-label="Mais" @onclick="() => genQuantity = Math.Min(10, genQuantity + 1)">+</button>
+                </div>
+            </div>
+            <div class="field wide-field">
+                <label for="c-rec">Recomendações para a IA <small>(opcional)</small></label>
+                <textarea id="c-rec" class="textarea" rows="2" @bind="genRecommendations" @bind:event="oninput" maxlength="500"
+                          placeholder="Ex.: use casos práticos do dia a dia, estilo ENADE, sem pegadinhas, alternativas curtas…"></textarea>
+                <div class="chip-row">
+                    @foreach (var hint in Hints)
+                    {
+                        var text = hint;
+                        <button type="button" class="chip ghost" @onclick="() => AddHint(text)">+ @text</button>
+                    }
+                </div>
+            </div>
+            <button type="button" class="btn btn-primary btn-lg ai-go" disabled="@(generating || saving)" @onclick="GenerateAsync">
+                @if (generating) { <span class="spinner light"></span> <span>A IA está escrevendo…</span> }
+                else { <Icon Name="sparkles" Size="20" /> <span>Gerar questões</span> }
+            </button>
+        </div>
+
+        @if (generating)
+        {
+            <div class="skeletons" aria-hidden="true">
+                <div class="skeleton"></div><div class="skeleton"></div><div class="skeleton short"></div>
+            </div>
+        }
+
+        @if (drafts.Count > 0)
+        {
+            <div class="review-bar">
+                <div>
+                    <strong>@drafts.Count @(drafts.Count == 1 ? "questão gerada" : "questões geradas")</strong>
+                    <small>Revise e marque as que quer guardar. A correta aparece em verde.</small>
+                </div>
+                <div class="review-actions">
+                    <button type="button" class="btn btn-ghost btn-sm" @onclick="Discard">Descartar</button>
+                    <button type="button" class="btn btn-primary" disabled="@(saving || drafts.All(x => !x.Selected))" @onclick="SaveDraftsAsync">
+                        <Icon Name="check" Size="18" /> Salvar @drafts.Count(x => x.Selected)
+                    </button>
+                </div>
+            </div>
+
+            <div class="draft-list">
+                @{ var n = 0; }
+                @foreach (var draft in drafts)
+                {
+                    n++;
+                    var current = draft;
+                    <article class="draft-card @(draft.Selected ? "" : "off") reveal" style="--i:@n">
+                        <label class="draft-check">
+                            <input type="checkbox" checked="@draft.Selected" @onchange="e => current.Selected = e.Value is true" />
+                            <span>Questão @n</span>
+                        </label>
+                        <p class="draft-statement">@draft.Statement</p>
+                        <ol class="alts" type="A">
+                            @for (var k = 0; k < draft.Alternatives.Count; k++)
+                            {
+                                <li class="@(k == draft.CorrectIndex ? "correct" : "")">@draft.Alternatives[k]</li>
+                            }
+                        </ol>
+                        <p class="draft-explain"><Icon Name="check-circle" Size="16" /> @draft.Explanation</p>
+                    </article>
+                }
+            </div>
+        }
+    }
+    else
+    {
+        <div class="manual-form">
+            <div class="form-row">
+                @if (FixedDiscipline is null)
+                {
+                    <div class="field">
+                        <label for="m-disc">Disciplina</label>
+                        <select id="m-disc" class="select" @bind="manualDiscipline">
+                            @foreach (var d in Disciplines) { <option value="@d.Id">@d.Name</option> }
+                        </select>
+                    </div>
+                }
+                <div class="field"><label for="m-topic">Assunto</label><input id="m-topic" class="input" @bind="manualTopic" maxlength="100" /></div>
+            </div>
+            <div class="field"><label for="m-st">Enunciado</label><textarea id="m-st" class="textarea" @bind="manual.Statement" maxlength="1000"></textarea></div>
+            <div class="field">
+                <label>Alternativas (marque a correta)</label>
+                @for (var k = 0; k < 5; k++)
+                {
+                    var idx = k;
+                    <div class="alt-input">
+                        <input type="radio" name="m-correct" checked="@(manual.CorrectIndex == idx)" @onchange="() => manual.CorrectIndex = idx" aria-label="Alternativa @(idx + 1) é a correta" />
+                        <input class="input" value="@manual.Alternatives[idx]" @onchange="e => manual.Alternatives[idx] = e.Value?.ToString() ?? string.Empty" placeholder="Alternativa @(idx + 1)" maxlength="300" />
+                    </div>
+                }
+            </div>
+            <div class="field"><label for="m-ex">Explicação da resposta</label><textarea id="m-ex" class="textarea" @bind="manual.Explanation" maxlength="1000"></textarea></div>
+            <div class="form-row">
+                <div class="field">
+                    <label>Dificuldade</label>
+                    <div class="seg">
+                        @foreach (var opt in Difficulties)
+                        {
+                            var level = opt;
+                            <button type="button" class="@(manualDifficulty == level ? "on" : "")" @onclick="() => manualDifficulty = level">@UiFormat.DifficultyLabel(level)</button>
+                        }
+                    </div>
+                </div>
+                <div class="field" style="align-content:end"><button type="button" class="btn btn-primary" disabled="@saving" @onclick="SaveManualAsync">Salvar questão</button></div>
+            </div>
+        </div>
+    }
+</section>
+
+@code {
+    private static readonly DificuldadeQuestao[] Difficulties = [DificuldadeQuestao.Facil, DificuldadeQuestao.Media, DificuldadeQuestao.Dificil];
+    private static readonly string[] Hints = ["Casos práticos", "Estilo ENADE", "Sem pegadinhas", "Alternativas curtas", "Cobrar conceitos"];
+
+    [Parameter, EditorRequired] public List<DisciplineOption> Disciplines { get; set; } = new();
+    /// <summary>Quando informada, a disciplina fica travada (uso dentro de uma avaliação).</summary>
+    [Parameter] public Guid? FixedDiscipline { get; set; }
+    [Parameter] public string? SuggestedTopic { get; set; }
+    [Parameter] public EventCallback<List<Guid>> OnSaved { get; set; }
+
+    private string tab = "ia";
+    private List<DraftQuestion> drafts = new();
+
+    private Guid genDiscipline;
+    private string genTopic = "";
+    private DificuldadeQuestao genDifficulty = DificuldadeQuestao.Media;
+    private int genQuantity = 5;
+    private string genRecommendations = "";
+
+    private Guid manualDiscipline;
+    private string manualTopic = "";
+    private DificuldadeQuestao manualDifficulty = DificuldadeQuestao.Media;
+    private DraftQuestion manual = new();
+
+    private bool generating, saving, isError;
+    private string? message;
+
+    protected override void OnParametersSet()
+    {
+        var first = FixedDiscipline ?? Disciplines.FirstOrDefault()?.Id ?? Guid.Empty;
+        if (genDiscipline == Guid.Empty) genDiscipline = first;
+        if (manualDiscipline == Guid.Empty) manualDiscipline = first;
+        if (FixedDiscipline is Guid fixedId)
+        {
+            genDiscipline = fixedId;
+            manualDiscipline = fixedId;
+        }
+        if (genTopic == "" && !string.IsNullOrWhiteSpace(SuggestedTopic)) genTopic = SuggestedTopic!;
+    }
+
+    private void AddHint(string text)
+    {
+        if (genRecommendations.Contains(text, StringComparison.OrdinalIgnoreCase)) return;
+        genRecommendations = string.IsNullOrWhiteSpace(genRecommendations) ? text : genRecommendations.TrimEnd() + "; " + text;
+    }
+
+    private async Task GenerateAsync()
+    {
+        message = null;
+        generating = true;
+        drafts = new();
+        try
+        {
+            drafts = await Questions.GenerateAsync(genDiscipline, genTopic, genDifficulty, genQuantity, genRecommendations);
+            Ok($"{drafts.Count} questão(ões) gerada(s). Revise abaixo e salve as que quiser.");
+        }
+        catch (IaQuestaoException ex) { Fail(ex.Message); }
+        catch (Exception ex) when (ex is ArgumentException or InvalidOperationException or UnauthorizedAccessException) { Fail(ex.Message); }
+        finally { generating = false; }
+    }
+
+    private async Task SaveDraftsAsync()
+    {
+        saving = true;
+        try
+        {
+            var chosen = drafts.Where(x => x.Selected).ToList();
+            var ids = await Questions.SaveDraftsAsync(genDiscipline, genTopic, genDifficulty, chosen);
+            drafts = new();
+            Ok($"{ids.Count} questão(ões) salva(s) no banco.");
+            await OnSaved.InvokeAsync(ids);
+        }
+        catch (Exception ex) when (ex is ArgumentException or InvalidOperationException or UnauthorizedAccessException) { Fail(ex.Message); }
+        finally { saving = false; }
+    }
+
+    private void Discard() { drafts = new(); message = null; }
+
+    private async Task SaveManualAsync()
+    {
+        saving = true;
+        try
+        {
+            var ids = await Questions.SaveDraftsAsync(manualDiscipline, manualTopic, manualDifficulty, new[] { manual });
+            manual = new();
+            Ok("Questão salva no banco.");
+            await OnSaved.InvokeAsync(ids);
+        }
+        catch (Exception ex) when (ex is ArgumentException or InvalidOperationException or UnauthorizedAccessException) { Fail(ex.Message); }
+        finally { saving = false; }
+    }
+
+    private void Ok(string text) { message = text; isError = false; }
+    private void Fail(string text) { message = text; isError = true; }
+}

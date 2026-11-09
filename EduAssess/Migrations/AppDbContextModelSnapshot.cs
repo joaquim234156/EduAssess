@@ -192,12 +192,17 @@ namespace EduAssess.Migrations
                         .IsRequired()
                         .HasColumnType("TEXT");
 
+                    b.Property<Guid?>("UnidadeId")
+                        .HasColumnType("TEXT");
+
                     b.Property<DateTime>("VinculadoEm")
                         .HasColumnType("TEXT");
 
                     b.HasKey("UsuarioId", "InstituicaoId");
 
                     b.HasIndex("InstituicaoId");
+
+                    b.HasIndex("UnidadeId");
 
                     b.ToTable("UsuariosInstituicoes");
                 });
@@ -255,6 +260,72 @@ namespace EduAssess.Migrations
                     b.HasIndex("UsuarioId");
 
                     b.ToTable("Matriculas");
+                });
+
+            modelBuilder.Entity("EduAssess.Models.Local.AvaliacaoModel", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("Ativa")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<Guid>("AutorId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Codigo")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CriadaEm")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Detalhes")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("DisciplinaId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Duracao")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("Periodicidade")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("Tipo")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Titulo")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Codigo")
+                        .IsUnique();
+
+                    b.ToTable("Avaliacoes");
+                });
+
+            modelBuilder.Entity("EduAssess.Models.Local.AvaliacaoQuestaoModel", b =>
+                {
+                    b.Property<Guid>("AvaliacaoId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("QuestaoId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Ordem")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("AvaliacaoId", "QuestaoId");
+
+                    b.ToTable("AvaliacoesQuestoes");
                 });
 
             modelBuilder.Entity("EduAssess.Models.Local.QuestaoModel", b =>
@@ -441,6 +512,11 @@ namespace EduAssess.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("EduAssess.Models.Global.UnidadeModel", "Unidade")
+                        .WithMany()
+                        .HasForeignKey("UnidadeId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("EduAssess.Models.Local.UserModel", "Usuario")
                         .WithMany("Instituicoes")
                         .HasForeignKey("UsuarioId")
@@ -449,7 +525,20 @@ namespace EduAssess.Migrations
 
                     b.Navigation("Instituicao");
 
+                    b.Navigation("Unidade");
+
                     b.Navigation("Usuario");
+                });
+
+            modelBuilder.Entity("EduAssess.Models.Local.AvaliacaoQuestaoModel", b =>
+                {
+                    b.HasOne("EduAssess.Models.Local.AvaliacaoModel", "Avaliacao")
+                        .WithMany("Questoes")
+                        .HasForeignKey("AvaliacaoId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Avaliacao");
                 });
 
             modelBuilder.Entity("EduAssess.Models.Local.MatriculaModel", b =>
@@ -504,6 +593,11 @@ namespace EduAssess.Migrations
             modelBuilder.Entity("EduAssess.Models.Global.InstituicaoModel", b =>
                 {
                     b.Navigation("Unidades");
+                });
+
+            modelBuilder.Entity("EduAssess.Models.Local.AvaliacaoModel", b =>
+                {
+                    b.Navigation("Questoes");
                 });
 
             modelBuilder.Entity("EduAssess.Models.Local.MatriculaModel", b =>

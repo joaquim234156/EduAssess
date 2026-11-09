@@ -1,0 +1,353 @@
+@page "/instituicao"
+@layout AppLayout
+@attribute [Authorize(Policy = "Gestao")]
+@using global::EduAssess.Models.Global
+@using global::EduAssess.Models.Local
+@inject InstitutionWebService Institution
+@inject UiSession Session
+
+@* NOVA TELA: instituição (Faculdade Luciano Feijão), unidades (prédios) e lotação das pessoas.
+   Usa as mesmas regras da API /instituicoes, /unidades e /usuario-instituicao (InstitutionWebService).
+   Cada cartão de unidade usa a própria paleta (classe unit-*), igual ao tema que a pessoa lotada ali enxerga. *@
+
+<PageTitle>Unidades e pessoas | Faculdade Luciano Feijão</PageTitle>
+
+<RoleHero Title="Instituição e unidades" Subtitle="Os prédios da faculdade e quem está em cada um. O visual de cada pessoa vem do prédio; alunos e professores de Medicina têm o visual do curso.">
+    @if (overview?.Institution is not null)
+    {
+        <button type="button" class="btn btn-primary" @onclick="OpenUnitCreate"><Icon Name="plus" Size="18" /> Nova unidade</button>
+    }
+</RoleHero>
+
+<Feedback Message="@message" IsError="true" />
+
+@if (overview is null)
+{
+    <div class="loading"><span class="spinner"></span> Carregando a instituição…</div>
+}
+else if (overview.Institution is null)
+{
+    <div class="card"><EmptyState IconName="building" Title="Nenhuma instituição cadastrada" Text="Reinicie o sistema para criar a instituição base ou cadastre uma pela API (POST /instituicoes/register)." /></div>
+}
+else
+{
+    var inst = overview.Institution;
+
+    @* ───────────── Instituição ───────────── *@
+    <section class="inst-hero reveal">
+        <div class="logo-box"><img src="img/logo-flf.png" alt="@inst.Name" /></div>
+        <dl>
+            <div><dt>Instituição</dt><dd>@inst.Name</dd></div>
+            <div><dt>CNPJ</dt><dd>@inst.Cnpj</dd></div>
+            <div><dt>E-mail</dt><dd>@(string.IsNullOrWhiteSpace(inst.Email) ? "—" : inst.Email)</dd></div>
+            <div><dt>Telefone</dt><dd>@(string.IsNullOrWhiteSpace(inst.Phone) ? "—" : inst.Phone)</dd></div>
+            <div><dt>Endereço</dt><dd>@(string.IsNullOrWhiteSpace(inst.Address) ? "—" : inst.Address)</dd></div>
+        </dl>
+        <button type="button" class="btn btn-ghost" @onclick="OpenInstitutionEdit"><Icon Name="edit" Size="16" /> Editar dados</button>
+    </section>
+
+    @* ───────────── Unidades ───────────── *@
+    <div class="sec-head"><h2>Unidades (prédios)</h2><small>@overview.Units.Count(u => u.Active) ativas</small></div>
+    <div class="unit-grid">
+        @{ var i = 0; }
+        @foreach (var unit in overview.Units)
+        {
+            i++;
+            var u = unit;
+            var key = UiTheme.UnitKey(u.Slug);
+            <article class="unit-card unit-@key @(u.Active ? "" : "off") reveal" style="--i:@i;@UiTheme.CustomStyle(u.Slug)">
+                <div class="uc-head">
+                    <span class="uc-ico"><Icon Name="@UiTheme.UnitIcon(u.Slug)" Size="24" /></span>
+                    <h3>@u.Name</h3>
+                    <div class="uc-sub">@u.Sigla · @(u.Type == TipoUnidade.Polo ? "Polo" : "Campus")@(u.Active ? "" : " · desativada")</div>
+                </div>
+                <div class="uc-body">
+                    <div class="uc-counts">
+                        <div><b>@u.Students</b><small>Alunos</small></div>
+                        <div><b>@u.Professors</b><small>Professores</small></div>
+                        <div><b>@u.Managers</b><small>Gestores</small></div>
+                    </div>
+                    <div class="uc-actions">
+                        <button type="button" class="btn btn-ghost btn-sm" @onclick="() => FilterUnit(u.Id)"><Icon Name="users" Size="16" /> Ver pessoas</button>
+                        <button type="button" class="btn btn-ghost btn-sm" @onclick="() => OpenUnitEdit(u)"><Icon Name="edit" Size="16" /> Editar</button>
+                        @if (Session.User?.Role == UserRole.Admin && u.Active)
+                        {
+                            <button type="button" class="btn btn-ghost btn-sm" title="Ver o painel com as cores desta unidade" @onclick="() => PreviewTheme(u.Id)"><Icon Name="eye" Size="16" /> Ver tema</button>
+                        }
+                        <button type="button" class="btn btn-ghost btn-sm" @onclick="() => ToggleUnit(u)">@(u.Active ? "Desativar" : "Reativar")</button>
+                    </div>
+                </div>
+            </article>
+        }
+        @* NOVO: Medicina não é prédio. É o perfil de quem é do CURSO de Medicina (em qualquer prédio). *@
+        <article class="unit-card unit-medicina reveal" style="--i:@(i + 1)">
+            <div class="uc-head">
+                <span class="uc-ico"><Icon Name="stethoscope" Size="24" /></span>
+                <h3>Curso de Medicina</h3>
+                <div class="uc-sub">Perfil por curso · MED</div>
+            </div>
+            <div class="uc-body">
+                <div class="uc-counts" style="grid-template-columns:repeat(2,1fr)">
+                    <div><b>@overview.MedicineStudents</b><small>Alunos</small></div>
+                    <div><b>@overview.MedicineProfessors</b><small>Professores</small></div>
+                </div>
+                <p class="hint-line" style="margin:0"><Icon Name="sparkles" Size="16" /> Quem estuda ou leciona no curso de Medicina ganha este visual automaticamente, em qualquer prédio.</p>
+                @if (Session.User?.Role == UserRole.Admin)
+                {
+                    <div class="uc-actions"><button type="button" class="btn btn-ghost btn-sm" @onclick='() => PreviewCourseTheme()'><Icon Name="eye" Size="16" /> Ver tema</button></div>
+                }
+            </div>
+        </article>
+
+        <button type="button" class="unit-card add unit-principal reveal" @onclick="OpenUnitCreate" aria-label="Nova unidade">
+            <span><Icon Name="plus" Size="30" /> Nova unidade</span>
+        </button>
+    </div>
+
+    @* ───────────── Pessoas e lotação ───────────── *@
+    <section class="card reveal" style="margin-top:28px">
+        <div class="card-head">
+            <div><h2>Pessoas e lotação</h2><p>Escolha o prédio de cada pessoa. O painel dela muda de cores na próxima vez que ela entrar.</p></div>
+            <span class="count-pill">@(people?.Count ?? 0)</span>
+        </div>
+
+        <div class="chips" role="group" aria-label="Filtrar por unidade">
+            <button type="button" class="chip @(unitFilter is null ? "active" : "")" @onclick="() => FilterUnit(null)">Todas</button>
+            @foreach (var unit in overview.Units.Where(x => x.Active))
+            {
+                var id = unit.Id;
+                <button type="button" class="chip @(unitFilter == id ? "active" : "")" @onclick="() => FilterUnit(id)">@unit.Name <small>@unit.People</small></button>
+            }
+            <button type="button" class="chip @(unitFilter == Guid.Empty ? "active" : "")" @onclick="() => FilterUnit(Guid.Empty)">Sem unidade <small>@overview.PeopleWithoutUnit</small></button>
+        </div>
+
+        <div class="people-bar">
+            <label class="toolbar-search">
+                <Icon Name="search" Size="16" />
+                <input type="search" placeholder="Buscar por nome ou e-mail" value="@search" @oninput="OnSearch" aria-label="Buscar pessoas" />
+            </label>
+        </div>
+
+        @if (people is null)
+        {
+            <div class="loading"><span class="spinner"></span> Carregando pessoas…</div>
+        }
+        else if (people.Count == 0)
+        {
+            <EmptyState IconName="users" Title="Ninguém por aqui" Text="Nenhuma pessoa encontrada com esses filtros." />
+        }
+        else
+        {
+            @foreach (var person in people)
+            {
+                var p = person;
+                <div class="person-row">
+                    <AvatarImage UserId="p.UserId" Name="@p.Name" Class="sm" />
+                    <div class="pr-name"><strong>@p.Name</strong><small>@p.Email</small></div>
+                    <span class="badge badge-violet">@UiFormat.RoleLabel(p.Role)</span>
+                    <select class="unit-select" aria-label="Unidade de @p.Name" @onchange="e => AssignAsync(p.UserId, e.Value?.ToString())">
+                        <option value="" selected="@(p.UnitId is null)">Sem unidade</option>
+                        @foreach (var unit in overview.Units.Where(x => x.Active || x.Id == p.UnitId))
+                        {
+                            <option value="@unit.Id" selected="@(p.UnitId == unit.Id)">@unit.Name</option>
+                        }
+                    </select>
+                </div>
+            }
+        }
+    </section>
+}
+
+@if (toast is not null)
+{
+    <div class="toast" role="status" @key="toastId">@toast</div>
+}
+
+@* ───────────── Janela: unidade ───────────── *@
+<Modal Open="showUnit" Eyebrow="@(editingUnit is null ? "Nova unidade" : "Editar unidade")" Title="@(string.IsNullOrWhiteSpace(unitForm.Name) ? "Unidade" : unitForm.Name)" OnClose="CloseUnit">
+    <ChildContent>
+        <Feedback Message="@formMessage" IsError="true" />
+        <div class="field">
+            <label for="u-name">Nome</label>
+            <input id="u-name" class="input" @bind="unitForm.Name" @bind:event="oninput" maxlength="60" placeholder="Ex.: Prédio Direito" />
+        </div>
+        <div class="form-row">
+            <div class="field">
+                <label for="u-sigla">Sigla</label>
+                <input id="u-sigla" class="input" @bind="unitForm.Sigla" maxlength="10" placeholder="Ex.: DIR" />
+            </div>
+            <div class="field">
+                <label>Tipo</label>
+                <div class="seg">
+                    <button type="button" class="@(unitForm.Type == TipoUnidade.Campus ? "on" : "")" @onclick="() => unitForm.Type = TipoUnidade.Campus">Campus</button>
+                    <button type="button" class="@(unitForm.Type == TipoUnidade.Polo ? "on" : "")" @onclick="() => unitForm.Type = TipoUnidade.Polo">Polo</button>
+                </div>
+            </div>
+        </div>
+        <p class="hint-line"><Icon Name="sparkles" Size="16" /> Unidades fora de Principal, Medicina e Odontologia ganham uma cor própria automática.</p>
+    </ChildContent>
+    <Footer>
+        <button type="button" class="btn btn-ghost" @onclick="CloseUnit">Cancelar</button>
+        <button type="button" class="btn btn-primary" disabled="@busy" @onclick="SaveUnitAsync">@(editingUnit is null ? "Criar unidade" : "Salvar")</button>
+    </Footer>
+</Modal>
+
+@* ───────────── Janela: instituição ───────────── *@
+<Modal Open="showInstitution" Eyebrow="Instituição" Title="Dados da instituição" OnClose="CloseInstitution">
+    <ChildContent>
+        <Feedback Message="@formMessage" IsError="true" />
+        <div class="field"><label for="i-name">Nome</label><input id="i-name" class="input" @bind="instForm.Name" maxlength="120" /></div>
+        <div class="form-row">
+            <div class="field"><label for="i-cnpj">CNPJ</label><input id="i-cnpj" class="input" @bind="instForm.Cnpj" maxlength="18" /></div>
+            <div class="field"><label for="i-phone">Telefone</label><input id="i-phone" class="input" @bind="instForm.Phone" maxlength="30" /></div>
+        </div>
+        <div class="field"><label for="i-mail">E-mail</label><input id="i-mail" class="input" @bind="instForm.Email" maxlength="120" /></div>
+        <div class="field"><label for="i-addr">Endereço</label><input id="i-addr" class="input" @bind="instForm.Address" maxlength="200" /></div>
+    </ChildContent>
+    <Footer>
+        <button type="button" class="btn btn-ghost" @onclick="CloseInstitution">Cancelar</button>
+        <button type="button" class="btn btn-primary" disabled="@busy" @onclick="SaveInstitutionAsync">Salvar</button>
+    </Footer>
+</Modal>
+
+@code {
+    private InstitutionOverview? overview;
+    private List<UnitPersonRow>? people;
+
+    private Guid? unitFilter;
+    private string search = "";
+
+    private bool showUnit, showInstitution, busy;
+    private UnitCard? editingUnit;
+    private readonly UnitForm unitForm = new();
+    private readonly InstitutionForm instForm = new();
+    private string? formMessage, message, toast;
+    private int toastId;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            await ReloadAsync();
+        }
+        catch (UnauthorizedAccessException ex) { message = ex.Message; overview ??= new InstitutionOverview(null, new(), 0); }
+    }
+
+    private async Task ReloadAsync()
+    {
+        overview = await Institution.GetOverviewAsync();
+        people = await Institution.GetPeopleAsync(unitFilter, search);
+    }
+
+    // ───── filtros ─────
+    private async Task FilterUnit(Guid? id) { unitFilter = id; people = await Institution.GetPeopleAsync(unitFilter, search); }
+    private async Task OnSearch(ChangeEventArgs e) { search = e.Value?.ToString() ?? ""; people = await Institution.GetPeopleAsync(unitFilter, search); }
+
+    // ───── lotação ─────
+    private async Task AssignAsync(Guid userId, string? value)
+    {
+        Guid? unitId = Guid.TryParse(value, out var id) ? id : null;
+        try
+        {
+            await Institution.AssignUnitAsync(userId, unitId);
+            await ReloadAsync();
+            // Se a pessoa mexida é quem está logada, o próprio painel muda de cores agora.
+            if (userId == Session.User?.Id) await Session.RefreshUnitAsync();
+            Toast("Lotação atualizada.");
+        }
+        catch (Exception ex) when (ex is ArgumentException or InvalidOperationException or UnauthorizedAccessException)
+        {
+            message = ex.Message;
+            await ReloadAsync();
+        }
+    }
+
+    // ───── unidades ─────
+    private void OpenUnitCreate()
+    {
+        editingUnit = null;
+        unitForm.Name = ""; unitForm.Sigla = ""; unitForm.Type = TipoUnidade.Campus;
+        formMessage = null; showUnit = true;
+    }
+
+    private void OpenUnitEdit(UnitCard unit)
+    {
+        editingUnit = unit;
+        unitForm.Name = unit.Name; unitForm.Sigla = unit.Sigla; unitForm.Type = unit.Type;
+        formMessage = null; showUnit = true;
+    }
+
+    private void CloseUnit() => showUnit = false;
+
+    private async Task SaveUnitAsync()
+    {
+        busy = true;
+        formMessage = null;
+        try
+        {
+            await Institution.SaveUnitAsync(overview!.Institution!.Id, editingUnit?.Id, unitForm);
+            showUnit = false;
+            await ReloadAsync();
+            if (Session.User?.Role == UserRole.Admin) await Session.RefreshUnitAsync();   // atualiza o seletor de tema do Admin
+            Toast(editingUnit is null ? "Unidade criada." : "Unidade atualizada.");
+        }
+        catch (Exception ex) when (ex is ArgumentException or InvalidOperationException or UnauthorizedAccessException) { formMessage = ex.Message; }
+        finally { busy = false; }
+    }
+
+    private async Task ToggleUnit(UnitCard unit)
+    {
+        try
+        {
+            await Institution.SetUnitActiveAsync(unit.Id, !unit.Active);
+            await ReloadAsync();
+            if (Session.User?.Role == UserRole.Admin) await Session.RefreshUnitAsync();
+            Toast(unit.Active ? "Unidade desativada." : "Unidade reativada.");
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or UnauthorizedAccessException) { message = ex.Message; }
+    }
+
+    private void PreviewCourseTheme()
+    {
+        Session.SetThemeChoice("course:medicina");
+        Toast("Visualizando o perfil do curso de Medicina. Volte à \"Visão da rede\" no topo quando quiser.");
+    }
+
+    private void PreviewTheme(Guid unitId)
+    {
+        Session.SetThemeChoice("unit:" + unitId);
+        Toast("Visualizando o tema desta unidade. Volte à \"Visão da rede\" no topo quando quiser.");
+    }
+
+    // ───── instituição ─────
+    private void OpenInstitutionEdit()
+    {
+        var i = overview!.Institution!;
+        instForm.Name = i.Name; instForm.Cnpj = i.Cnpj; instForm.Email = i.Email; instForm.Phone = i.Phone; instForm.Address = i.Address;
+        formMessage = null; showInstitution = true;
+    }
+
+    private void CloseInstitution() => showInstitution = false;
+
+    private async Task SaveInstitutionAsync()
+    {
+        busy = true;
+        formMessage = null;
+        try
+        {
+            await Institution.SaveInstitutionAsync(overview!.Institution!.Id, instForm);
+            showInstitution = false;
+            await ReloadAsync();
+            Toast("Dados da instituição atualizados.");
+        }
+        catch (Exception ex) when (ex is ArgumentException or InvalidOperationException or UnauthorizedAccessException) { formMessage = ex.Message; }
+        finally { busy = false; }
+    }
+
+    private void Toast(string text)
+    {
+        toast = text;
+        toastId++;
+        message = null;
+    }
+}

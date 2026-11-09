@@ -1,9 +1,11 @@
 @page "/aluno"
+@using System.Globalization
 @layout AppLayout
 @attribute [Authorize(Policy = "Aluno")]
 @inject AcademicService Academic
+@inject UiSession Session
 
-<PageTitle>Meu painel | EduAssess</PageTitle>
+<PageTitle>Meu painel | Faculdade Luciano Feijão</PageTitle>
 
 @if (overview is null)
 {
@@ -12,97 +14,168 @@
 }
 else
 {
-    <PageHeader Eyebrow="Painel do estudante" Title="Meu desempenho" Subtitle="Suas turmas, notas e médias por disciplina." />
+    var average = overview.OverallAverage;
+    var weakest = overview.Averages.OrderBy(a => a.Average).FirstOrDefault();
+    var best = overview.Grades.Count == 0 ? (decimal?)null : overview.Grades.Max(g => g.Value);
 
-    <div class="card">
-        <div class="hero-card">
-            <div class="avg-ring" style="--p:@(overview.OverallAverage.HasValue ? (overview.OverallAverage.Value * 10).ToString("0", System.Globalization.CultureInfo.InvariantCulture) : "0")"><b>@UiFormat.Grade(overview.OverallAverage)</b></div>
+    @* ───────────── Topo: saudação, foto e média geral ───────────── *@
+    <section class="stu-hero reveal">
+        <div class="stu-hero-main">
+            <AvatarImage UserId="Session.User!.Id" Name="@Session.User.Name" Class="xl" Full="true" Stamp="Session.AvatarStamp" />
             <div>
-                <h2>Média geral</h2>
-                <p>@(overview.Grades.Count == 0 ? "Você ainda não recebeu notas. Assim que elas forem lançadas, sua média aparece aqui." : $"Calculada com {overview.Grades.Count} {(overview.Grades.Count == 1 ? "nota" : "notas")} em {overview.Averages.Count} {(overview.Averages.Count == 1 ? "disciplina" : "disciplinas")}.")</p>
+                <span class="stu-kicker">@UiFormat.LongDate(DateTime.Now)</span>
+                <h1>@Greeting(), @UiFormat.FirstName(Session.User.Name)!</h1>
+                <p>@Motivation(average)</p>
+                <div class="stu-actions">
+                    <a class="btn btn-light" href="/praticar"><Icon Name="zap" Size="18" /> Praticar questões</a>
+                    <a class="btn btn-glass" href="/conta"><Icon Name="camera" Size="18" /> Minha foto e dados</a>
+                </div>
             </div>
         </div>
+        <div class="stu-ring" style="--p:@Pct(average)" role="img" aria-label="Média geral @UiFormat.Grade(average)">
+            <div class="ring-inner"><b>@UiFormat.Grade(average)</b><small>média geral</small></div>
+        </div>
+    </section>
+
+    @* ───────────── Números rápidos ───────────── *@
+    <div class="stu-tiles">
+        <div class="tile reveal" style="--i:1"><span class="tile-ico"><Icon Name="book" Size="22" /></span><strong>@overview.Averages.Count</strong><small>@(overview.Averages.Count == 1 ? "disciplina" : "disciplinas")</small></div>
+        <div class="tile reveal" style="--i:2"><span class="tile-ico"><Icon Name="pen" Size="22" /></span><strong>@overview.Grades.Count</strong><small>@(overview.Grades.Count == 1 ? "avaliação" : "avaliações")</small></div>
+        <div class="tile reveal" style="--i:3"><span class="tile-ico"><Icon Name="layers" Size="22" /></span><strong>@overview.Enrollments.Count(e => e.Active)</strong><small>@(overview.Enrollments.Count(e => e.Active) == 1 ? "turma ativa" : "turmas ativas")</small></div>
+        <div class="tile reveal" style="--i:4"><span class="tile-ico"><Icon Name="trophy" Size="22" /></span><strong>@UiFormat.Grade(best)</strong><small>melhor nota</small></div>
     </div>
 
-    <div class="grid-2" style="margin-top:24px">
-        <div class="card">
-            <div class="card-head"><div><h2>Média por disciplina</h2><p>Faixas: verde a partir de 7, amarelo de 5 a 6,9, vermelho abaixo de 5.</p></div></div>
-            @if (overview.Averages.Count == 0)
+    @* ───────────── Foco: disciplina que mais precisa de atenção ───────────── *@
+    @if (weakest is not null && weakest.Average < 7m)
+    {
+        <a class="focus-card reveal" style="--i:5" href="/praticar">
+            <span class="focus-ico"><Icon Name="target" Size="24" /></span>
+            <div>
+                <strong>Foco da semana: @weakest.DisciplineName</strong>
+                <small>Sua média aqui é @UiFormat.Grade(weakest.Average). Treinar com questões ajuda a subir.</small>
+            </div>
+            <span class="focus-go">Praticar <Icon Name="arrow-right" Size="16" /></span>
+        </a>
+    }
+
+    @* ───────────── Disciplinas (clique para abrir as notas de cada uma) ───────────── *@
+    <div class="sec-head"><h2>Minhas disciplinas</h2><small>Clique em uma disciplina para ver as notas dela.</small></div>
+    @if (overview.Averages.Count == 0)
+    {
+        <div class="card"><EmptyState IconName="chart" Title="Sem médias ainda" Text="As médias aparecem depois do primeiro lançamento." /></div>
+    }
+    else
+    {
+        <div class="disc-grid">
+            @{ var i = 0; }
+            @foreach (var item in overview.Averages)
             {
-                <EmptyState IconName="chart" Title="Sem médias ainda" Text="As médias aparecem depois do primeiro lançamento." />
-            }
-            else
-            {
-                <div class="perf">
-                    @foreach (var item in overview.Averages)
+                i++;
+                var band = UiFormat.GradeBand(item.Average);
+                var open = expanded.Contains(item.DisciplineName);
+                var name = item.DisciplineName;
+                <article class="disc-card band-@band @(open ? "open" : "") reveal" style="--i:@i">
+                    <button type="button" class="disc-head" aria-expanded="@(open ? "true" : "false")" @onclick="() => Toggle(name)">
+                        <span class="mini-ring" style="--p:@Pct(item.Average)"><b>@UiFormat.Grade(item.Average)</b></span>
+                        <span class="disc-title">
+                            <strong>@item.DisciplineName</strong>
+                            <small>@item.Count @(item.Count == 1 ? "avaliação" : "avaliações") · @BandLabel(band)</small>
+                        </span>
+                        <Icon Name="chevron-down" Size="20" Class="chev" />
+                    </button>
+                    <div class="disc-bar"><span style="width:@Pct(item.Average)%"></span></div>
+                    @if (open)
                     {
-                        var band = UiFormat.GradeBand(item.Average);
-                        <div class="perf-row">
-                            <div class="meta"><div><strong>@item.DisciplineName</strong><small>@item.Count @(item.Count == 1 ? "avaliação" : "avaliações")</small></div><b>@UiFormat.Grade(item.Average)</b></div>
-                            <div class="perf-track"><div class="perf-fill @(band is "mid" ? "mid" : band is "low" ? "low" : "")" style="width:@((item.Average * 10).ToString("0.##", System.Globalization.CultureInfo.InvariantCulture))%"></div></div>
-                        </div>
+                        <ul class="disc-grades">
+                            @foreach (var g in overview.Grades.Where(row => row.DisciplineName == name).OrderByDescending(row => row.CreatedAt))
+                            {
+                                <li><span>@g.Description<small>@UiFormat.Date(g.CreatedAt)</small></span><GradeBadge Value="g.Value" /></li>
+                            }
+                        </ul>
                     }
+                </article>
+            }
+        </div>
+    }
+
+    @* ───────────── Turmas ───────────── *@
+    <div class="sec-head"><h2>Minhas turmas</h2></div>
+    @if (overview.Enrollments.Count == 0)
+    {
+        <div class="card"><EmptyState IconName="layers" Title="Sem matrículas" Text="Peça à secretaria para matricular você em uma turma." /></div>
+    }
+    else
+    {
+        <div class="class-grid">
+            @foreach (var item in overview.Enrollments)
+            {
+                <div class="class-card reveal">
+                    <span class="class-ico"><Icon Name="cap" Size="22" /></span>
+                    <div>
+                        <strong>@item.ClassName</strong>
+                        <small>@item.CourseName · Prof. @item.TeacherName</small>
+                        <small>Matrícula válida até @UiFormat.Date(item.ExpiresAt)</small>
+                    </div>
+                    <span class="badge @(item.Active ? "badge-green" : "badge-gray")">@(item.Active ? "Ativa" : "Encerrada")</span>
                 </div>
             }
         </div>
+    }
 
-        <div class="card">
-            <div class="card-head"><div><h2>Minhas turmas</h2><p>Matrículas vinculadas à sua conta.</p></div></div>
-            @if (overview.Enrollments.Count == 0)
-            {
-                <EmptyState IconName="layers" Title="Sem matrículas" Text="Peça à secretaria para matricular você em uma turma." />
-            }
-            else
-            {
-                <div class="mini-list">
-                    @foreach (var item in overview.Enrollments)
-                    {
-                        <div class="item">
-                            <div><strong>@item.ClassName</strong><small>@item.CourseName · Prof. @item.TeacherName</small></div>
-                            <span class="badge @(item.Active ? "badge-green" : "badge-gray")">@(item.Active ? "Ativa" : "Encerrada")</span>
-                        </div>
-                    }
-                </div>
-            }
+    @* ───────────── Atalho para a área de notas ───────────── *@
+    <a class="focus-card reveal" href="/aluno/notas" style="margin-top:28px">
+        <span class="focus-ico"><Icon Name="chart" Size="24" /></span>
+        <div>
+            <strong>Minhas notas e médias</strong>
+            <small>Veja a evolução das suas notas e a média de cada disciplina.</small>
         </div>
-    </div>
-
-    <div class="card" style="margin-top:24px">
-        <div class="card-head"><div><h2>Histórico de notas</h2><p>Todas as avaliações lançadas para você.</p></div><span class="count-pill">@overview.Grades.Count</span></div>
-        @if (overview.Grades.Count == 0)
-        {
-            <EmptyState IconName="pen" Title="Nenhuma nota lançada" Text="Quando um professor lançar uma avaliação, ela aparece aqui." />
-        }
-        else
-        {
-            <div class="table-wrap">
-                <table>
-                    <thead><tr><th>Disciplina</th><th>Avaliação</th><th>Turma</th><th>Data</th><th class="num">Nota</th></tr></thead>
-                    <tbody>
-                        @foreach (var grade in overview.Grades)
-                        {
-                            <tr>
-                                <td><strong>@grade.DisciplineName</strong></td>
-                                <td>@grade.Description</td>
-                                <td>@grade.ClassName</td>
-                                <td>@UiFormat.Date(grade.CreatedAt)</td>
-                                <td class="num"><GradeBadge Value="grade.Value" /></td>
-                            </tr>
-                        }
-                    </tbody>
-                </table>
-            </div>
-        }
-    </div>
+        <span class="focus-go">Abrir <Icon Name="arrow-right" Size="16" /></span>
+    </a>
 }
 
 @code {
     private StudentOverview? overview;
     private string? error;
+    private readonly HashSet<string> expanded = new();
 
     protected override async Task OnInitializedAsync()
     {
         try { overview = await Academic.GetStudentOverviewAsync(); }
         catch (UnauthorizedAccessException ex) { error = ex.Message; }
     }
+
+    private void Toggle(string name)
+    {
+        if (!expanded.Remove(name)) expanded.Add(name);
+    }
+
+    // Percentual (0-100) para barras e anéis; ponto decimal porque vai dentro do CSS.
+    private static string Pct(decimal? value) =>
+        ((value ?? 0) * 10).ToString("0.##", CultureInfo.InvariantCulture);
+
+    // Obs.: usei "if" em vez de um switch com "< 12 =>" porque, dentro do @code, o Razor
+    // confunde uma linha que começa com "<" com o início de uma tag HTML e quebra o bloco.
+    private static string Greeting()
+    {
+        var hour = DateTime.Now.Hour;
+        if (hour >= 18) return "Boa noite";
+        if (hour >= 12) return "Boa tarde";
+        return "Bom dia";
+    }
+
+    private static string Motivation(decimal? average) => average switch
+    {
+        null => "Suas notas vão aparecer aqui assim que forem lançadas. Enquanto isso, que tal praticar um pouco?",
+        >= 7m => "Seu desempenho está ótimo. Continue assim e mantenha o ritmo de estudos!",
+        >= 5m => "Você está no caminho certo. Com um pouco mais de prática, a média sobe.",
+        _ => "Vamos virar esse jogo! Pratique as disciplinas em vermelho e peça ajuda aos professores."
+    };
+
+    private static string BandLabel(string band) => band switch
+    {
+        "high" => "Muito bem",
+        "mid" => "Atenção",
+        "low" => "Precisa melhorar",
+        _ => "Sem nota"
+    };
 }

@@ -1,4 +1,4 @@
-﻿using EduAssess.Application.DTOs.Curso;
+using EduAssess.Application.DTOs.Curso;
 using EduAssess.Application.DTOs.Instituicao;
 using EduAssess.Application.Interfaces;
 using EduAssess.Data;
@@ -21,7 +21,8 @@ namespace EduAssess.Application.Services
             var instituicao = await _context.Instituicoes.FindAsync(id);
             if (instituicao == null) return false;
 
-            instituicao.Ativa = true;
+            // ALTERADO: usa Enable() para também atualizar a data de alteração (antes só trocava o bool).
+            instituicao.Enable();
             await _context.SaveChangesAsync();
             return true;
         }
@@ -34,6 +35,9 @@ namespace EduAssess.Application.Services
                 throw new KeyNotFoundException("Instituição não encontrada.");
             }
 
+            // NOVO: CNPJ e nome (slug) não podem repetir; antes isso estourava no banco com erro 500.
+            await GarantirUnicidadeAsync(req.Cnpj, req.Nome, ignorarId: id);
+
             instituicao.Update(req.Nome, req.Cnpj, req.Email, req.Telefone, req.Endereco);
 
             await _context.SaveChangesAsync();
@@ -43,6 +47,9 @@ namespace EduAssess.Application.Services
 
         public async Task<InstituicaoResponseDTO> CriarInstituicaoAsync(InstituicaoRequest req)
         {
+            // NOVO: valida CNPJ e nome (slug) repetidos antes de gravar (antes: erro 500 do banco).
+            await GarantirUnicidadeAsync(req.Cnpj, req.Nome, ignorarId: null);
+
             var instituicao = new InstituicaoModel(req.Nome, req.Cnpj, req.Email, req.Telefone, req.Endereco);
             await _context.AddAsync(instituicao);
             await _context.SaveChangesAsync();
@@ -104,6 +111,17 @@ namespace EduAssess.Application.Services
             }
             return new InstituicaoResponseDTO(
                 instituicao.Id, instituicao.Nome, instituicao.Cnpj, instituicao.Endereco, instituicao.Telefone, instituicao.Email, instituicao.Ativa);
+        }
+
+        // NOVO: o banco tem índice único em Cnpj e Slug; aqui damos uma mensagem clara em vez de estourar o erro.
+        private async Task GarantirUnicidadeAsync(string cnpj, string nome, Guid? ignorarId)
+        {
+            var slug = EduAssess.Extensions.StringExtensions.GenerateSlug(nome);
+            var repetido = await _context.Instituicoes.AnyAsync(i =>
+                (ignorarId == null || i.Id != ignorarId) && (i.Cnpj == cnpj || i.Slug == slug));
+
+            if (repetido)
+                throw new ArgumentException("Já existe uma instituição com esse CNPJ ou nome.");
         }
     }
 }

@@ -1,3 +1,22 @@
 @inherits LayoutComponentBase
+@implements IDisposable
+@inject NavigationManager Navigation
 
-@Body
+@* ALTERADO: o layout de login agora aplica o tema do prédio escolhido na URL (/login?unidade=medicina).
+   "display: contents" faz o elemento não interferir no layout da tela; ele só carrega as variáveis de cor. *@
+<div class="auth-theme unit-@UnitKey" style="display:contents">
+    @Body
+</div>
+
+@code {
+    private string UnitKey => UiTheme.NormalizeLoginUnit(
+        System.Web.HttpUtility.ParseQueryString(new Uri(Navigation.Uri).Query)["unidade"]);
+
+    protected override void OnInitialized() => Navigation.LocationChanged += OnLocationChanged;
+
+    // Trocar de prédio no login é uma navegação dentro da mesma página: precisamos redesenhar com as novas cores.
+    private void OnLocationChanged(object? sender, Microsoft.AspNetCore.Components.Routing.LocationChangedEventArgs e) =>
+        _ = InvokeAsync(StateHasChanged);
+
+    public void Dispose() => Navigation.LocationChanged -= OnLocationChanged;
+}

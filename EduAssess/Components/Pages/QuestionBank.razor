@@ -1,0 +1,159 @@
+@page "/banco-questoes"
+@layout AppLayout
+@attribute [Authorize(Policy = "Docencia")]
+@using global::EduAssess.Models.Local
+@inject QuestaoWebService Questions
+
+<PageTitle>Banco de questões | Faculdade Luciano Feijão</PageTitle>
+
+<PageHeader Eyebrow="Avaliação" Title="Banco de questões" Subtitle="Peça questões à IA, revise e salve, ou escreva à mão. Elas viram provas e ficam disponíveis para os alunos praticarem.">
+    <a class="btn btn-ghost" href="/avaliacoes"><Icon Name="clipboard" Size="18" /> Avaliações</a>
+</PageHeader>
+
+<Feedback Message="@message" IsError="@isError" />
+
+@if (disciplines is null)
+{
+    <div class="loading"><span class="spinner"></span> Carregando…</div>
+}
+else if (disciplines.Count == 0)
+{
+    <div class="card"><EmptyState IconName="book" Title="Você ainda não tem disciplinas" Text="Peça a um gestor para vincular disciplinas a você. Elas são necessárias para criar questões." /></div>
+}
+else
+{
+    @* ───────────── Criar questões (IA ou manual) ───────────── *@
+    <section class="card reveal">
+        <QuestionComposer Disciplines="disciplines" OnSaved="OnQuestionsSaved" />
+    </section>
+
+    @* ───────────── Banco ───────────── *@
+    <section class="card" style="margin-top:24px">
+        <div class="card-head">
+            <div><h2>Minhas questões</h2><p>Clique em uma questão para ver as alternativas e a explicação.</p></div>
+            <span class="count-pill">@(bank?.Count ?? 0)</span>
+        </div>
+
+        <div class="bank-filters">
+            <select class="select" aria-label="Filtrar por disciplina" @onchange="OnFilterDiscipline">
+                <option value="">Todas as disciplinas</option>
+                @foreach (var d in disciplines) { <option value="@d.Id" selected="@(filterDiscipline == d.Id)">@d.Name</option> }
+            </select>
+            <input class="input" placeholder="Buscar por assunto" value="@filterTopic" @onchange="OnFilterTopic" />
+            <div class="seg">
+                <button type="button" class="@(filterDifficulty is null ? "on" : "")" @onclick="() => SetFilterDifficulty(null)">Todas</button>
+                @foreach (var opt in Difficulties)
+                {
+                    var level = opt;
+                    <button type="button" class="@(filterDifficulty == level ? "on" : "")" @onclick="() => SetFilterDifficulty(level)">@UiFormat.DifficultyLabel(level)</button>
+                }
+            </div>
+        </div>
+
+        @if (bank is null)
+        {
+            <div class="loading"><span class="spinner"></span> Carregando…</div>
+        }
+        else if (bank.Count == 0)
+        {
+            <EmptyState IconName="inbox" Title="Nenhuma questão por aqui" Text="Gere questões com a IA acima ou escreva uma manualmente." />
+        }
+        else
+        {
+            <div class="bank-list">
+                @foreach (var q in bank)
+                {
+                    var question = q;
+                    <details class="bank-item">
+                        <summary>
+                            <span class="bank-main"><strong>@question.Statement</strong><small>@question.DisciplineName · @question.Topic</small></span>
+                            <span class="badge @DifficultyBadge(question.Difficulty)">@UiFormat.DifficultyLabel(question.Difficulty)</span>
+                        </summary>
+                        <ol class="alts" type="A">
+                            @for (var k = 0; k < question.Alternatives.Count; k++)
+                            {
+                                <li class="@(k == question.CorrectIndex ? "correct" : "")">@question.Alternatives[k]</li>
+                            }
+                        </ol>
+                        <p class="draft-explain"><Icon Name="check-circle" Size="16" /> @question.Explanation</p>
+                        <div class="bank-actions">
+                            <button type="button" class="btn-text danger" @onclick="() => DeleteAsync(question.Id)"><Icon Name="trash" Size="16" /> Apagar questão</button>
+                        </div>
+                    </details>
+                }
+            </div>
+        }
+    </section>
+}
+
+@code {
+    private static readonly DificuldadeQuestao[] Difficulties = [DificuldadeQuestao.Facil, DificuldadeQuestao.Media, DificuldadeQuestao.Dificil];
+
+    private List<DisciplineOption>? disciplines;
+    private List<QuestionRow>? bank;
+
+    private Guid? filterDiscipline;
+    private string filterTopic = "";
+    private DificuldadeQuestao? filterDifficulty;
+
+    private bool isError;
+    private string? message;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            disciplines = await Questions.GetMyDisciplinesAsync();
+            await LoadBankAsync();
+        }
+        catch (UnauthorizedAccessException ex) { Fail(ex.Message); disciplines ??= new(); }
+    }
+
+    private async Task LoadBankAsync() =>
+        bank = await Questions.GetMyQuestionsAsync(filterDiscipline, filterTopic, filterDifficulty);
+
+    private async Task OnQuestionsSaved(List<Guid> ids)
+    {
+        await LoadBankAsync();
+        Ok($"{ids.Count} questão(ões) salva(s). Já aparecem na lista abaixo.");
+    }
+
+    private async Task DeleteAsync(Guid id)
+    {
+        try
+        {
+            await Questions.DisableQuestionAsync(id);
+            await LoadBankAsync();
+            Ok("Questão apagada.");
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or UnauthorizedAccessException) { Fail(ex.Message); }
+    }
+
+    private async Task OnFilterDiscipline(ChangeEventArgs e)
+    {
+        filterDiscipline = Guid.TryParse(e.Value?.ToString(), out var id) ? id : null;
+        await LoadBankAsync();
+    }
+
+    private async Task OnFilterTopic(ChangeEventArgs e)
+    {
+        filterTopic = e.Value?.ToString() ?? "";
+        await LoadBankAsync();
+    }
+
+    private async Task SetFilterDifficulty(DificuldadeQuestao? level)
+    {
+        filterDifficulty = level;
+        await LoadBankAsync();
+    }
+
+    private void Ok(string text) { message = text; isError = false; }
+    private void Fail(string text) { message = text; isError = true; }
+
+    private static string DifficultyBadge(DificuldadeQuestao d) => d switch
+    {
+        DificuldadeQuestao.Facil => "badge-green",
+        DificuldadeQuestao.Media => "badge-amber",
+        _ => "badge-red"
+    };
+}

@@ -1,10 +1,11 @@
+@page "/"
 @page "/login"
 @layout AuthLayout
 @using global::EduAssess.Data
 @inject UiSession Session
 @inject NavigationManager Navigation
 
-<PageTitle>Entrar | EduAssess</PageTitle>
+<PageTitle>Entrar | Faculdade Luciano Feijão</PageTitle>
 
 <div class="auth">
     <aside class="auth-aside">
@@ -12,19 +13,29 @@
         <div>
             <div class="eyebrow">Aprender · Evoluir · Conquistar</div>
             <h1>O próximo passo da educação começa <span class="mark">aqui.</span></h1>
-            <p>Acompanhe cursos, turmas, notas e o desenvolvimento de cada aluno em uma plataforma única.</p>
+            <p>Acompanhe suas turmas, notas e treine com questões da sua faculdade, tudo em um só lugar.</p>
             <ul class="auth-points">
                 <li><Icon Name="check-circle" Size="20" /> Painel próprio para cada perfil</li>
                 <li><Icon Name="check-circle" Size="20" /> Notas e médias sempre atualizadas</li>
+                <li><Icon Name="check-circle" Size="20" /> Questões para praticar a qualquer hora</li>
                 <li><Icon Name="check-circle" Size="20" /> Acesso protegido e auditado</li>
             </ul>
         </div>
-        <div class="auth-foot">EDUASSESS · PLATAFORMA EDUCACIONAL</div>
+        @* NOVO: escolha do prédio. Cada link abre o login com as cores daquele prédio. *@
+        <div class="auth-units" role="group" aria-label="Escolha o seu prédio">
+            @foreach (var c in UiTheme.LoginUnits)
+            {
+                <a href="/login?unidade=@c.Key" class="@(CurrentUnit == c.Key ? "on" : "")" aria-current="@(CurrentUnit == c.Key ? "true" : null)">
+                    <Icon Name="@c.Icon" Size="16" /> @c.Name
+                </a>
+            }
+        </div>
+
+        <div class="auth-foot">FACULDADE LUCIANO FEIJÃO · EDUASSESS</div>
     </aside>
 
     <section class="auth-main">
         <div class="auth-card">
-            <a class="back" href="/"><Icon Name="arrow-left" Size="16" /> Voltar ao site</a>
             <div class="eyebrow">Bem-vindo de volta</div>
             <h2>Acesse sua conta</h2>
             <p class="sub">Entre com suas credenciais para continuar.</p>
@@ -36,6 +47,7 @@
 
             <form method="post" action="/ui/login">
                 <input type="hidden" name="returnUrl" value="@ReturnUrl" />
+                <input type="hidden" name="unidade" value="@CurrentUnit" />
                 <div class="field">
                     <label for="email">E-mail</label>
                     <input id="email" name="email" type="email" class="input" value="@Email" placeholder="voce@instituicao.edu.br" autocomplete="username" required maxlength="150" />
@@ -63,6 +75,10 @@
 </div>
 
 @code {
+    // NOVO: prédio escolhido na URL (/login?unidade=medicina); só serve para as cores da tela de login.
+    [SupplyParameterFromQuery(Name = "unidade")] public string? Unit { get; set; }
+    private string CurrentUnit => UiTheme.NormalizeLoginUnit(Unit);
+
     [Inject] private IHostEnvironment Environment { get; set; } = default!;
 
     [SupplyParameterFromQuery(Name = "erro")] private string? Error { get; set; }

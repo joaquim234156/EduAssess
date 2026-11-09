@@ -12,9 +12,10 @@
 }
 else
 {
-    <PageHeader Eyebrow="Painel do professor" Title="Meu painel" Subtitle="Suas turmas, seus alunos e as últimas avaliações lançadas.">
+    @* ALTERADO: o cabeçalho agora é o RoleHero, que muda de visual conforme o perfil e o prédio da pessoa. *@
+    <RoleHero Title="Meu painel" Subtitle="Suas turmas, seus alunos e as últimas avaliações lançadas.">
         <a class="btn btn-primary" href="/notas"><Icon Name="pen" Size="18" /> Lançar notas</a>
-    </PageHeader>
+    </RoleHero>
 
     <div class="stats-grid">
         <div class="stat"><div class="ico"><Icon Name="layers" Size="22" /></div><strong>@overview.Classes.Count</strong><div class="label">Turmas</div><small>sob sua responsabilidade</small></div>

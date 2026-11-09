@@ -1,7 +1,7 @@
 ﻿using EduAssess.Models.Local;
 using System.ComponentModel.DataAnnotations;
 
-namespace EduAssess.EduAssess.Aplication.DTOs.User
+namespace EduAssess.Application.DTOs.User
 {
     public record UserRequestPutDetails(
         [Required(ErrorMessage = "O Nome é obrigatório.")]

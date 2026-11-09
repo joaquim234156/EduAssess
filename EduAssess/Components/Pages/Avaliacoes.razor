@@ -1,0 +1,620 @@
+@page "/avaliacoes"
+@layout AppLayout
+@attribute [Authorize(Policy = "Docencia")]
+@using global::EduAssess.Models.Local
+@using Microsoft.JSInterop
+@inject AvaliacaoWebService Exams
+@inject UiSession Session
+@inject NavigationManager Navigation
+@inject IJSRuntime JS
+
+<PageTitle>Avaliações | Faculdade Luciano Feijão</PageTitle>
+
+<PageHeader Eyebrow="Avaliação" Title="Minhas avaliações" Subtitle="Monte provas e simulados, peça questões à IA e aplique aos alunos.">
+    <button type="button" class="btn btn-primary" @onclick="OpenCreate"><Icon Name="plus" Size="18" /> Nova avaliação</button>
+</PageHeader>
+
+<Feedback Message="@message" IsError="@isError" />
+
+@if (disciplines is null)
+{
+    <div class="loading"><span class="spinner"></span> Carregando avaliações…</div>
+}
+else
+{
+    @* ───────────── Barra de filtros ───────────── *@
+    <div class="exam-toolbar reveal">
+        <div class="result-count"><span class="rc-ico"><Icon Name="search" Size="16" /></span> Resultados encontrados <b>@exams.Count</b></div>
+        <label class="toolbar-search">
+            <Icon Name="search" Size="16" />
+            <input type="search" placeholder="Buscar por título, código ou autor" value="@search" @oninput="OnSearch" aria-label="Buscar avaliações" />
+        </label>
+        <div class="seg" role="group" aria-label="Autoria">
+            <button type="button" class="@(onlyMine ? "on" : "")" @onclick="() => SetScope(true)"><Icon Name="user" Size="14" /> Minhas</button>
+            <button type="button" class="@(!onlyMine ? "on" : "")" @onclick="() => SetScope(false)"><Icon Name="layers" Size="14" /> Todas</button>
+        </div>
+        <div class="seg" role="group" aria-label="Situação">
+            <button type="button" class="@(statusFilter is null ? "on" : "")" @onclick="() => SetStatus(null)">Todas</button>
+            <button type="button" class="@(statusFilter == StatusAvaliacao.Rascunho ? "on" : "")" @onclick="() => SetStatus(StatusAvaliacao.Rascunho)">Rascunho</button>
+            <button type="button" class="@(statusFilter == StatusAvaliacao.Aplicada ? "on" : "")" @onclick="() => SetStatus(StatusAvaliacao.Aplicada)">Aplicadas</button>
+        </div>
+        <select class="select toolbar-sort" aria-label="Ordenar" @onchange="OnSort">
+            <option value="recent" selected="@(sort == "recent")">Data de criação</option>
+            <option value="title" selected="@(sort == "title")">Título (A–Z)</option>
+            <option value="questions" selected="@(sort == "questions")">Mais questões</option>
+        </select>
+    </div>
+
+    @if (disciplines.Count == 0)
+    {
+        <div class="card"><EmptyState IconName="book" Title="Você ainda não tem disciplinas" Text="Peça a um gestor para vincular disciplinas a você. Elas são necessárias para montar avaliações." /></div>
+    }
+    else if (exams.Count == 0)
+    {
+        <div class="card">
+            <EmptyState IconName="clipboard" Title="Nenhuma avaliação por aqui" Text="Crie a primeira e deixe a IA sugerir as questões.">
+                <button type="button" class="btn btn-primary" @onclick="OpenCreate"><Icon Name="sparkles" Size="18" /> Criar avaliação</button>
+            </EmptyState>
+        </div>
+    }
+    else
+    {
+        @* ───────────── Cartões ───────────── *@
+        <div class="exam-grid">
+            @{ var i = 0; }
+            @foreach (var card in exams)
+            {
+                i++;
+                var exam = card;
+                var applied = exam.Status == StatusAvaliacao.Aplicada;
+                <article class="exam-card @(applied ? "applied" : "") @(menuId == exam.Id ? "menu-open" : "") reveal" style="--i:@(Math.Min(i, 8))">
+                    <div class="exam-inst"><Icon Name="building" Size="14" /> FACULDADE LUCIANO FEIJÃO</div>
+
+                    <div class="kebab-wrap">
+                        <button type="button" class="kebab" aria-label="Mais opções" aria-expanded="@(menuId == exam.Id ? "true" : "false")" @onclick="() => ToggleMenu(exam.Id)"><Icon Name="more" Size="18" /></button>
+                        @if (menuId == exam.Id)
+                        {
+                            <div class="pop-scrim" @onclick="CloseMenu"></div>
+                            <div class="pop-menu" role="menu">
+                                <button type="button" role="menuitem" @onclick='() => OpenExam(exam, "questoes")'><Icon Name="eye" Size="16" /> Ver questões</button>
+                                @if (exam.CanEdit)
+                                {
+                                    <button type="button" role="menuitem" @onclick="() => OpenEdit(exam)"><Icon Name="edit" Size="16" /> Editar detalhes</button>
+                                    <button type="button" role="menuitem" class="danger" @onclick="() => AskDelete(exam)"><Icon Name="trash" Size="16" /> Excluir</button>
+                                }
+                            </div>
+                        }
+                    </div>
+
+                    <h3>@exam.Title - @TypeLabel(exam.Type)</h3>
+
+                    <div class="exam-badges">
+                        <span class="mini-badge"><Icon Name="calendar" Size="12" /> @UiFormat.Date(exam.CreatedAt)</span>
+                        <span class="mini-badge @(exam.QuestionCount > 0 ? "green" : "")"><Icon Name="@(exam.QuestionCount > 0 ? "check-circle" : "alert")" Size="12" /> @exam.QuestionCount qtd</span>
+                        @if (applied) { <span class="mini-badge amber"><Icon Name="lock" Size="12" /> Aplicada</span> }
+                    </div>
+
+                    <dl class="exam-meta">
+                        <div><dt><Icon Name="user" Size="14" /> Autor</dt><dd>@exam.AuthorName</dd></div>
+                        <div><dt><Icon Name="hash" Size="14" /> ID</dt><dd>@exam.Code</dd></div>
+                    </dl>
+
+                    <div class="exam-details">
+                        <small>DISCIPLINA</small>
+                        <p>@exam.DisciplineName</p>
+                        <small>DETALHES</small>
+                        <p>@(string.IsNullOrWhiteSpace(exam.Details) ? "N/A" : exam.Details)</p>
+                        @if (exam.Periodicity != PeriodicidadeAvaliacao.Unica)
+                        {
+                            <small>PERIODICIDADE</small>
+                            <p>@PeriodLabel(exam.Periodicity, exam.Duration)</p>
+                        }
+                    </div>
+
+                    <div class="exam-actions">
+                        <button type="button" class="act play" title="@(applied ? "Encerrar aplicação" : "Aplicar aos alunos")" aria-label="@(applied ? "Encerrar aplicação" : "Aplicar aos alunos")"
+                                disabled="@(!exam.CanEdit || (!applied && exam.QuestionCount == 0))" @onclick="() => ToggleApplied(exam)">
+                            <Icon Name="@(applied ? "stop" : "play")" Size="18" />
+                        </button>
+                        <button type="button" class="act add" title="Adicionar questões" aria-label="Adicionar questões" disabled="@(!exam.CanEdit)" @onclick='() => OpenExam(exam, "banco")'><Icon Name="plus" Size="18" /></button>
+                        <button type="button" class="act share" title="Copiar link para os alunos" aria-label="Copiar link" @onclick="() => ShareAsync(exam)"><Icon Name="share" Size="18" /></button>
+                        <button type="button" class="act view" title="Ver questões" aria-label="Ver questões" @onclick='() => OpenExam(exam, "questoes")'><Icon Name="eye" Size="18" /></button>
+                    </div>
+                </article>
+            }
+        </div>
+    }
+}
+
+@if (toast is not null)
+{
+    <div class="toast" role="status" @key="toastId">@toast</div>
+}
+
+@* ───────────── Criar / editar avaliação ───────────── *@
+<Modal Open="showForm" Eyebrow="@(editingId is null ? "Nova avaliação" : "Editar avaliação")" Title="@(string.IsNullOrWhiteSpace(form.Title) ? "Sua avaliação" : form.Title + " - " + TypeLabel(form.Type))" OnClose="CloseForm">
+    <ChildContent>
+        <Feedback Message="@formMessage" IsError="true" />
+        <div class="field">
+            <label for="f-title">Título</label>
+            <input id="f-title" class="input" @bind="form.Title" @bind:event="oninput" maxlength="80" placeholder="Ex.: Psicologia Organizacional" />
+        </div>
+        <div class="form-row">
+            <div class="field">
+                <label>Tipo</label>
+                <div class="seg">
+                    <button type="button" class="@(form.Type == TipoAvaliacao.Prova ? "on" : "")" @onclick="() => form.Type = TipoAvaliacao.Prova">Prova</button>
+                    <button type="button" class="@(form.Type == TipoAvaliacao.Simulado ? "on" : "")" @onclick="() => form.Type = TipoAvaliacao.Simulado">Simulado</button>
+                </div>
+            </div>
+            <div class="field">
+                <label for="f-disc">Disciplina</label>
+                <select id="f-disc" class="select" @bind="form.DisciplineId" disabled="@(editingId is not null)">
+                    @foreach (var d in disciplines ?? new()) { <option value="@d.Id">@d.Name</option> }
+                </select>
+            </div>
+        </div>
+        <div class="field">
+            <label for="f-det">Detalhes <small>(opcional)</small></label>
+            <textarea id="f-det" class="textarea" rows="3" @bind="form.Details" maxlength="500" placeholder="Ex.: Prova bimestral, conteúdo das unidades 1 a 3."></textarea>
+        </div>
+        <div class="form-row">
+            <div class="field">
+                <label for="f-per">Periodicidade</label>
+                <select id="f-per" class="select" @bind="form.Periodicity">
+                    @foreach (var p in Periodicities) { <option value="@p">@PeriodName(p)</option> }
+                </select>
+            </div>
+            @if (form.Periodicity != PeriodicidadeAvaliacao.Unica)
+            {
+                <div class="field">
+                    <label>Duração (@PeriodUnit(form.Periodicity, 2))</label>
+                    <div class="stepper">
+                        <button type="button" aria-label="Menos" @onclick="() => form.Duration = Math.Max(1, form.Duration - 1)">−</button>
+                        <b>@form.Duration</b>
+                        <button type="button" aria-label="Mais" @onclick="() => form.Duration = Math.Min(60, form.Duration + 1)">+</button>
+                    </div>
+                </div>
+            }
+        </div>
+        @if (editingId is null)
+        {
+            <p class="hint-line"><Icon Name="sparkles" Size="16" /> No próximo passo você escolhe questões do banco, pede para a IA criar ou escreve à mão.</p>
+        }
+    </ChildContent>
+    <Footer>
+        <button type="button" class="btn btn-ghost" @onclick="CloseForm">Cancelar</button>
+        <button type="button" class="btn btn-primary" disabled="@busy" @onclick="SaveFormAsync">
+            @if (busy) { <span class="spinner light"></span> } @(editingId is null ? "Criar e montar questões" : "Salvar alterações")
+        </button>
+    </Footer>
+</Modal>
+
+@* ───────────── Questões da avaliação ───────────── *@
+<Modal Open="detail is not null" Wide="true" Eyebrow="@(detail?.Card.Code)" Title="@(detail is null ? "" : detail.Card.Title + " - " + TypeLabel(detail.Card.Type))" OnClose="CloseExam">
+    <ChildContent>
+        @if (detail is not null)
+        {
+            var canEdit = detail.Card.CanEdit;
+            <div class="tabs" role="tablist">
+                <button type="button" role="tab" class="tab @(examTab == "questoes" ? "on" : "")" aria-selected="@(examTab == "questoes")" @onclick='() => SetTab("questoes")'><Icon Name="clipboard" Size="16" /> Questões <span class="tab-count">@detail.Questions.Count</span></button>
+                @if (canEdit)
+                {
+                    <button type="button" role="tab" class="tab @(examTab == "banco" ? "on" : "")" aria-selected="@(examTab == "banco")" @onclick='() => SetTab("banco")'><Icon Name="layers" Size="16" /> Do banco</button>
+                    <button type="button" role="tab" class="tab @(examTab == "criar" ? "on" : "")" aria-selected="@(examTab == "criar")" @onclick='() => SetTab("criar")'><Icon Name="sparkles" Size="16" /> Criar com IA</button>
+                }
+            </div>
+
+            @if (examTab == "questoes")
+            {
+                @if (detail.Questions.Count == 0)
+                {
+                    <EmptyState IconName="clipboard" Title="Nenhuma questão ainda" Text="Pegue questões do banco ou peça para a IA criar.">
+                        @if (canEdit)
+                        {
+                            <div class="empty-actions">
+                                <button type="button" class="btn btn-ghost" @onclick='() => SetTab("banco")'>Do banco</button>
+                                <button type="button" class="btn btn-primary" @onclick='() => SetTab("criar")'><Icon Name="sparkles" Size="16" /> Criar com IA</button>
+                            </div>
+                        }
+                    </EmptyState>
+                }
+                else
+                {
+                    <div class="key-toggle">
+                        <label class="switch"><input type="checkbox" checked="@showKey" @onchange="e => showKey = e.Value is true" /><span></span> Mostrar gabarito</label>
+                    </div>
+                    <div class="exam-q-list">
+                        @{ var n = 0; }
+                        @foreach (var item in detail.Questions)
+                        {
+                            n++;
+                            var q = item.Question;
+                            var position = n - 1;
+                            <article class="exam-q reveal" style="--i:@(Math.Min(n, 6))">
+                                <header>
+                                    <b class="q-num">@n</b>
+                                    <span class="badge badge-gray">@q.Topic</span>
+                                    <span class="badge @DifficultyBadge(q.Difficulty)">@UiFormat.DifficultyLabel(q.Difficulty)</span>
+                                    @if (canEdit)
+                                    {
+                                        <span class="q-tools">
+                                            <button type="button" aria-label="Subir" disabled="@(position == 0)" @onclick="() => MoveAsync(q.Id, -1)"><Icon Name="arrow-up" Size="16" /></button>
+                                            <button type="button" aria-label="Descer" disabled="@(position == detail.Questions.Count - 1)" @onclick="() => MoveAsync(q.Id, 1)"><Icon Name="arrow-down" Size="16" /></button>
+                                            <button type="button" class="danger" aria-label="Remover da avaliação" @onclick="() => RemoveAsync(q.Id)"><Icon Name="trash" Size="16" /></button>
+                                        </span>
+                                    }
+                                </header>
+                                <p class="draft-statement">@q.Statement</p>
+                                <ol class="alts" type="A">
+                                    @for (var k = 0; k < q.Alternatives.Count; k++)
+                                    {
+                                        <li class="@(showKey && k == q.CorrectIndex ? "correct" : "")">@q.Alternatives[k]</li>
+                                    }
+                                </ol>
+                                @if (showKey)
+                                {
+                                    <p class="draft-explain"><Icon Name="check-circle" Size="16" /> @q.Explanation</p>
+                                }
+                            </article>
+                        }
+                    </div>
+                }
+            }
+            else if (examTab == "banco")
+            {
+                <div class="bank-pick-bar">
+                    <label class="toolbar-search">
+                        <Icon Name="search" Size="16" />
+                        <input type="search" placeholder="Filtrar questões do banco" value="@bankSearch" @oninput="OnBankSearch" aria-label="Filtrar banco" />
+                    </label>
+                    <button type="button" class="btn btn-primary" disabled="@(bankSelected.Count == 0 || busy)" @onclick="AddSelectedAsync">
+                        <Icon Name="plus" Size="16" /> Adicionar @bankSelected.Count
+                    </button>
+                </div>
+                @if (bank is null)
+                {
+                    <div class="loading"><span class="spinner"></span> Carregando…</div>
+                }
+                else if (bank.Count == 0)
+                {
+                    <EmptyState IconName="inbox" Title="Nenhuma questão disponível" Text="Todas as questões desta disciplina já estão na avaliação, ou o banco ainda está vazio.">
+                        <button type="button" class="btn btn-primary" @onclick='() => SetTab("criar")'><Icon Name="sparkles" Size="16" /> Criar com IA</button>
+                    </EmptyState>
+                }
+                else
+                {
+                    <div class="bank-pick-list">
+                        @foreach (var row in bank)
+                        {
+                            var id = row.Id;
+                            <label class="bank-pick @(bankSelected.Contains(id) ? "on" : "")">
+                                <input type="checkbox" checked="@bankSelected.Contains(id)" @onchange="e => TogglePick(id, e.Value is true)" />
+                                <span class="bp-main"><strong>@row.Statement</strong><small>@row.Topic</small></span>
+                                <span class="badge @DifficultyBadge(row.Difficulty)">@UiFormat.DifficultyLabel(row.Difficulty)</span>
+                            </label>
+                        }
+                    </div>
+                }
+            }
+            else
+            {
+                <p class="hint-line"><Icon Name="sparkles" Size="16" /> As questões criadas aqui entram direto nesta avaliação (e ficam salvas no banco).</p>
+                <QuestionComposer Disciplines="disciplines ?? new()" FixedDiscipline="detail.Card.DisciplineId" SuggestedTopic="@detail.Card.Title" OnSaved="OnComposerSaved" />
+            }
+        }
+    </ChildContent>
+</Modal>
+
+@* ───────────── Confirmar exclusão ───────────── *@
+<Modal Open="deleteTarget is not null" Eyebrow="Excluir avaliação" Title="@(deleteTarget is null ? "" : deleteTarget.Title + " - " + TypeLabel(deleteTarget.Type))" OnClose="CancelDelete">
+    <ChildContent>
+        <p>Esta avaliação (<b>@deleteTarget?.Code</b>) deixará de aparecer para você e para os alunos. As questões continuam no banco.</p>
+    </ChildContent>
+    <Footer>
+        <button type="button" class="btn btn-ghost" @onclick="CancelDelete">Cancelar</button>
+        <button type="button" class="btn btn-danger" disabled="@busy" @onclick="ConfirmDeleteAsync"><Icon Name="trash" Size="16" /> Excluir</button>
+    </Footer>
+</Modal>
+
+@code {
+    private static readonly PeriodicidadeAvaliacao[] Periodicities = Enum.GetValues<PeriodicidadeAvaliacao>();
+
+    private List<DisciplineOption>? disciplines;
+    private List<ExamCard> exams = new();
+
+    private bool onlyMine;
+    private string search = "";
+    private StatusAvaliacao? statusFilter;
+    private string sort = "recent";
+
+    private Guid? menuId;
+    private ExamCard? deleteTarget;
+
+    private bool showForm;
+    private Guid? editingId;
+    private ExamForm form = new();
+    private string? formMessage;
+
+    private ExamDetail? detail;
+    private string examTab = "questoes";
+    private List<QuestionRow>? bank;
+    private readonly HashSet<Guid> bankSelected = new();
+    private string bankSearch = "";
+    private bool showKey = true;
+
+    private bool busy, isError;
+    private string? message;
+    private string? toast;
+    private int toastId;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            disciplines = await Exams.GetDisciplinesAsync();
+            // Professor começa vendo as dele; gestão começa vendo todas.
+            onlyMine = Session.User?.Role == UserRole.Professor;
+            await LoadAsync();
+        }
+        catch (UnauthorizedAccessException ex) { Fail(ex.Message); disciplines ??= new(); }
+    }
+
+    private async Task LoadAsync() =>
+        exams = await Exams.GetExamsAsync(onlyMine, search, statusFilter, sort);
+
+    // ───── filtros ─────
+    private async Task SetScope(bool mine) { onlyMine = mine; await LoadAsync(); }
+    private async Task SetStatus(StatusAvaliacao? status) { statusFilter = status; await LoadAsync(); }
+    private async Task OnSort(ChangeEventArgs e) { sort = e.Value?.ToString() ?? "recent"; await LoadAsync(); }
+    private async Task OnSearch(ChangeEventArgs e) { search = e.Value?.ToString() ?? ""; await LoadAsync(); }
+
+    private void ToggleMenu(Guid id) => menuId = menuId == id ? null : id;
+    private void CloseMenu() => menuId = null;
+
+    // ───── criar / editar ─────
+    private void OpenCreate()
+    {
+        if (disciplines is null || disciplines.Count == 0)
+        {
+            Fail("Você precisa ter ao menos uma disciplina para criar avaliações.");
+            return;
+        }
+        editingId = null;
+        form = new ExamForm { DisciplineId = disciplines[0].Id };
+        formMessage = null;
+        showForm = true;
+    }
+
+    private void OpenEdit(ExamCard exam)
+    {
+        menuId = null;
+        editingId = exam.Id;
+        form = new ExamForm
+        {
+            Title = exam.Title, Type = exam.Type, DisciplineId = exam.DisciplineId,
+            Details = exam.Details, Periodicity = exam.Periodicity, Duration = Math.Max(1, exam.Duration)
+        };
+        formMessage = null;
+        showForm = true;
+    }
+
+    private void CloseForm() => showForm = false;
+
+    private async Task SaveFormAsync()
+    {
+        busy = true;
+        formMessage = null;
+        try
+        {
+            var wasNew = editingId is null;
+            var id = await Exams.SaveExamAsync(editingId, form);
+            showForm = false;
+            await LoadAsync();
+            if (wasNew)
+            {
+                // Já abre a janela de questões para continuar o fluxo: a IA vem pré-preenchida com o título.
+                await OpenExamById(id, "criar");
+                Toast("Avaliação criada! Agora monte as questões.");
+            }
+            else
+            {
+                Toast("Avaliação atualizada.");
+            }
+        }
+        catch (Exception ex) when (ex is ArgumentException or InvalidOperationException or UnauthorizedAccessException) { formMessage = ex.Message; }
+        finally { busy = false; }
+    }
+
+    // ───── excluir ─────
+    private void AskDelete(ExamCard exam) { menuId = null; deleteTarget = exam; }
+    private void CancelDelete() => deleteTarget = null;
+
+    private async Task ConfirmDeleteAsync()
+    {
+        if (deleteTarget is null) return;
+        busy = true;
+        try
+        {
+            await Exams.DeleteExamAsync(deleteTarget.Id);
+            deleteTarget = null;
+            await LoadAsync();
+            Toast("Avaliação excluída.");
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or UnauthorizedAccessException) { Fail(ex.Message); deleteTarget = null; }
+        finally { busy = false; }
+    }
+
+    // ───── aplicar / compartilhar ─────
+    private async Task ToggleApplied(ExamCard exam)
+    {
+        try
+        {
+            var apply = exam.Status != StatusAvaliacao.Aplicada;
+            await Exams.SetAppliedAsync(exam.Id, apply);
+            await LoadAsync();
+            Toast(apply ? "Avaliação aplicada: os alunos já podem responder em Praticar." : "Aplicação encerrada.");
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or UnauthorizedAccessException) { Fail(ex.Message); }
+    }
+
+    private async Task ShareAsync(ExamCard exam)
+    {
+        var link = Navigation.ToAbsoluteUri("/praticar?codigo=" + Uri.EscapeDataString(exam.Code)).ToString();
+        try
+        {
+            await JS.InvokeVoidAsync("navigator.clipboard.writeText", link);
+            Toast(exam.Status == StatusAvaliacao.Aplicada
+                ? "Link copiado! Envie aos alunos."
+                : "Link copiado. Ele só funciona depois de aplicar a avaliação.");
+        }
+        catch (JSException)
+        {
+            Toast("Não consegui copiar. O código é " + exam.Code);
+        }
+    }
+
+    // ───── janela de questões ─────
+    private async Task OpenExam(ExamCard exam, string tab)
+    {
+        menuId = null;
+        await OpenExamById(exam.Id, tab);
+    }
+
+    private async Task OpenExamById(Guid id, string tab)
+    {
+        try
+        {
+            detail = await Exams.GetExamAsync(id);
+            await SetTab(tab);
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or UnauthorizedAccessException) { Fail(ex.Message); }
+    }
+
+    private void CloseExam()
+    {
+        detail = null;
+        bank = null;
+        bankSelected.Clear();
+    }
+
+    private async Task SetTab(string tab)
+    {
+        examTab = tab;
+        if (tab == "banco" && detail is not null)
+        {
+            bankSelected.Clear();
+            await LoadBankAsync();
+        }
+    }
+
+    private async Task ReloadDetailAsync()
+    {
+        if (detail is null) return;
+        detail = await Exams.GetExamAsync(detail.Card.Id);
+        await LoadAsync();
+    }
+
+    private async Task LoadBankAsync()
+    {
+        if (detail is null) return;
+        bank = await Exams.GetBankAsync(detail.Card.Id, bankSearch);
+    }
+
+    private async Task OnBankSearch(ChangeEventArgs e) { bankSearch = e.Value?.ToString() ?? ""; await LoadBankAsync(); }
+
+    private void TogglePick(Guid id, bool on)
+    {
+        if (on) bankSelected.Add(id); else bankSelected.Remove(id);
+    }
+
+    private async Task AddSelectedAsync()
+    {
+        if (detail is null) return;
+        busy = true;
+        try
+        {
+            var count = bankSelected.Count;
+            await Exams.AddQuestionsAsync(detail.Card.Id, bankSelected.ToList());
+            bankSelected.Clear();
+            await ReloadDetailAsync();
+            examTab = "questoes";
+            Toast($"{count} questão(ões) adicionada(s).");
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or UnauthorizedAccessException) { Fail(ex.Message); }
+        finally { busy = false; }
+    }
+
+    private async Task OnComposerSaved(List<Guid> ids)
+    {
+        if (detail is null) return;
+        try
+        {
+            await Exams.AddQuestionsAsync(detail.Card.Id, ids);
+            await ReloadDetailAsync();
+            examTab = "questoes";
+            Toast($"{ids.Count} questão(ões) criada(s) e adicionada(s) à avaliação.");
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or UnauthorizedAccessException) { Fail(ex.Message); }
+    }
+
+    private async Task RemoveAsync(Guid questionId)
+    {
+        if (detail is null) return;
+        await Exams.RemoveQuestionAsync(detail.Card.Id, questionId);
+        await ReloadDetailAsync();
+    }
+
+    private async Task MoveAsync(Guid questionId, int direction)
+    {
+        if (detail is null) return;
+        await Exams.MoveQuestionAsync(detail.Card.Id, questionId, direction);
+        await ReloadDetailAsync();
+    }
+
+    // ───── mensagens ─────
+    private void Fail(string text) { message = text; isError = true; }
+
+    private void Toast(string text)
+    {
+        toast = text;
+        toastId++;
+        message = null;
+    }
+
+    // ───── textos ─────
+    private static string TypeLabel(TipoAvaliacao type) => type == TipoAvaliacao.Simulado ? "simulado" : "prova";
+
+    private static string PeriodName(PeriodicidadeAvaliacao p) => p switch
+    {
+        PeriodicidadeAvaliacao.Unica => "Aplicação única",
+        PeriodicidadeAvaliacao.Mensal => "Mensal",
+        PeriodicidadeAvaliacao.Bimestral => "Bimestral",
+        PeriodicidadeAvaliacao.Trimestral => "Trimestral",
+        PeriodicidadeAvaliacao.Semestral => "Semestral",
+        _ => "Anual"
+    };
+
+    private static string PeriodUnit(PeriodicidadeAvaliacao p, int amount)
+    {
+        var plural = amount != 1;
+        return p switch
+        {
+            PeriodicidadeAvaliacao.Mensal => plural ? "meses" : "mês",
+            PeriodicidadeAvaliacao.Bimestral => plural ? "bimestres" : "bimestre",
+            PeriodicidadeAvaliacao.Trimestral => plural ? "trimestres" : "trimestre",
+            PeriodicidadeAvaliacao.Semestral => plural ? "semestres" : "semestre",
+            _ => plural ? "anos" : "ano"
+        };
+    }
+
+    private static string PeriodLabel(PeriodicidadeAvaliacao p, int duration) =>
+        $"{PeriodName(p)} - {duration} {PeriodUnit(p, duration)}";
+
+    private static string DifficultyBadge(DificuldadeQuestao d) => d switch
+    {
+        DificuldadeQuestao.Facil => "badge-green",
+        DificuldadeQuestao.Media => "badge-amber",
+        _ => "badge-red"
+    };
+}

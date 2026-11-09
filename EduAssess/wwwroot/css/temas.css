@@ -1,0 +1,241 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   EduAssess × Faculdade Luciano Feijão — TEMAS POR PRÉDIO E POR PERFIL (NOVO)
+
+   O visual do painel é a combinação de dois eixos, aplicados como classes no elemento raiz
+   (veja UiTheme.cs):   class="shell role-<perfil> unit-<prédio>"
+
+   1) TEMA    → paleta de cores        (.unit-principal · .unit-anexo · .unit-odontologia · .unit-rede · .unit-custom
+                                          e .unit-medicina, que é o perfil de quem é do CURSO de Medicina)
+   2) PERFIL  → "jeito" da interface   (.role-aluno · .role-professor · .role-gestor · .role-admin)
+
+   Os componentes continuam usando os mesmos tokens (--forest-*, --lime, --grad-*...) de site.css;
+   aqui só REDEFINIMOS esses tokens dentro de cada tema. Este arquivo precisa vir DEPOIS dos outros.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ───────────────────────── 1) PALETAS POR PRÉDIO ───────────────────────── */
+
+/* Prédio Principal e "rede" (sem unidade): azul da marca FLF */
+.unit-principal, .unit-rede {
+  --u1: #00c3d1; --u2: #0079b4; --u3: #0045a2;
+  --u-primary: #304296; --u-accent: #64a2d9; --u-sky: #a8d3f4;
+  --u-soft: #eaf4fa; --u-soft2: #dcedfb; --u-soft3: #bfdcf3; --u-line: #d3e3ee; --u-ink: #0c1d45;
+}
+/* Anexo: laranja-âmbar. NOVO: é o prédio que antes se chamava "Prédio Medicina". */
+.unit-anexo {
+  --u1: #f08c1a; --u2: #c2570c; --u3: #7a2e0b;
+  --u-primary: #b45309; --u-accent: #fb923c; --u-sky: #fed7aa;
+  --u-soft: #fff4e8; --u-soft2: #ffe6cc; --u-soft3: #fdc999; --u-line: #f0dcc6; --u-ink: #431a05;
+}
+/* Curso de Medicina: verde-água, a cor da saúde. ALTERADO: deixou de ser um prédio; vale para os alunos e
+   professores do CURSO de Medicina, em qualquer prédio (a classe se chama unit-medicina por compatibilidade). */
+.unit-medicina {
+  --u1: #2dd4a8; --u2: #0e9488; --u3: #0a5560;
+  --u-primary: #0f766e; --u-accent: #2dd4bf; --u-sky: #a7f3e4;
+  --u-soft: #e8f8f4; --u-soft2: #d3f1ea; --u-soft3: #a9e4d8; --u-line: #cfe9e3; --u-ink: #063b3d;
+}
+/* Prédio Odontologia: violeta */
+.unit-odontologia {
+  --u1: #a78bfa; --u2: #6d58d6; --u3: #382a8c;
+  --u-primary: #5b43c9; --u-accent: #a78bfa; --u-sky: #ddd3fd;
+  --u-soft: #f1eefc; --u-soft2: #e4defa; --u-soft3: #cfc5f6; --u-line: #ded8f2; --u-ink: #231a5c;
+}
+/* Unidade nova (cadastrada depois): cor automática a partir do matiz --unit-h (definido em linha) */
+.unit-custom {
+  --unit-h: 200;
+  --u1: hsl(var(--unit-h) 70% 55%); --u2: hsl(var(--unit-h) 65% 38%); --u3: hsl(var(--unit-h) 60% 22%);
+  --u-primary: hsl(var(--unit-h) 55% 36%); --u-accent: hsl(var(--unit-h) 70% 62%); --u-sky: hsl(var(--unit-h) 80% 85%);
+  --u-soft: hsl(var(--unit-h) 55% 96%); --u-soft2: hsl(var(--unit-h) 50% 92%); --u-soft3: hsl(var(--unit-h) 45% 84%);
+  --u-line: hsl(var(--unit-h) 30% 88%); --u-ink: hsl(var(--unit-h) 60% 14%);
+}
+
+/* Tradução da paleta do prédio para os tokens que o resto do CSS já usa */
+.unit-principal, .unit-rede, .unit-anexo, .unit-medicina, .unit-odontologia, .unit-custom {
+  --grad-full: linear-gradient(100deg, var(--u1) 0%, var(--u2) 48%, var(--u3) 100%);
+  --grad-deep: linear-gradient(160deg, var(--u2) 0%, var(--u3) 100%);
+  --grad-side: linear-gradient(175deg, var(--u2) 0%, var(--u3) 70%);
+  --ink-900: var(--u-ink);
+  --ink-950: color-mix(in srgb, var(--u-ink) 70%, #000);
+  --text: var(--u-ink);
+  --forest-800: var(--u3);
+  --forest-700: var(--u-primary);
+  --forest-600: color-mix(in srgb, var(--u-primary) 85%, #fff);
+  --forest-500: var(--u2);
+  --forest-400: var(--u-accent);
+  --lime: var(--u-accent);
+  --sky-200: var(--u-sky);
+  --coral: var(--u-primary);
+  --coral-700: var(--u3);
+  --coral-100: var(--u-soft2);
+  --mint-50: var(--u-soft);
+  --mint-100: var(--u-soft2);
+  --mint-200: var(--u-soft3);
+  --paper: var(--u-soft);
+  --paper-2: var(--u-soft2);
+  --cream: color-mix(in srgb, var(--u-soft) 45%, #fff);
+  --line: var(--u-line);
+  --line-cool: var(--u-line);
+  --info: var(--u-primary);
+  --info-100: var(--u-soft2);
+  --muted: color-mix(in srgb, var(--u-ink) 62%, #fff);
+  --faint: color-mix(in srgb, var(--u-ink) 42%, #fff);
+}
+.shell { background: var(--paper); }     /* antes: cor fixa em linha no AppLayout */
+
+/* ───────────────────────── Peças comuns (emblema do prédio, chips) ───────────────────────── */
+
+/* Selo do prédio, na barra lateral, logo abaixo da marca */
+.unit-badge { display: flex; align-items: center; gap: 12px; margin: 0 6px 6px; padding: 11px 13px; border-radius: 16px;
+  background: rgba(255, 255, 255, .12); border: 1px solid rgba(255, 255, 255, .18); }
+.unit-badge .ub-ico { flex: none; width: 38px; height: 38px; border-radius: 12px; display: grid; place-items: center; background: var(--lime); color: var(--u-ink); }
+.unit-badge div { display: grid; min-width: 0; line-height: 1.2; }
+.unit-badge small { font-size: .66rem; letter-spacing: .08em; text-transform: uppercase; opacity: .75; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.unit-badge strong { font-size: .92rem; color: inherit; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+.role-chip { display: inline-flex; align-items: center; gap: 8px; }
+.role-chip .icon { flex: none; }
+.unit-switch { height: 38px; padding: 0 34px 0 12px; border-radius: 12px; border: 1px solid var(--line); background: #fff; color: var(--ink-900);
+  font: inherit; font-weight: 700; font-size: .84rem; cursor: pointer; max-width: 210px; }
+.unit-switch:focus-visible { outline: 3px solid var(--forest-400); outline-offset: 2px; }
+
+/* Cabeçalho de página com a cara do perfil e do prédio (componente RoleHero) */
+.role-hero { position: relative; overflow: hidden; display: flex; align-items: center; gap: 22px; flex-wrap: wrap; margin-bottom: 28px;
+  padding: 28px 32px; color: #fff; background: var(--grad-full); border-radius: 28px; box-shadow: 0 24px 50px -28px var(--u3); }
+.role-hero > * { position: relative; z-index: 1; }
+.role-hero .rh-mark { position: absolute; z-index: 0; right: -18px; bottom: -34px; color: #fff; opacity: .13; pointer-events: none; transform: rotate(-8deg); }
+.role-hero .rh-emblem { flex: none; width: 64px; height: 64px; border-radius: 20px; display: grid; place-items: center; background: rgba(255, 255, 255, .2); border: 1px solid rgba(255, 255, 255, .35); }
+.role-hero .rh-text { flex: 1 1 320px; min-width: 0; }
+.role-hero .rh-text small { font-size: .74rem; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; opacity: .9; }
+.role-hero h1 { color: #fff; margin: 6px 0 6px; font-size: clamp(1.7rem, 3vw, 2.4rem); }
+.role-hero p { margin: 0; color: rgba(255, 255, 255, .9); max-width: 44rem; }
+.role-hero .rh-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+.role-hero .btn-primary { background: #fff; color: var(--u-primary); box-shadow: none; }
+.role-hero .btn-primary:hover { background: var(--u-soft); }
+.role-hero .btn-ghost { color: #fff; border-color: rgba(255, 255, 255, .55); }
+
+/* ═══════════════════════ 2) PERFIS ═══════════════════════ */
+
+/* ───── ALUNO · "Campus": cores vivas, cantos bem arredondados, gradiente na barra lateral ───── */
+.role-aluno { --radius-lg: 24px; }
+.role-aluno .sidebar { background: var(--grad-side); position: sticky; }
+.role-aluno .sidebar::before { content: ""; position: absolute; inset: 0; pointer-events: none;
+  background: radial-gradient(circle at 110% 8%, rgba(255, 255, 255, .22), transparent 42%), radial-gradient(circle at -20% 92%, rgba(255, 255, 255, .14), transparent 40%); }
+.role-aluno .sidebar > * { position: relative; }
+.role-aluno .nav-link.active { border-radius: 999px; }
+.role-aluno .badge-role { background: var(--grad-full); color: #fff; }
+.role-aluno .badge-role::before { background: #fff; }
+
+/* ───── PROFESSOR · "Ateliê": barra lateral clara, fundo pontilhado, destaques por borda ───── */
+.role-professor { --radius-lg: 16px; }
+.role-professor .sidebar { background: #fff; color: var(--ink-900); border-right: 1px solid var(--line); box-shadow: 8px 0 30px -28px var(--u3); }
+.role-professor .sidebar .nav-group > span { color: var(--faint); }
+.role-professor .nav-link { color: var(--muted); }
+.role-professor .nav-link:hover { background: var(--u-soft); color: var(--u-primary); }
+.role-professor .nav-link.active { background: var(--u-soft2); color: var(--u-primary); box-shadow: inset 4px 0 0 var(--u-primary); border-radius: 4px 12px 12px 4px; }
+.role-professor .nav-link .count { background: var(--u-primary); }
+.role-professor .sidebar-foot { border-top-color: var(--line); }
+.role-professor .who strong { color: var(--ink-900); }
+.role-professor .who small { color: var(--muted); }
+.role-professor .signout { color: var(--muted); border-color: var(--line); }
+.role-professor .signout:hover { background: var(--u-soft); color: var(--u-primary); border-color: var(--u-soft3); }
+.role-professor .unit-badge { background: var(--u-soft); border-color: var(--u-soft2); color: var(--ink-900); }
+.role-professor .unit-badge .ub-ico { background: var(--u-primary); color: #fff; }
+.role-professor .shell, .shell.role-professor { background-color: var(--paper); background-image: radial-gradient(var(--u-soft3) 1px, transparent 1px); background-size: 24px 24px; }
+.role-professor .card, .role-professor .stat { border-top: 3px solid var(--u-accent); }
+.role-professor .role-hero { border-radius: 18px; background: var(--grad-deep); }
+.role-professor .badge-role { background: var(--u-soft2); color: var(--u-primary); }
+
+/* ───── GESTOR · "Executivo": azul-escuro sóbrio com detalhes dourados, cantos discretos ───── */
+.role-gestor { --radius-lg: 12px; --gold: #e2b24a; --gold-d: #b9892a; }
+.role-gestor .sidebar { background: linear-gradient(180deg, color-mix(in srgb, var(--u3) 92%, #000) 0%, color-mix(in srgb, var(--u3) 62%, #000) 100%); }
+.role-gestor .sidebar .nav-group > span { color: var(--gold); }
+.role-gestor .nav-link.active { background: var(--gold); color: #1b1405; border-radius: 8px; }
+.role-gestor .nav-link { border-radius: 8px; }
+.role-gestor .unit-badge { border-color: color-mix(in srgb, var(--gold) 55%, transparent); }
+.role-gestor .unit-badge .ub-ico { background: var(--gold); color: #1b1405; }
+.role-gestor .avatar { background: var(--gold); color: #1b1405; }
+.role-gestor .topbar { border-top: 4px solid var(--gold); }
+.role-gestor .badge-role { background: #fbf3dc; color: #7a5a10; }
+.role-gestor .badge-role::before { background: var(--gold-d); }
+.role-gestor .card, .role-gestor .stat { border-radius: 12px; }
+.role-gestor .stat strong { box-shadow: 0 6px 0 -3px var(--gold); width: max-content; max-width: 100%; }
+.role-gestor .role-hero { border-radius: 14px; background: linear-gradient(110deg, color-mix(in srgb, var(--u3) 92%, #000), var(--u2)); border-bottom: 4px solid var(--gold); }
+.role-gestor .role-hero .rh-emblem { background: var(--gold); border-color: var(--gold); color: #1b1405; }
+.role-gestor .role-hero .btn-primary { background: var(--gold); color: #1b1405; }
+.role-gestor .role-hero .btn-primary:hover { background: #efc566; }
+
+/* ───── ADMIN · "Console": grafite com brilho na cor do prédio, rótulos em monoespaçada ───── */
+.role-admin { --radius-lg: 12px; --console: #0b1220; --console-2: #131d33; }
+.role-admin .sidebar { background: linear-gradient(180deg, var(--console), var(--console-2)); color: #cbd5e1;
+  background-image: linear-gradient(180deg, var(--console), var(--console-2)), linear-gradient(rgba(255, 255, 255, .035) 1px, transparent 1px), linear-gradient(90deg, rgba(255, 255, 255, .035) 1px, transparent 1px);
+  background-size: auto, 26px 26px, 26px 26px; background-blend-mode: normal; }
+.role-admin .sidebar .nav-group > span { color: var(--u-accent); font-family: ui-monospace, "Cascadia Mono", Consolas, monospace; letter-spacing: .14em; }
+.role-admin .nav-link { color: #cbd5e1; border-radius: 8px; }
+.role-admin .nav-link:hover { background: rgba(255, 255, 255, .06); }
+.role-admin .nav-link.active { background: color-mix(in srgb, var(--u-accent) 18%, transparent); color: #fff; box-shadow: inset 3px 0 0 var(--u-accent), 0 0 24px -6px var(--u-accent); }
+.role-admin .unit-badge { background: rgba(255, 255, 255, .05); border-color: color-mix(in srgb, var(--u-accent) 45%, transparent); }
+.role-admin .unit-badge .ub-ico { background: transparent; color: var(--u-accent); border: 1px solid var(--u-accent); box-shadow: 0 0 18px -4px var(--u-accent); }
+.role-admin .avatar { background: var(--u-accent); color: #08101f; }
+.role-admin .topbar { background: var(--console); border-bottom-color: var(--console-2); }
+.role-admin .topbar .hello { color: #94a3b8; font-family: ui-monospace, "Cascadia Mono", Consolas, monospace; text-transform: uppercase; letter-spacing: .06em; font-size: .7rem; }
+.role-admin .topbar .hello b { color: #f1f5f9; }
+.role-admin .badge-role { background: transparent; color: var(--u-accent); border: 1px solid var(--u-accent); font-family: ui-monospace, "Cascadia Mono", Consolas, monospace; text-transform: uppercase; letter-spacing: .08em; }
+.role-admin .badge-role::before { background: var(--u-accent); box-shadow: 0 0 8px var(--u-accent); }
+.role-admin .menu-burger { color: #f1f5f9; }
+.role-admin .card, .role-admin .stat { border-radius: 12px; border-top: 2px solid var(--u-accent); }
+.role-admin .eyebrow, .role-admin .stat .label { font-family: ui-monospace, "Cascadia Mono", Consolas, monospace; }
+.role-admin .role-hero { border-radius: 14px; background: linear-gradient(120deg, var(--console), var(--console-2) 55%, color-mix(in srgb, var(--u2) 45%, var(--console-2))); border: 1px solid color-mix(in srgb, var(--u-accent) 40%, transparent); box-shadow: 0 0 60px -26px var(--u-accent); }
+.role-admin .role-hero .rh-emblem { background: transparent; border-color: var(--u-accent); color: var(--u-accent); box-shadow: 0 0 22px -6px var(--u-accent); }
+.role-admin .role-hero .rh-text small { color: var(--u-accent); font-family: ui-monospace, "Cascadia Mono", Consolas, monospace; }
+.role-admin .role-hero .btn-primary { background: var(--u-accent); color: #08101f; }
+.role-admin .unit-switch { background: var(--console-2); color: #e2e8f0; border-color: color-mix(in srgb, var(--u-accent) 50%, transparent); }
+
+/* ───────────────────────── Login por prédio (AuthLayout) ───────────────────────── */
+.auth-units { display: flex; flex-wrap: wrap; gap: 8px; margin: 18px 0 0; }
+.auth-units a { display: inline-flex; align-items: center; gap: 8px; padding: 8px 14px; border-radius: 999px; font-weight: 700; font-size: .84rem;
+  color: #fff; background: rgba(255, 255, 255, .14); border: 1px solid rgba(255, 255, 255, .3); transition: background .15s, transform .15s; }
+.auth-units a:hover { background: rgba(255, 255, 255, .26); transform: translateY(-1px); }
+.auth-units a.on { background: #fff; color: var(--u-primary); border-color: #fff; }
+.auth-aside .unit-line { display: inline-flex; align-items: center; gap: 10px; margin-top: 6px; padding: 7px 14px; border-radius: 999px; background: rgba(255, 255, 255, .16); font-weight: 700; font-size: .85rem; }
+
+/* ───────────────────────── Tela "Instituição e unidades" ───────────────────────── */
+.inst-hero { display: flex; align-items: center; gap: 22px; flex-wrap: wrap; padding: 26px 30px; border-radius: 24px; background: #fff; border: 1px solid var(--line); box-shadow: var(--shadow-sm); }
+.inst-hero .logo-box { flex: none; padding: 10px 14px; border-radius: 16px; background: var(--u-soft); }
+.inst-hero .logo-box img { height: 54px; display: block; }
+.inst-hero dl { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 14px 24px; margin: 0; flex: 1 1 420px; }
+.inst-hero dt { font-size: .7rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--faint); }
+.inst-hero dd { margin: 3px 0 0; font-weight: 700; color: var(--ink-900); overflow-wrap: anywhere; }
+
+.unit-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px; margin-top: 22px; }
+.unit-card { position: relative; overflow: hidden; border-radius: 24px; background: #fff; border: 1px solid var(--u-line); box-shadow: var(--shadow-sm);
+  transition: transform .22s cubic-bezier(.2,.7,.2,1), box-shadow .22s; }
+.unit-card:hover { transform: translateY(-4px); box-shadow: 0 24px 44px -26px var(--u3); }
+.unit-card.off { opacity: .6; filter: grayscale(.5); }
+.unit-card .uc-head { position: relative; padding: 22px 22px 18px; color: #fff; background: var(--grad-full); }
+.unit-card .uc-head::after { content: ""; position: absolute; right: -24px; top: -24px; width: 120px; height: 120px; border-radius: 50%; background: rgba(255, 255, 255, .14); }
+.unit-card .uc-ico { position: relative; z-index: 1; width: 48px; height: 48px; border-radius: 16px; display: grid; place-items: center; background: rgba(255, 255, 255, .22); border: 1px solid rgba(255, 255, 255, .4); }
+.unit-card h3 { position: relative; z-index: 1; margin: 14px 0 2px; color: #fff; font-size: 1.2rem; font-family: "Manrope", sans-serif; font-weight: 800; }
+.unit-card .uc-sub { position: relative; z-index: 1; font-size: .8rem; opacity: .9; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
+.unit-card .uc-body { padding: 18px 22px 20px; display: grid; gap: 14px; }
+.uc-counts { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.uc-counts div { padding: 10px 6px; border-radius: 14px; background: var(--u-soft); text-align: center; }
+.uc-counts b { display: block; font-family: "Fraunces", serif; font-size: 1.5rem; line-height: 1; color: var(--u-primary); }
+.uc-counts small { color: var(--muted); font-size: .7rem; font-weight: 700; }
+.uc-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.uc-actions .btn { flex: 1 1 auto; }
+.unit-card.add { display: grid; place-items: center; min-height: 260px; border: 2px dashed var(--u-soft3); background: var(--u-soft); cursor: pointer; font: inherit; color: var(--u-primary); font-weight: 800; box-shadow: none; }
+.unit-card.add:hover { background: var(--u-soft2); }
+.unit-card.add span { display: grid; justify-items: center; gap: 8px; }
+
+.people-bar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 14px; }
+.person-row { display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto; gap: 14px; align-items: center; padding: 12px 6px; border-bottom: 1px dashed var(--line); }
+.person-row:last-child { border-bottom: 0; }
+.person-row .pr-name { display: grid; min-width: 0; }
+.person-row .pr-name strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.person-row .pr-name small { color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.unit-select { height: 40px; min-width: 190px; padding: 0 30px 0 12px; border-radius: 12px; border: 1px solid var(--line); background: #fff; font: inherit; font-weight: 700; cursor: pointer; }
+.unit-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; background: var(--grad-full); vertical-align: 0; }
+
+@media (max-width: 720px) {
+  .person-row { grid-template-columns: auto minmax(0, 1fr); } .person-row .badge, .person-row .unit-select { grid-column: 1 / -1; }
+  .role-hero { padding: 22px; } .role-hero .rh-mark { display: none; }
+}

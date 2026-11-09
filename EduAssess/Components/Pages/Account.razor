@@ -2,10 +2,12 @@
 @layout AppLayout
 @attribute [Authorize]
 @inject AccountProfileService Profile
+@inject UiSession Session
+@inject ImageStorageService Images
 
-<PageTitle>Minha conta | EduAssess</PageTitle>
+<PageTitle>Minha conta | Faculdade Luciano Feijão</PageTitle>
 
-<PageHeader Eyebrow="Minha área" Title="Minha conta" Subtitle="Atualize seus dados de contato e a sua senha." />
+<PageHeader Eyebrow="Minha área" Title="Minha conta" Subtitle="Sua foto, seus dados de contato e a sua senha." />
 
 @if (loaded is null)
 {
@@ -13,6 +15,52 @@
 }
 else
 {
+    <div class="card photo-card reveal" style="margin-bottom:24px">
+        <div class="photo-grid">
+            <div class="photo-preview">
+                <AvatarImage UserId="Session.User!.Id" Name="@loaded.Name" Class="xl" Full="true" Stamp="Session.AvatarStamp" />
+                <small>Pré-visualização</small>
+            </div>
+
+            <div class="photo-main">
+                <div class="card-head" style="margin-bottom:12px"><div><h2>Foto de perfil</h2><p>Ela aparece no seu menu, no topo e no seu painel.</p></div></div>
+                <Feedback Message="@photoMessage" IsError="@photoError" />
+
+                <div class="dropzone @(uploading ? "busy" : "")">
+                    <InputFile OnChange="OnPhotoSelected" accept="image/png,image/jpeg,image/webp,image/gif" aria-label="Escolher foto" />
+                    @if (uploading)
+                    {
+                        <span class="spinner"></span>
+                        <strong>Otimizando sua foto…</strong>
+                        <small>Reduzindo o tamanho sem perder a nitidez do ícone.</small>
+                    }
+                    else
+                    {
+                        <span class="dz-ico"><Icon Name="upload" Size="26" /></span>
+                        <strong>Arraste uma foto aqui ou clique para escolher</strong>
+                        <small>JPG, PNG, WebP ou GIF · até 8 MB</small>
+                    }
+                </div>
+
+                @if (lastResult is not null)
+                {
+                    <div class="savings">
+                        <div><small>Enviado</small><b>@UiFormat.Bytes(lastResult.OriginalBytes)</b></div>
+                        <Icon Name="arrow-right" Size="18" />
+                        <div><small>Guardado no servidor</small><b>@UiFormat.Bytes(lastResult.StoredBytes)</b></div>
+                        <span class="savings-pill">−@lastResult.SavedPercent%</span>
+                    </div>
+                    <p class="photo-note">O ícone (256×256) é salvo em qualidade alta; a versão do servidor é a leve. A original não é guardada e os dados escondidos da foto (como localização) são removidos.</p>
+                }
+
+                @if (Images.HasAvatar(Session.User!.Id))
+                {
+                    <button type="button" class="btn-text danger" @onclick="RemovePhoto"><Icon Name="trash" Size="16" /> Remover foto</button>
+                }
+            </div>
+        </div>
+    </div>
+
     <div class="grid-2" style="grid-template-columns:minmax(0,1fr) minmax(0,1fr)">
         <div class="card">
             <div class="card-head"><div><h2>Dados pessoais</h2><p>Perfil: <span class="badge badge-violet">@UiFormat.RoleLabel(loaded.Role)</span></p></div></div>
@@ -47,6 +95,11 @@ else
     private string? profileMessage, passwordMessage;
     private bool profileError, passwordError, busy;
 
+    // Foto de perfil
+    private string? photoMessage;
+    private bool photoError, uploading;
+    private AvatarResult? lastResult;
+
     protected override async Task OnInitializedAsync()
     {
         try
@@ -60,6 +113,43 @@ else
         {
             profileMessage = ex.Message; profileError = true;
         }
+    }
+
+    /// <summary>
+    /// Chamado quando a pessoa escolhe (ou arrasta) uma imagem. O arquivo é lido na memória,
+    /// conferido e recomprimido pelo ImageStorageService; o original não fica no servidor.
+    /// </summary>
+    private async Task OnPhotoSelected(InputFileChangeEventArgs e)
+    {
+        photoMessage = null; photoError = false; lastResult = null;
+        uploading = true;
+        try
+        {
+            var me = await Session.RequireAsync();
+            var file = e.File;
+            if (file.Size > ImageStorageService.MaxUploadBytes)
+                throw new ArgumentException("A foto passa de 8 MB. Escolha uma menor.");
+
+            await using var stream = file.OpenReadStream(ImageStorageService.MaxUploadBytes);
+            lastResult = await Images.SaveAvatarAsync(me.Id, stream);
+
+            Session.NotifyAvatarChanged();   // atualiza menu e topo na hora
+            photoMessage = "Foto atualizada!";
+        }
+        catch (Exception ex) when (ex is ArgumentException or UnauthorizedAccessException or IOException)
+        {
+            photoMessage = ex.Message; photoError = true;
+        }
+        finally { uploading = false; }
+    }
+
+    private async Task RemovePhoto()
+    {
+        var me = await Session.RequireAsync();
+        Images.DeleteAvatar(me.Id);
+        lastResult = null;
+        photoMessage = "Foto removida."; photoError = false;
+        Session.NotifyAvatarChanged();
     }
 
     private async Task SaveProfileAsync()

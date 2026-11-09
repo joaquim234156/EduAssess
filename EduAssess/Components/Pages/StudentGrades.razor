@@ -1,0 +1,170 @@
+@page "/aluno/notas"
+@using System.Globalization
+@layout AppLayout
+@attribute [Authorize(Policy = "Aluno")]
+@inject AcademicService Academic
+
+<PageTitle>Minhas notas | Faculdade Luciano Feijão</PageTitle>
+
+<PageHeader Eyebrow="Estudante" Title="Minhas notas" Subtitle="Um resumo das suas médias e da evolução das suas notas, sem complicação de boletim." />
+
+@if (overview is null)
+{
+    @if (error is not null) { <Feedback Message="@error" IsError="true" /> }
+    else { <div class="loading"><span class="spinner"></span> Calculando suas médias…</div> }
+}
+else if (overview.Grades.Count == 0)
+{
+    <div class="card"><EmptyState IconName="chart" Title="Ainda não há notas" Text="Quando um professor lançar uma avaliação, suas médias aparecem aqui." /></div>
+}
+else
+{
+    var best = overview.Averages.OrderByDescending(a => a.Average).First();
+    var weakest = overview.Averages.OrderBy(a => a.Average).First();
+
+    @* ───────────── Resumo ───────────── *@
+    <div class="avg-summary">
+        <div class="avg-hero reveal">
+            <div class="grade-ring" style="--p:@Pct(overview.OverallAverage)"><div class="ring-inner"><b>@UiFormat.Grade(overview.OverallAverage)</b><small>média geral</small></div></div>
+            <div>
+                <strong>@OverallText(overview.OverallAverage)</strong>
+                <small>Calculada com @overview.Grades.Count @(overview.Grades.Count == 1 ? "nota" : "notas") em @overview.Averages.Count @(overview.Averages.Count == 1 ? "disciplina" : "disciplinas").</small>
+            </div>
+        </div>
+        <div class="avg-pill good reveal" style="--i:1"><Icon Name="trophy" Size="20" /><div><small>Melhor média</small><strong>@best.DisciplineName</strong></div><b>@UiFormat.Grade(best.Average)</b></div>
+        <div class="avg-pill @UiFormat.GradeBand(weakest.Average) reveal" style="--i:2"><Icon Name="target" Size="20" /><div><small>Merece atenção</small><strong>@weakest.DisciplineName</strong></div><b>@UiFormat.Grade(weakest.Average)</b></div>
+    </div>
+
+    @* ───────────── Distribuição das notas ───────────── *@
+    <section class="card reveal" style="margin-top:20px">
+        <div class="card-head"><div><h2>Como estão as suas notas</h2><p>Quantas notas cada faixa tem.</p></div></div>
+        <div class="dist-bar" role="img" aria-label="@high notas altas, @mid médias, @low baixas">
+            @if (high > 0) { <span class="d-high" style="flex:@high">@high</span> }
+            @if (mid > 0) { <span class="d-mid" style="flex:@mid">@mid</span> }
+            @if (low > 0) { <span class="d-low" style="flex:@low">@low</span> }
+        </div>
+        <div class="dist-legend"><span><i class="d-high"></i> 7 ou mais</span><span><i class="d-mid"></i> de 5 a 6,9</span><span><i class="d-low"></i> abaixo de 5</span></div>
+    </section>
+
+    @* ───────────── Evolução ───────────── *@
+    <section class="card reveal" style="margin-top:20px">
+        <div class="card-head"><div><h2>Evolução das notas</h2><p>Toque em uma barra para ver os detalhes.</p></div></div>
+        <div class="chips" role="group" aria-label="Filtrar por disciplina">
+            <button type="button" class="chip @(filter == "" ? "active" : "")" @onclick='() => SetFilter("")'>Todas</button>
+            @foreach (var a in overview.Averages)
+            {
+                var n = a.DisciplineName;
+                <button type="button" class="chip @(filter == n ? "active" : "")" @onclick="() => SetFilter(n)">@n</button>
+            }
+        </div>
+
+        @{ var series = Series(); var mean = series.Count == 0 ? 0m : series.Average(g => g.Value); }
+        <div class="evo" role="group" aria-label="Gráfico de notas">
+            <div class="evo-grid"><span>10</span><span>5</span><span>0</span></div>
+            <div class="evo-bars">
+                <div class="evo-avg" style="bottom:@Pct(mean)%"><small>média @UiFormat.Grade(mean)</small></div>
+                @foreach (var g in series)
+                {
+                    var grade = g;
+                    <button type="button" class="evo-bar band-@UiFormat.GradeBand(grade.Value) @(selected == grade ? "on" : "")" style="height:@Pct(grade.Value)%"
+                            title="@grade.DisciplineName: @UiFormat.Grade(grade.Value)" aria-label="@grade.DisciplineName, @grade.Description, nota @UiFormat.Grade(grade.Value)"
+                            @onclick="() => Select(grade)">
+                        <span>@UiFormat.Grade(grade.Value)</span>
+                    </button>
+                }
+            </div>
+        </div>
+        @if (selected is not null && series.Contains(selected))
+        {
+            <div class="evo-detail">
+                <GradeBadge Value="selected.Value" />
+                <div><strong>@selected.DisciplineName</strong><small>@selected.Description · @selected.ClassName · @UiFormat.Date(selected.CreatedAt)</small></div>
+            </div>
+        }
+    </section>
+
+    @* ───────────── Médias por disciplina ───────────── *@
+    <div class="sec-head"><h2>Média por disciplina</h2>
+        <div class="seg">
+            <button type="button" class="@(!byName ? "on" : "")" @onclick="() => byName = false">Maiores primeiro</button>
+            <button type="button" class="@(byName ? "on" : "")" @onclick="() => byName = true">A–Z</button>
+        </div>
+    </div>
+    <div class="avg-list">
+        @{ var idx = 0; }
+        @foreach (var item in OrderedAverages())
+        {
+            idx++;
+            var name = item.DisciplineName;
+            var open = expanded.Contains(name);
+            <article class="avg-row band-@UiFormat.GradeBand(item.Average) @(open ? "open" : "") reveal" style="--i:@(Math.Min(idx, 8))">
+                <button type="button" class="avg-head" aria-expanded="@(open ? "true" : "false")" @onclick="() => Toggle(name)">
+                    <strong>@item.DisciplineName</strong>
+                    <span class="avg-track"><span style="width:@Pct(item.Average)%"></span></span>
+                    <b>@UiFormat.Grade(item.Average)</b>
+                    <Icon Name="chevron-down" Size="18" Class="chev" />
+                </button>
+                @if (open)
+                {
+                    <ul class="disc-grades">
+                        @foreach (var g in overview.Grades.Where(row => row.DisciplineName == name).OrderByDescending(row => row.CreatedAt))
+                        {
+                            <li><span>@g.Description<small>@UiFormat.Date(g.CreatedAt)</small></span><GradeBadge Value="g.Value" /></li>
+                        }
+                    </ul>
+                }
+            </article>
+        }
+    </div>
+}
+
+@code {
+    private StudentOverview? overview;
+    private string? error;
+    private string filter = "";
+    private bool byName;
+    private MyGradeRow? selected;
+    private readonly HashSet<string> expanded = new();
+
+    private int high, mid, low;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            overview = await Academic.GetStudentOverviewAsync();
+            high = overview.Grades.Count(g => g.Value >= 7m);
+            mid = overview.Grades.Count(g => g.Value >= 5m && g.Value < 7m);
+            low = overview.Grades.Count(g => g.Value < 5m);
+        }
+        catch (UnauthorizedAccessException ex) { error = ex.Message; }
+    }
+
+    private List<MyGradeRow> Series() => overview!.Grades
+        .Where(g => filter == "" || g.DisciplineName == filter)
+        .OrderBy(g => g.CreatedAt)
+        .ToList();
+
+    private IEnumerable<DisciplineAverage> OrderedAverages() => byName
+        ? overview!.Averages.OrderBy(a => a.DisciplineName)
+        : overview!.Averages.OrderByDescending(a => a.Average);
+
+    private void SetFilter(string name) { filter = name; selected = null; }
+    private void Select(MyGradeRow grade) => selected = selected == grade ? null : grade;
+
+    private void Toggle(string name)
+    {
+        if (!expanded.Remove(name)) expanded.Add(name);
+    }
+
+    private static string Pct(decimal? value) =>
+        ((value ?? 0) * 10).ToString("0.##", CultureInfo.InvariantCulture);
+
+    private static string OverallText(decimal? average)
+    {
+        if (average is null) return "Sem média ainda";
+        if (average >= 7m) return "Você está indo muito bem";
+        if (average >= 5m) return "Você está no caminho certo";
+        return "Hora de reforçar os estudos";
+    }
+}

@@ -1,10 +1,25 @@
 @inherits LayoutComponentBase
+@implements IDisposable
 @inject UiSession Session
 
-<div class="shell" style="background:#f3f1ea">
+@* ALTERADO: o elemento raiz agora recebe as classes de tema (perfil + prédio), ex.: "role-professor unit-medicina".
+   Todo o visual exclusivo está em temas.css. O fundo fixo em linha foi para o CSS (.shell { background: var(--paper) }). *@
+<div class="shell @Session.ThemeClass" style="@Session.ThemeStyle">
     <input type="checkbox" id="menu-toggle" class="menu-toggle" aria-hidden="true" checked="@menuOpen" @onchange="OnMenuChanged" />
     <aside class="sidebar">
-        <Logo Light="true" Href="@homePath" />
+        <Logo Light="@(!UiTheme.LightSidebar(Session.User?.Role))" Href="@homePath" />
+
+        @* NOVO: selo do prédio (Principal, Medicina, Odontologia) na barra lateral. *@
+        @if (Session.IsSignedIn)
+        {
+            <div class="unit-badge" title="@Session.ThemeLabel">
+                <span class="ub-ico"><Icon Name="@UiTheme.KeyIcon(Session.ThemeKey)" Size="20" /></span>
+                <div>
+                    <small>@Session.InstitutionName</small>
+                    <strong>@(Session.ThemeKey == "rede" ? "Todas as unidades" : Session.ThemeLabel)</strong>
+                </div>
+            </div>
+        }
 
         @if (Session.IsSignedIn)
         {
@@ -13,6 +28,7 @@
                 <div class="nav-group">
                     <span>Instituição</span>
                     <NavLink class="nav-link" href="/painel" Match="NavLinkMatch.All" @onclick="CloseMenu"><Icon Name="dashboard" /> Visão geral</NavLink>
+                    <NavLink class="nav-link" href="/instituicao" @onclick="CloseMenu"><Icon Name="building" /> Unidades e pessoas</NavLink>
                     <NavLink class="nav-link" href="/cursos" @onclick="CloseMenu"><Icon Name="book" /> Cursos</NavLink>
                     <NavLink class="nav-link" href="/disciplinas" @onclick="CloseMenu"><Icon Name="file" /> Disciplinas</NavLink>
                     <NavLink class="nav-link" href="/turmas" @onclick="CloseMenu"><Icon Name="layers" /> Turmas</NavLink>
@@ -26,7 +42,9 @@
                 <div class="nav-group">
                     <span>Avaliação</span>
                     <NavLink class="nav-link" href="/notas" @onclick="CloseMenu"><Icon Name="pen" /> Notas</NavLink>
-                    <NavLink class="nav-link" href="/contatos" @onclick="CloseMenu"><Icon Name="inbox" /> Solicitações</NavLink>
+                    <NavLink class="nav-link" href="/avaliacoes" @onclick="CloseMenu"><Icon Name="clipboard" /> Avaliações</NavLink>
+                    <NavLink class="nav-link" href="/banco-questoes" @onclick="CloseMenu"><Icon Name="sparkles" /> Banco de questões</NavLink>
+                    <NavLink class="nav-link" href="/praticar" @onclick="CloseMenu"><Icon Name="zap" /> Ver como aluno</NavLink>
                 </div>
             }
             else if (Session.IsProfessor)
@@ -37,12 +55,20 @@
                     <NavLink class="nav-link" href="/notas" @onclick="CloseMenu"><Icon Name="pen" /> Lançar notas</NavLink>
                     <NavLink class="nav-link" href="/alunos" @onclick="CloseMenu"><Icon Name="cap" /> Alunos</NavLink>
                 </div>
+                <div class="nav-group">
+                    <span>Avaliações</span>
+                    <NavLink class="nav-link" href="/avaliacoes" @onclick="CloseMenu"><Icon Name="clipboard" /> Provas e simulados</NavLink>
+                    <NavLink class="nav-link" href="/banco-questoes" @onclick="CloseMenu"><Icon Name="sparkles" /> Banco de questões</NavLink>
+                    <NavLink class="nav-link" href="/praticar" @onclick="CloseMenu"><Icon Name="zap" /> Ver como aluno</NavLink>
+                </div>
             }
             else if (Session.User?.Role == UserRole.Aluno)
             {
                 <div class="nav-group">
                     <span>Estudante</span>
                     <NavLink class="nav-link" href="/aluno" Match="NavLinkMatch.All" @onclick="CloseMenu"><Icon Name="dashboard" /> Meu painel</NavLink>
+                    <NavLink class="nav-link" href="/aluno/notas" @onclick="CloseMenu"><Icon Name="chart" /> Minhas notas</NavLink>
+                    <NavLink class="nav-link" href="/praticar" @onclick="CloseMenu"><Icon Name="zap" /> Praticar questões</NavLink>
                 </div>
             }
             else
@@ -60,7 +86,7 @@
 
             <div class="sidebar-foot">
                 <div class="who">
-                    <div class="avatar">@UiFormat.Initials(Session.User?.Name)</div>
+                    <AvatarImage UserId="Session.User!.Id" Name="@Session.User.Name" Stamp="Session.AvatarStamp" />
                     <div>
                         <strong>@Session.User?.Name</strong>
                         <small>@(Session.User is null ? "" : UiFormat.RoleLabel(Session.User.Role))</small>
@@ -80,18 +106,34 @@
                 <label for="menu-toggle" class="menu-burger" aria-label="Abrir menu"><Icon Name="menu" Size="22" /></label>
                 <div class="hello">
                     @UiFormat.LongDate(DateTime.Now)
-                    <b>Olá, @UiFormat.FirstName(Session.User?.Name)</b>
+                    <b>@UiTheme.Greeting(Session.User?.Role, UiFormat.FirstName(Session.User?.Name))</b>
                 </div>
             </div>
             <div class="topbar-right">
                 @if (Session.User is not null)
                 {
-                    <span class="badge-role">@UiFormat.RoleLabel(Session.User.Role)</span>
+                    @* NOVO: só o Admin vê este seletor: ele pode "ver como" qualquer prédio para conferir o tema. *@
+                    @if (Session.User.Role == UserRole.Admin && Session.AllUnits.Count > 0)
+                    {
+                        <select class="unit-switch" aria-label="Ver como prédio ou curso" @onchange="OnThemeUnit">
+                            <option value="" selected="@(Session.ThemeChoice == "")">Visão da rede</option>
+                            @foreach (var u in Session.AllUnits)
+                            {
+                                <option value="unit:@u.Id" selected="@(Session.ThemeChoice == "unit:" + u.Id)">@u.Name</option>
+                            }
+                            <option value="course:medicina" selected="@Session.ThemeOverrideCourse">Perfil: Curso de Medicina</option>
+                        </select>
+                    }
+                    <span class="badge-role role-chip">
+                        <Icon Name="@UiTheme.RoleIcon(Session.User.Role)" Size="14" />
+                        @UiFormat.RoleLabel(Session.User.Role)@(string.IsNullOrEmpty(Session.ThemeShort) ? "" : " · " + Session.ThemeShort)
+                    </span>
+                    <a href="/conta" aria-label="Minha conta"><AvatarImage UserId="Session.User.Id" Name="@Session.User.Name" Class="sm" Stamp="Session.AvatarStamp" /></a>
                 }
             </div>
         </header>
         <div class="page">@Body</div>
-        <footer class="page-foot">EduAssess · Plataforma de gestão acadêmica</footer>
+        <footer class="page-foot">Faculdade Luciano Feijão@(Session.ThemeKey == "rede" ? "" : " · " + Session.ThemeLabel) · EduAssess</footer>
     </div>
 </div>
 
@@ -101,6 +143,8 @@
 
     protected override async Task OnInitializedAsync()
     {
+        // Quando a foto de perfil muda (tela "Minha conta"), redesenha o menu e o topo na hora.
+        Session.Changed += OnSessionChanged;
         await Session.InitializeAsync();
         if (Session.User is not null)
             homePath = UiFormat.HomePath(Session.User.Role);
@@ -109,4 +153,11 @@
     private void OnMenuChanged(ChangeEventArgs e) => menuOpen = e.Value is true;
 
     private void CloseMenu() => menuOpen = false;
+
+    // NOVO: o Admin escolhe "ver como" um prédio ou o perfil do curso de Medicina; o tema muda na hora.
+    private void OnThemeUnit(ChangeEventArgs e) => Session.SetThemeChoice(e.Value?.ToString());
+
+    private void OnSessionChanged() => _ = InvokeAsync(StateHasChanged);
+
+    public void Dispose() => Session.Changed -= OnSessionChanged;
 }

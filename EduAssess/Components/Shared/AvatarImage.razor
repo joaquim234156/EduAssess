@@ -1,0 +1,31 @@
+@inject ImageStorageService Images
+
+@* Mostra a foto de perfil (o "ícone" nítido de 256 px) ou, se a pessoa não enviou foto, as iniciais.
+   "Stamp" muda quando a foto é trocada: é ele que força o navegador a baixar a imagem nova. *@
+@if (hasPhoto)
+{
+    <img class="avatar avatar-img @Class" src="/ui/avatar/@UserId?t=@(Full ? "full" : "thumb")&v=@version" alt="Foto de @Name" />
+}
+else
+{
+    <div class="avatar @Class" title="@Name">@UiFormat.Initials(Name)</div>
+}
+
+@code {
+    [Parameter, EditorRequired] public Guid UserId { get; set; }
+    [Parameter] public string? Name { get; set; }
+    /// <summary>Tamanho: sm, lg ou xl (vazio = padrão de 40 px).</summary>
+    [Parameter] public string? Class { get; set; }
+    /// <summary>true = versão "full" (até 1024 px), para fotos grandes na tela.</summary>
+    [Parameter] public bool Full { get; set; }
+    [Parameter] public long Stamp { get; set; }
+
+    private bool hasPhoto;
+    private long version;
+
+    protected override void OnParametersSet()
+    {
+        version = Images.Version(UserId);
+        hasPhoto = version != 0;
+    }
+}

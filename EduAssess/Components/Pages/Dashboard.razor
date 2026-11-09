@@ -24,9 +24,10 @@ else if (summary is null)
 }
 else
 {
-    <PageHeader Eyebrow="Painel da gestão" Title="Visão geral" Subtitle="Indicadores da instituição, atualizados no momento em que cada dado é lançado.">
+    @* ALTERADO: o cabeçalho agora é o RoleHero, que muda de visual conforme o perfil e o prédio da pessoa. *@
+    <RoleHero Title="Visão geral" Subtitle="Indicadores da instituição, atualizados no momento em que cada dado é lançado.">
         <a class="btn btn-primary" href="/matriculas"><Icon Name="plus" Size="18" /> Nova matrícula</a>
-    </PageHeader>
+    </RoleHero>
 
     <div class="stats-grid">
         <div class="stat"><div class="ico"><Icon Name="book" Size="22" /></div><strong>@summary.CourseCount</strong><div class="label">Cursos ativos</div><small>@summary.ClassCount turmas em andamento</small></div>
