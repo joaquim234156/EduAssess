@@ -63,5 +63,20 @@ public static class UiFormat
         return char.ToUpper(text[0], PtBr) + text[1..];
     }
 
+    /// <summary>Tamanho de arquivo legível: 3,2 MB, 96 KB...</summary>
+    public static string Bytes(long bytes) => bytes switch
+    {
+        >= 1024 * 1024 => (bytes / 1024d / 1024d).ToString("0.#", PtBr) + " MB",
+        >= 1024 => (bytes / 1024d).ToString("0", PtBr) + " KB",
+        _ => bytes + " B"
+    };
+
+    public static string DifficultyLabel(DificuldadeQuestao d) => d switch
+    {
+        DificuldadeQuestao.Facil => "Fácil",
+        DificuldadeQuestao.Media => "Média",
+        _ => "Difícil"
+    };
+
     public static string Digits(string? value) => new((value ?? "").Where(char.IsDigit).ToArray());
 }

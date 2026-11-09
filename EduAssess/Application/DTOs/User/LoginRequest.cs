@@ -1,6 +1,6 @@
 ﻿using System.ComponentModel.DataAnnotations;
 
-namespace EduAssess.EduAssess.Aplication.DTOs.User
+namespace EduAssess.Application.DTOs.User
 {
     public record LoginRequest(
         [Required(ErrorMessage = "O Email é obrigatório.")]

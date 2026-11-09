@@ -1,0 +1,32 @@
+@* Janela sobreposta reutilizável. A página dona controla "Open" e fecha quando OnClose é chamado.
+   Clicar fora da janela também fecha. *@
+@if (Open)
+{
+    <div class="modal-scrim" @onclick="Close"></div>
+    <div class="modal @(Wide ? "wide" : "")" role="dialog" aria-modal="true" aria-label="@Title">
+        <header class="modal-head">
+            <div>
+                @if (!string.IsNullOrWhiteSpace(Eyebrow)) { <small>@Eyebrow</small> }
+                <h2>@Title</h2>
+            </div>
+            <button type="button" class="modal-x" aria-label="Fechar" @onclick="Close"><Icon Name="x" Size="20" /></button>
+        </header>
+        <div class="modal-body">@ChildContent</div>
+        @if (Footer is not null)
+        {
+            <footer class="modal-foot">@Footer</footer>
+        }
+    </div>
+}
+
+@code {
+    [Parameter] public bool Open { get; set; }
+    [Parameter] public string Title { get; set; } = "";
+    [Parameter] public string? Eyebrow { get; set; }
+    [Parameter] public bool Wide { get; set; }
+    [Parameter] public EventCallback OnClose { get; set; }
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+    [Parameter] public RenderFragment? Footer { get; set; }
+
+    private Task Close() => OnClose.InvokeAsync();
+}

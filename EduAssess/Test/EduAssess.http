@@ -1,0 +1,94 @@
+@baseUrl = http://localhost:5062
+# Cole aqui o token devolvido por POST /auth/login (ou use variáveis do REST Client).
+@adminToken = COLE_O_TOKEN_AQUI
+@gestorToken = COLE_O_TOKEN_AQUI
+@professorToken = COLE_O_TOKEN_AQUI
+@accountId = ID_DA_CONTA
+
+### Login (conta de desenvolvimento criada na primeira execução)
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "admin@eduassess.local",
+  "password": "Admin@12345!"
+}
+
+### Cadastro público: sempre cria uma conta sem privilégios (perfil User)
+POST {{baseUrl}}/auth/register
+Content-Type: application/json
+
+{
+  "name": "Pessoa de Teste",
+  "email": "pessoa.teste@example.com",
+  "cpf": "12345678901",
+  "tel": "11987654321",
+  "dataNascimento": "2000-01-01",
+  "password": "SenhaSegura123",
+  "confirmPassword": "SenhaSegura123"
+}
+
+### Admin cria um gestor
+POST {{baseUrl}}/auth/users/managers
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "name": "Gestor de Teste",
+  "email": "gestor.teste@example.com",
+  "cpf": "12345678902",
+  "tel": "11987654322",
+  "dataNascimento": "1985-01-01",
+  "password": "SenhaSegura123",
+  "confirmPassword": "SenhaSegura123"
+}
+
+### Gestor cria um professor
+POST {{baseUrl}}/auth/users/professors
+Authorization: Bearer {{gestorToken}}
+Content-Type: application/json
+
+{
+  "name": "Professor de Teste",
+  "email": "professor.teste@example.com",
+  "cpf": "12345678903",
+  "tel": "11987654323",
+  "dataNascimento": "1980-01-01",
+  "password": "SenhaSegura123",
+  "confirmPassword": "SenhaSegura123"
+}
+
+### Admin, Gestor ou Professor lista contas aguardando perfil de aluno
+GET {{baseUrl}}/auth/users/pending-students
+Authorization: Bearer {{professorToken}}
+
+### Admin, Gestor ou Professor atribui o perfil de aluno
+POST {{baseUrl}}/auth/users/{{accountId}}/assign-student
+Authorization: Bearer {{professorToken}}
+
+### Gestão: cria um curso
+POST {{baseUrl}}/cursos/create
+Authorization: Bearer {{gestorToken}}
+Content-Type: application/json
+
+{
+  "nome": "Pedagogia",
+  "duracaoEmAnos": 4,
+  "descricao": "Formação de professores."
+}
+
+### Gestão: lista cursos
+GET {{baseUrl}}/cursos/list
+Authorization: Bearer {{gestorToken}}
+
+### Gestão: lista turmas
+GET {{baseUrl}}/turmas/list
+Authorization: Bearer {{gestorToken}}
+
+### Qualquer usuário autenticado: lista disciplinas
+GET {{baseUrl}}/disciplina/list
+Authorization: Bearer {{professorToken}}
+
+### Aluno (ou qualquer usuário) consulta as próprias notas
+GET {{baseUrl}}/notas/minhas
+Authorization: Bearer {{professorToken}}

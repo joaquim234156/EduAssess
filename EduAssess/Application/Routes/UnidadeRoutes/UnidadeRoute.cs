@@ -1,26 +1,26 @@
-﻿using EduAssess.Application.DTOs.Nota;
 using EduAssess.Application.DTOs.Unidade;
 using EduAssess.Application.Interfaces;
 using EduAssess.Models.Global;
-using System.Security.Claims;
 
 namespace EduAssess.Application.Routes.UnidadeRoutes
 {
     public static class UnidadeRoute
     {
+        // CORREÇÕES desta versão:
+        //  1) Segurança: só o "register" exigia login; listar, buscar, EXCLUIR e reativar aceitavam
+        //     qualquer pessoa sem login. Agora leituras exigem login e alterações exigem a Gestão.
+        //  2) "atualizar" exigia a policy "Professor" (um professor não deveria editar prédios): agora "Gestao".
+        //  3) "register" comparava o ID do usuário com o ID da instituição (nunca fazia sentido); removido.
+        //  4) Erros de regra (não achou, nome repetido, unidade com gente) viram 404/409 em vez de 500.
         public static void UnidadeRoutes(this WebApplication app)
         {
             var route = app.MapGroup("/unidades").WithTags("Unidade");
 
-            route.MapPost("register", async (UnidadeRequest req, IUnidadeService unidadeService, ClaimsPrincipal principal) =>
+            route.MapPost("register", async (UnidadeRequest req, IUnidadeService unidadeService) =>
             {
                 if (!MiniValidation.MiniValidator.TryValidate(req, out var errors))
                     return Results.BadRequest(errors);
-                var currentUserIdStr = principal.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-                if (principal.IsInRole("Professor") && currentUserIdStr != req.IdInstituicao.ToString())
-                {
-                    return Results.Forbid();
-                }
+
                 try
                 {
                     var resultado = await unidadeService.CriarUnidadeAsync(req);
@@ -30,53 +30,55 @@ namespace EduAssess.Application.Routes.UnidadeRoutes
                         unidade = resultado
                     });
                 }
-                catch (KeyNotFoundException ex)
-                {
-                    return Results.NotFound(new { message = ex.Message });
-                }
-                catch (ArgumentException ex)
-                {
-                    return Results.BadRequest(new { message = ex.Message });
-                }
+                catch (KeyNotFoundException ex) { return Results.NotFound(new { message = ex.Message }); }
+                catch (ArgumentException ex) { return Results.Conflict(new { message = ex.Message }); }
             }).RequireAuthorization("Gestao");
 
             route.MapGet("list", async (IUnidadeService unidadeService) =>
-            {
-                var unidades = await unidadeService.ListarUnidadesAsync();
-                return Results.Ok(unidades);
-            });
+                Results.Ok(await unidadeService.ListarUnidadesAsync())).RequireAuthorization("Gestao");
 
             route.MapGet("list/ativos", async (IUnidadeService unidadeService) =>
-            {
-                var unidades = await unidadeService.ListarUnidadesAtivasAsync();
-                return Results.Ok(unidades);
-            });
+                Results.Ok(await unidadeService.ListarUnidadesAtivasAsync())).RequireAuthorization();
+
+            route.MapGet("list/inativos", async (IUnidadeService unidadeService) =>
+                Results.Ok(await unidadeService.ListarUnidadesInativasAsync())).RequireAuthorization("Gestao");
 
             route.MapGet("{id:guid}", async (Guid id, IUnidadeService unidadeService) =>
             {
-                var unidade = await unidadeService.ObterUnidadePorIdAsync(id);
-                if (unidade == null)
+                try
+                {
+                    return Results.Ok(await unidadeService.ObterUnidadePorIdAsync(id));
+                }
+                catch (KeyNotFoundException)
                 {
                     return Results.NotFound(new { message = "Unidade não encontrada." });
                 }
-                return Results.Ok(unidade);
-            });
+            }).RequireAuthorization();
 
-            route.MapDelete("{id:guid}", async (Guid id, IUnidadeService unidadeService) =>
+            route.MapGet("list/instituicao/{instituicaoId:guid}", async (Guid instituicaoId, IUnidadeService unidadeService) =>
+                Results.Ok(await unidadeService.ListarUnidadesPorInstituicaoAsync(instituicaoId))).RequireAuthorization();
+
+            route.MapGet("list/tipo/{tipo}", async (TipoUnidade tipo, IUnidadeService unidadeService) =>
+                Results.Ok(await unidadeService.ListarUnidadesPorTipoAsync(tipo))).RequireAuthorization();
+
+            route.MapGet("list/instituicao/{instituicaoId:guid}/tipo/{tipo}", async (Guid instituicaoId, TipoUnidade tipo, IUnidadeService unidadeService) =>
+                Results.Ok(await unidadeService.ListarUnidadesPorInstituicaoETipoAsync(instituicaoId, tipo))).RequireAuthorization();
+
+            route.MapPut("atualizar/{id:guid}", async (Guid id, UnidadeRequestPut req, IUnidadeService unidadeService) =>
             {
-                var result = await unidadeService.DeletarUnidadeAsync(id);
-                if (!result)
+                if (!MiniValidation.MiniValidator.TryValidate(req, out var errors))
+                    return Results.BadRequest(errors);
+
+                try
+                {
+                    return Results.Ok(await unidadeService.AtualizarUnidadeAsync(id, req));
+                }
+                catch (KeyNotFoundException)
                 {
                     return Results.NotFound(new { message = "Unidade não encontrada." });
                 }
-                return Results.Ok(new { message = "Unidade deletada com sucesso." });
-            });
-
-            route.MapGet("list/inativos", async (IUnidadeService unidadeService) =>
-            {
-                var unidades = await unidadeService.ListarUnidadesInativasAsync();
-                return Results.Ok(unidades);
-            });
+                catch (ArgumentException ex) { return Results.Conflict(new { message = ex.Message }); }
+            }).RequireAuthorization("Gestao");
 
             route.MapPut("{id:guid}/ativar", async (Guid id, IUnidadeService unidadeService) =>
             {
@@ -86,33 +88,21 @@ namespace EduAssess.Application.Routes.UnidadeRoutes
                     return Results.NotFound(new { message = "Unidade não encontrada." });
                 }
                 return Results.Ok(new { message = "Unidade ativada com sucesso." });
-            });
+            }).RequireAuthorization("Gestao");
 
-            route.MapGet("list/instituicao/{instituicaoId:guid}", async (Guid instituicaoId, IUnidadeService unidadeService) =>
+            route.MapDelete("{id:guid}", async (Guid id, IUnidadeService unidadeService) =>
             {
-                var unidades = await unidadeService.ListarUnidadesPorInstituicaoAsync(instituicaoId);
-                return Results.Ok(unidades);
-            });
-
-            route.MapGet("list/tipo/{tipo}", async (TipoUnidade tipo, IUnidadeService unidadeService) =>
-            {
-                var unidades = await unidadeService.ListarUnidadesPorTipoAsync(tipo);
-                return Results.Ok(unidades);
-            });
-
-            route.MapGet("list/instituicao/{instituicaoId:guid}/tipo/{tipo}", async (Guid instituicaoId, TipoUnidade tipo, IUnidadeService unidadeService) =>
-            {
-                var unidades = await unidadeService.ListarUnidadesPorInstituicaoETipoAsync(instituicaoId, tipo);
-                return Results.Ok(unidades);
-            });
-
-            route.MapPut("atualizar/{id:guid}", async (Guid id, UnidadeRequestPut req, IUnidadeService unidadeService) =>
-            {
-                if (!MiniValidation.MiniValidator.TryValidate(req, out var errors))
-                    return Results.BadRequest(errors);
-                var unidadeAtualizada = await unidadeService.AtualizarUnidadeAsync(id, req);
-                return Results.Ok(unidadeAtualizada);
-            }).RequireAuthorization("Professor");
+                try
+                {
+                    await unidadeService.DeletarUnidadeAsync(id);
+                    return Results.Ok(new { message = "Unidade deletada com sucesso." });
+                }
+                catch (KeyNotFoundException)
+                {
+                    return Results.NotFound(new { message = "Unidade não encontrada." });
+                }
+                catch (InvalidOperationException ex) { return Results.Conflict(new { message = ex.Message }); }
+            }).RequireAuthorization("Gestao");
         }
     }
 }

@@ -1,0 +1,370 @@
+@page "/praticar"
+@using System.Globalization
+@using global::EduAssess.Models.Local
+@layout AppLayout
+@attribute [Authorize]
+@inject QuestaoWebService Questions
+@inject AvaliacaoWebService Exams
+
+<PageTitle>Praticar questões | Faculdade Luciano Feijão</PageTitle>
+
+@if (step == Step.Pick)
+{
+    <PageHeader Eyebrow="Treino" Title="Praticar questões" Subtitle="Escolha uma disciplina, responda e veja a explicação na hora. Nada aqui vale nota: é só para você treinar." />
+    <Feedback Message="@message" IsError="true" />
+
+    @* ───────────── Provas e simulados aplicados pelos professores ───────────── *@
+    <section class="practice-exams">
+        <div class="sec-head"><h2>Provas e simulados</h2><small>Aplicados pelos seus professores. Aqui não vale nota: é treino.</small></div>
+
+        <form class="code-box" @onsubmit="OpenByCodeAsync" @onsubmit:preventDefault="true">
+            <Icon Name="hash" Size="18" />
+            <input class="input" placeholder="Tenho um código (ex.: PSI-26-10-9GN)" @bind="codeInput" @bind:event="oninput" maxlength="20" aria-label="Código da avaliação" />
+            <button type="submit" class="btn btn-primary" disabled="@starting">Abrir</button>
+        </form>
+
+        @if (applied.Count > 0)
+        {
+            <div class="exam-grid compact">
+                @{ var e = 0; }
+                @foreach (var x in applied)
+                {
+                    e++;
+                    var exam = x;
+                    <article class="exam-card applied reveal" style="--i:@(Math.Min(e, 6))">
+                        <div class="exam-inst"><Icon Name="building" Size="14" /> FACULDADE LUCIANO FEIJÃO</div>
+                        <h3>@exam.Title - @(exam.Type == TipoAvaliacao.Simulado ? "simulado" : "prova")</h3>
+                        <div class="exam-badges">
+                            <span class="mini-badge green"><Icon Name="check-circle" Size="12" /> @exam.QuestionCount qtd</span>
+                            <span class="mini-badge"><Icon Name="book" Size="12" /> @exam.DisciplineName</span>
+                        </div>
+                        <dl class="exam-meta">
+                            <div><dt><Icon Name="user" Size="14" /> Autor</dt><dd>@exam.AuthorName</dd></div>
+                            <div><dt><Icon Name="hash" Size="14" /> ID</dt><dd>@exam.Code</dd></div>
+                        </dl>
+                        <div class="exam-actions">
+                            <button type="button" class="btn btn-primary btn-sm" disabled="@starting" @onclick="() => StartExamAsync(exam)"><Icon Name="play" Size="16" /> Responder</button>
+                        </div>
+                    </article>
+                }
+            </div>
+        }
+        else
+        {
+            <p class="muted-line">Nenhuma avaliação aplicada no momento.</p>
+        }
+    </section>
+
+    <div class="sec-head"><h2>Treino livre por disciplina</h2><small>Questões sorteadas do banco.</small></div>
+
+    @if (disciplines is null)
+    {
+        <div class="loading"><span class="spinner"></span> Carregando disciplinas…</div>
+    }
+    else if (disciplines.Count == 0)
+    {
+        <div class="card"><EmptyState IconName="brain" Title="Ainda não há questões para treino livre" Text="Quando os professores cadastrarem questões, elas aparecem aqui." /></div>
+    }
+    else
+    {
+        <div class="pick-grid">
+            @{ var i = 0; }
+            @foreach (var d in disciplines)
+            {
+                i++;
+                var item = d;
+                <button type="button" class="pick-card @(chosen?.Id == item.Id ? "on" : "") reveal" style="--i:@i" @onclick="() => Choose(item)" aria-pressed="@(chosen?.Id == item.Id ? "true" : "false")">
+                    <span class="pick-ico"><Icon Name="@(chosen?.Id == item.Id ? "check-circle" : "book")" Size="24" /></span>
+                    <strong>@item.Name</strong>
+                    <small>Prof. @item.TeacherName</small>
+                    <span class="pick-count">@item.Total @(item.Total == 1 ? "questão" : "questões")</span>
+                </button>
+            }
+        </div>
+
+        @if (chosen is not null)
+        {
+            var available = Available(chosen, difficulty);
+            <section class="card setup reveal">
+                <div class="setup-row">
+                    <div>
+                        <label class="label">Dificuldade</label>
+                        <div class="seg">
+                            <button type="button" class="@(difficulty is null ? "on" : "")" @onclick="() => SetDifficulty(null)">Todas</button>
+                            <button type="button" class="@(difficulty == DificuldadeQuestao.Facil ? "on" : "")" disabled="@(chosen.Easy == 0)" @onclick="() => SetDifficulty(DificuldadeQuestao.Facil)">Fácil <small>@chosen.Easy</small></button>
+                            <button type="button" class="@(difficulty == DificuldadeQuestao.Media ? "on" : "")" disabled="@(chosen.Medium == 0)" @onclick="() => SetDifficulty(DificuldadeQuestao.Media)">Média <small>@chosen.Medium</small></button>
+                            <button type="button" class="@(difficulty == DificuldadeQuestao.Dificil ? "on" : "")" disabled="@(chosen.Hard == 0)" @onclick="() => SetDifficulty(DificuldadeQuestao.Dificil)">Difícil <small>@chosen.Hard</small></button>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="label">Quantas questões?</label>
+                        <div class="seg">
+                            @foreach (var q in new[] { 5, 10, 15 })
+                            {
+                                var amount = q;
+                                <button type="button" class="@(quantity == amount ? "on" : "")" @onclick="() => quantity = amount">@amount</button>
+                            }
+                        </div>
+                    </div>
+                    <button type="button" class="btn btn-primary btn-lg" disabled="@(starting || available == 0)" @onclick="StartAsync">
+                        <Icon Name="zap" Size="20" /> Começar (@Math.Min(quantity, available))
+                    </button>
+                </div>
+            </section>
+        }
+    }
+}
+else if (step == Step.Quiz)
+{
+    var question = set[current];
+    var answered = picks[current] >= 0;
+    var progress = ((current + (answered ? 1 : 0)) * 100d / set.Count).ToString("0.##", CultureInfo.InvariantCulture);
+
+    <div class="quiz">
+        <div class="quiz-top">
+            <button type="button" class="btn-text" @onclick="Quit"><Icon Name="arrow-left" Size="16" /> Sair</button>
+            <div class="quiz-progress" role="progressbar" aria-valuemin="0" aria-valuemax="@set.Count" aria-valuenow="@(current + (answered ? 1 : 0))"><span style="width:@progress%"></span></div>
+            <span class="quiz-count">@(current + 1)/@set.Count</span>
+            <span class="streak @(streak >= 2 ? "hot" : "")" title="Acertos seguidos"><Icon Name="flame" Size="18" /> @streak</span>
+        </div>
+
+        <article class="q-card" @key="question.Id">
+            <div class="q-meta">
+                <span class="badge badge-violet">@sessionLabel</span>
+                <span class="badge badge-gray">@question.Topic</span>
+                <span class="badge @DifficultyBadge(question.Difficulty)">@UiFormat.DifficultyLabel(question.Difficulty)</span>
+            </div>
+            <h2 class="q-statement">@question.Statement</h2>
+
+            <div class="opts">
+                @for (var k = 0; k < question.Alternatives.Count; k++)
+                {
+                    var index = k;
+                    var state = !answered ? "" :
+                        index == question.CorrectIndex ? "correct" :
+                        index == picks[current] ? "wrong" : "dim";
+                    <button type="button" class="opt @state" disabled="@answered" @onclick="() => Answer(index)">
+                        <span class="opt-letter">@Letter(index)</span>
+                        <span class="opt-text">@question.Alternatives[index]</span>
+                        @if (state == "correct") { <Icon Name="check-circle" Size="20" Class="opt-mark" /> }
+                        @if (state == "wrong") { <Icon Name="x" Size="20" Class="opt-mark" /> }
+                    </button>
+                }
+            </div>
+
+            @if (answered)
+            {
+                var hit = picks[current] == question.CorrectIndex;
+                <div class="explain @(hit ? "hit" : "miss")">
+                    <strong>@(hit ? (streak >= 3 ? $"Isso aí! {streak} acertos seguidos." : "Resposta certa!") : $"Não foi dessa vez. A correta é a alternativa {Letter(question.CorrectIndex)}.")</strong>
+                    <p>@question.Explanation</p>
+                </div>
+                <div class="quiz-actions">
+                    <button type="button" class="btn btn-primary btn-lg" @onclick="Next">
+                        @(current + 1 < set.Count ? "Próxima questão" : "Ver meu resultado") <Icon Name="arrow-right" Size="18" />
+                    </button>
+                </div>
+            }
+        </article>
+    </div>
+}
+else
+{
+    var score = Score();
+    var percent = set.Count == 0 ? 0 : (int)Math.Round(score * 100d / set.Count);
+    var wrong = set.Select((q, idx) => (q, idx)).Where(x => picks[x.idx] != x.q.CorrectIndex).ToList();
+
+    <div class="result reveal">
+        <div class="result-ring" style="--p:@percent" role="img" aria-label="@percent% de acertos">
+            <div class="ring-inner"><b>@percent%</b><small>de acertos</small></div>
+        </div>
+        <div class="result-main">
+            <span class="result-ico"><Icon Name="@(percent >= 70 ? "trophy" : "target")" Size="28" /></span>
+            <h1>@ResultTitle(percent)</h1>
+            <p>Você acertou <b>@score</b> de <b>@set.Count</b> questões em @sessionLabel. Maior sequência de acertos: <b>@bestStreak</b>.</p>
+            <div class="result-actions">
+                <button type="button" class="btn btn-primary btn-lg" disabled="@starting" @onclick="RestartAsync"><Icon Name="refresh" Size="18" /> Treinar de novo</button>
+                <button type="button" class="btn btn-ghost btn-lg" @onclick="Quit">Trocar de disciplina</button>
+            </div>
+        </div>
+    </div>
+
+    @if (wrong.Count > 0)
+    {
+        <div class="sec-head"><h2>Para revisar</h2><small>As questões que você errou, com a explicação.</small></div>
+        <div class="review-list">
+            @foreach (var (q, idx) in wrong)
+            {
+                <article class="review-item">
+                    <strong>@q.Statement</strong>
+                    <p class="rv-you"><Icon Name="x" Size="16" /> Você marcou: @q.Alternatives[picks[idx]]</p>
+                    <p class="rv-right"><Icon Name="check-circle" Size="16" /> Correta: @q.Alternatives[q.CorrectIndex]</p>
+                    <small>@q.Explanation</small>
+                </article>
+            }
+        </div>
+    }
+}
+
+@code {
+    private enum Step { Pick, Quiz, Result }
+
+    [SupplyParameterFromQuery(Name = "codigo")] public string? Code { get; set; }
+
+    private Step step = Step.Pick;
+    private List<PracticeExam> applied = new();
+    private PracticeExam? currentExam;
+    private string sessionLabel = "";
+    private string codeInput = "";
+    private List<PracticeDiscipline>? disciplines;
+    private PracticeDiscipline? chosen;
+    private DificuldadeQuestao? difficulty;
+    private int quantity = 10;
+    private bool starting;
+    private string? message;
+
+    private List<PracticeQuestion> set = new();
+    private int[] picks = Array.Empty<int>();   // -1 = ainda não respondeu
+    private int current, streak, bestStreak;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            disciplines = await Questions.GetPracticeDisciplinesAsync();
+            applied = await Exams.GetAppliedAsync();
+
+            // Link compartilhado pelo professor (/praticar?codigo=XXX): abre a avaliação direto.
+            if (!string.IsNullOrWhiteSpace(Code))
+            {
+                codeInput = Code.Trim();
+                await OpenByCodeAsync();
+            }
+        }
+        catch (UnauthorizedAccessException ex) { message = ex.Message; disciplines ??= new(); }
+    }
+
+    private async Task OpenByCodeAsync()
+    {
+        message = null;
+        var found = await Exams.FindAppliedByCodeAsync(codeInput);
+        if (found is null)
+        {
+            message = "Não encontrei uma avaliação aplicada com esse código. Confira o código com seu professor.";
+            return;
+        }
+        await StartExamAsync(found);
+    }
+
+    private async Task StartExamAsync(PracticeExam exam)
+    {
+        starting = true;
+        message = null;
+        try
+        {
+            set = await Exams.BuildExamAsync(exam.Id);
+            if (set.Count == 0)
+            {
+                message = "Essa avaliação ainda não tem questões disponíveis.";
+                return;
+            }
+            currentExam = exam;
+            sessionLabel = exam.Title + " - " + (exam.Type == TipoAvaliacao.Simulado ? "simulado" : "prova");
+            picks = Enumerable.Repeat(-1, set.Count).ToArray();
+            current = 0; streak = 0; bestStreak = 0;
+            step = Step.Quiz;
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or UnauthorizedAccessException) { message = ex.Message; }
+        finally { starting = false; }
+    }
+
+    private Task RestartAsync() => currentExam is null ? StartAsync() : StartExamAsync(currentExam);
+
+    private void Choose(PracticeDiscipline discipline)
+    {
+        chosen = discipline;
+        difficulty = null;
+        message = null;
+    }
+
+    private void SetDifficulty(DificuldadeQuestao? level) => difficulty = level;
+
+    private static int Available(PracticeDiscipline d, DificuldadeQuestao? level) => level switch
+    {
+        DificuldadeQuestao.Facil => d.Easy,
+        DificuldadeQuestao.Media => d.Medium,
+        DificuldadeQuestao.Dificil => d.Hard,
+        _ => d.Total
+    };
+
+    private async Task StartAsync()
+    {
+        if (chosen is null) return;
+        starting = true;
+        message = null;
+        try
+        {
+            set = await Questions.BuildPracticeAsync(chosen.Id, difficulty, quantity);
+            if (set.Count == 0)
+            {
+                message = "Não encontrei questões com esses filtros. Tente outra dificuldade.";
+                step = Step.Pick;
+                return;
+            }
+            currentExam = null;
+            sessionLabel = chosen.Name;
+            picks = Enumerable.Repeat(-1, set.Count).ToArray();
+            current = 0; streak = 0; bestStreak = 0;
+            step = Step.Quiz;
+        }
+        catch (UnauthorizedAccessException ex) { message = ex.Message; }
+        finally { starting = false; }
+    }
+
+    private void Answer(int index)
+    {
+        if (picks[current] >= 0) return;
+        picks[current] = index;
+        if (index == set[current].CorrectIndex)
+        {
+            streak++;
+            bestStreak = Math.Max(bestStreak, streak);
+        }
+        else
+        {
+            streak = 0;
+        }
+    }
+
+    private void Next()
+    {
+        if (current + 1 < set.Count) current++;
+        else step = Step.Result;
+    }
+
+    private void Quit()
+    {
+        step = Step.Pick;
+        set = new();
+    }
+
+    private int Score() => set.Where((q, idx) => picks[idx] == q.CorrectIndex).Count();
+
+    private static string Letter(int index) => "ABCDE"[index].ToString();
+
+    private static string ResultTitle(int percent) => percent switch
+    {
+        100 => "Perfeito! Gabaritou!",
+        >= 80 => "Mandou muito bem!",
+        >= 60 => "Bom resultado!",
+        >= 40 => "Quase lá, continue treinando",
+        _ => "Vamos treinar mais um pouco"
+    };
+
+    private static string DifficultyBadge(DificuldadeQuestao d) => d switch
+    {
+        DificuldadeQuestao.Facil => "badge-green",
+        DificuldadeQuestao.Media => "badge-amber",
+        _ => "badge-red"
+    };
+}

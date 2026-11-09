@@ -189,6 +189,21 @@ builder.Services.AddScoped<IInstituicaoService, InstituicaoService>();
 builder.Services.AddScoped<IUsuarioInstituicaoService, UsuarioInstituicaoService>();
 builder.Services.AddScoped<ITurmaService, TurmaService>();
 
+// ALTERADO (questões com IA): o IaQuestaoService nunca tinha sido registrado, então qualquer
+// rota que pedisse IIaQuestaoService falharia. AddHttpClient entrega um HttpClient já gerenciado
+// para ele; o timeout evita travar o painel se o Gemini demorar demais.
+builder.Services.AddHttpClient<IIaQuestaoService, IaQuestaoService>(client =>
+{
+    client.Timeout = TimeSpan.FromSeconds(60);
+});
+
+// NOVO: serviços usados pelas telas Blazor (banco de questões do professor e prática do aluno)
+// e armazenamento das fotos de perfil (com compressão).
+builder.Services.AddScoped<QuestaoWebService>();
+builder.Services.AddScoped<AvaliacaoWebService>();
+builder.Services.AddScoped<InstitutionWebService>();   // NOVO: tela "Instituição e unidades" (reaproveita as regras da API)   // provas e simulados (cartões de avaliações)
+builder.Services.AddSingleton<ImageStorageService>();
+
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {
@@ -270,7 +285,10 @@ app.MatriculaRoutes();
 app.TurmaRoutes();
 app.DisciplinaRoutes();
 app.NotaRoutes();
-app.QuestaoRoutes();
+app.QuestaoRoutes();   // ALTERADO: faltava esta linha, por isso as rotas /questoes/* nem existiam.
+
+// NOVO (Global): Instituição, Unidades (prédios) e vínculo usuário x instituição/unidade.
+// Rotas criadas pela equipe e integradas aqui; veja os comentários em cada arquivo de rota.
 app.InstituicaoRoutes();
 app.UnidadeRoutes();
 app.UsuarioInstituicaoRoutes();
@@ -278,6 +296,28 @@ app.UsuarioInstituicaoRoutes();
 if (appMode != "ApiOnly")
 {
     app.UiAuthRoutes();
+
+    // NOVO: devolve a foto de perfil. Exige login (as fotos não ficam em pasta pública).
+    // A URL sempre leva ?v=<versão>, então o navegador pode guardar a imagem "para sempre"
+    // e só baixa de novo quando a pessoa troca de foto.
+    app.MapGet("/ui/avatar/{id:guid}", (Guid id, string? t, ImageStorageService images, HttpContext http) =>
+    {
+        var path = string.Equals(t, "full", StringComparison.OrdinalIgnoreCase)
+            ? images.FullPath(id)
+            : images.ThumbPath(id);
+
+        if (!File.Exists(path))
+            return Results.NotFound();
+
+        http.Response.Headers.CacheControl = "private, max-age=31536000, immutable";
+        return Results.File(path, "image/webp");
+    })
+    .RequireAuthorization();
+
+    // ALTERADO: antes havia aqui um MapGet("/") que redirecionava para /login. Foi retirado:
+    // agora a própria página de login atende "/" (veja @page "/" em Login.razor). Assim abrir o
+    // site já mostra o login direto, sem depender de redirecionamento nem de cache do navegador.
+
     app.MapRazorComponents<App>()
         .AddInteractiveServerRenderMode();
 }
@@ -290,7 +330,7 @@ app.Run();
 static class ApiPaths
 {
     private static readonly string[] Prefixes =
-        ["/auth", "/cursos", "/turmas", "/matricula", "/disciplina", "/notas", "/swagger"];
+        ["/auth", "/cursos", "/turmas", "/matricula", "/disciplina", "/notas", "/questoes", "/instituicoes", "/unidades", "/usuario-instituicao", "/swagger"];
 
     // Só conta como API quando há um subcaminho (ex.: /cursos/list). Os caminhos exatos /cursos, /turmas e /notas
     // são páginas do painel.

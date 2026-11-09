@@ -1,6 +1,6 @@
 ﻿using System.ComponentModel.DataAnnotations;
 
-namespace EduAssess.EduAssess.Aplication.DTOs.User
+namespace EduAssess.Application.DTOs.User
 {
     public record PasswordRequest(
         [Required(ErrorMessage = "A Senha é obrigatório")]

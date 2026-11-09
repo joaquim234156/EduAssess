@@ -1,0 +1,28 @@
+@inject UiSession Session
+
+@* NOVO: cabeçalho de página com a "cara" de cada perfil e de cada prédio.
+   O fundo, o formato e as cores vêm de temas.css (classes role-* e unit-* do elemento raiz do painel);
+   aqui só montamos o conteúdo: emblema do perfil, etiqueta (perfil · unidade), título, texto e ações.
+   A marca d'água grande é o ícone do prédio (estetoscópio do curso de Medicina, sorriso da Odontologia, prédio...). *@
+<section class="role-hero reveal">
+    <div class="rh-mark" aria-hidden="true"><Icon Name="@UiTheme.KeyIcon(Session.ThemeKey)" Size="150" /></div>
+    <div class="rh-emblem" aria-hidden="true"><Icon Name="@UiTheme.RoleIcon(Session.User?.Role)" Size="30" /></div>
+    <div class="rh-text">
+        <small>@UiTheme.RoleTag(Session.User?.Role) · @Session.ThemeLabel</small>
+        <h1>@Title</h1>
+        @if (!string.IsNullOrWhiteSpace(Subtitle))
+        {
+            <p>@Subtitle</p>
+        }
+    </div>
+    @if (ChildContent is not null)
+    {
+        <div class="rh-actions">@ChildContent</div>
+    }
+</section>
+
+@code {
+    [Parameter, EditorRequired] public string Title { get; set; } = "";
+    [Parameter] public string? Subtitle { get; set; }
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+}

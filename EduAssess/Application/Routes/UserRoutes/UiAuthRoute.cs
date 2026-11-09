@@ -26,9 +26,11 @@ namespace EduAssess.Application.Routes
                 var password = form["password"].ToString();
                 var returnUrl = form["returnUrl"].ToString();
                 var remember = form["remember"].ToString() == "on";
+                // NOVO: prédio escolhido na tela de login; é devolvido na URL de erro para a tela manter as cores dele.
+                var unidade = UiTheme.NormalizeLoginUnit(form["unidade"].ToString());
 
                 if (email.Length == 0 || password.Length == 0 || email.Length > 150 || password.Length > 72)
-                    return Results.Redirect(LoginUrl("campos", email, returnUrl));
+                    return Results.Redirect(LoginUrl("campos", email, returnUrl, unidade));
 
                 await using var db = await dbFactory.CreateDbContextAsync();
                 var user = await db.Users.FirstOrDefaultAsync(u => u.Email.ToLower() == email && u.Ativa);
@@ -36,11 +38,11 @@ namespace EduAssess.Application.Routes
                 if (user is null)
                 {
                     BCrypt.Net.BCrypt.Verify(password, DummyHash);
-                    return Results.Redirect(LoginUrl("credenciais", email, returnUrl));
+                    return Results.Redirect(LoginUrl("credenciais", email, returnUrl, unidade));
                 }
 
                 if (!user.VerifyPassword(password))
-                    return Results.Redirect(LoginUrl("credenciais", email, returnUrl));
+                    return Results.Redirect(LoginUrl("credenciais", email, returnUrl, unidade));
 
                 var identity = new ClaimsIdentity(new[]
                 {
@@ -68,16 +70,17 @@ namespace EduAssess.Application.Routes
             app.MapPost("/ui/logout", async (HttpContext http) =>
             {
                 await http.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
-                return Results.Redirect("/");
+                return Results.Redirect("/login");
             })
             .DisableAntiforgery();
         }
 
-        private static string LoginUrl(string error, string email, string returnUrl)
+        private static string LoginUrl(string error, string email, string returnUrl, string unidade = "principal")
         {
             var url = $"/login?erro={Uri.EscapeDataString(error)}&email={Uri.EscapeDataString(email)}";
             if (IsLocalUrl(returnUrl))
                 url += $"&ReturnUrl={Uri.EscapeDataString(returnUrl)}";
+            url += $"&unidade={Uri.EscapeDataString(unidade)}";
             return url;
         }
 

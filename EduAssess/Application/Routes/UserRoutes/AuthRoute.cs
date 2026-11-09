@@ -1,6 +1,6 @@
 using EduAssess.Data;
-using EduAssess.EduAssess.Aplication.DTOs.User;
-using EduAssess.EduAssess.Aplication.Services;
+using EduAssess.Application.DTOs.User;
+using EduAssess.Application.Services;
 using EduAssess.Models.Local;
 using EduAssess.Web;
 using Microsoft.AspNetCore.Mvc;

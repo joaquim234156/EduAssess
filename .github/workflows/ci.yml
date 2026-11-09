@@ -1,0 +1,104 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+# Permissão mínima: o CI só precisa ler o código.
+permissions:
+  contents: read
+
+# Cancela execuções antigas da mesma branch quando chega um commit novo.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+  PROJECT: EduAssess/EduAssess.csproj
+
+jobs:
+  build:
+    name: Build e testes
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Cache do NuGet
+        uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: nuget-${{ runner.os }}-${{ hashFiles('**/*.csproj') }}
+          restore-keys: nuget-${{ runner.os }}-
+
+      # Restaura pelo .csproj: o SDK 8 não abre arquivos .slnx.
+      - name: Restore
+        run: dotnet restore "$PROJECT"
+
+      - name: Build (Release)
+        run: dotnet build "$PROJECT" -c Release --no-restore
+
+      # Roda só quando existir projeto de teste (nome terminando em Tests.csproj).
+      - name: Testes
+        if: ${{ hashFiles('**/*Tests.csproj') != '' }}
+        run: dotnet test --configuration Release --verbosity normal
+
+  dependencias:
+    name: Auditoria de dependências
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Restore
+        run: dotnet restore "$PROJECT"
+
+      # Falha o job se houver pacote (direto ou transitivo) com vulnerabilidade ALTA ou CRÍTICA.
+      # Vulnerabilidades moderadas e baixas aparecem no log, mas não derrubam o CI.
+      - name: Pacotes vulneráveis
+        run: |
+          dotnet list "$PROJECT" package --vulnerable --include-transitive 2>&1 | tee vulnerabilidades.txt
+          if grep -E '^\s+>' vulnerabilidades.txt | grep -Eq '\s(High|Critical)\s'; then
+            echo "::error::Há pacotes com vulnerabilidade alta ou crítica. Atualize as dependências (veja o log acima)."
+            exit 1
+          fi
+
+      - name: Pacotes desatualizados (informativo)
+        run: dotnet list "$PROJECT" package --outdated || true
+
+  higiene:
+    name: Higiene do repositório
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      # Bancos de dados e a pasta App_Data (segredos de desenvolvimento, fotos) nunca vão para o Git.
+      - name: Arquivos que não podem ser versionados
+        run: |
+          bad=$(git ls-files | grep -Ei '(\.db$|\.db-shm$|\.db-wal$|(^|/)App_Data/|(^|/)\.env$|secrets\.json$)' || true)
+          if [ -n "$bad" ]; then
+            echo "::error::Arquivos sensíveis versionados:"
+            echo "$bad"
+            exit 1
+          fi
+
+      # Falha se alguém colocar chave/senha/segredo com valor real num appsettings.
+      - name: Segredos em arquivos de configuração
+        run: |
+          if grep -RInE '"(ApiKey|Secret|Password)"\s*:\s*"[^"]{8,}"' --include='appsettings*.json' .; then
+            echo "::error::Há valor de segredo em appsettings. Use user-secrets, variáveis de ambiente ou um cofre."
+            exit 1
+          fi

@@ -19,6 +19,8 @@ namespace EduAssess.Data
         public DbSet<DisciplinaModel> Disciplinas { get; set; } = null!;
         public DbSet<NotaModel> Notas { get; set; } = null!;
         public DbSet<QuestaoModel> Questoes {get; set;} = null!;
+        public DbSet<AvaliacaoModel> Avaliacoes { get; set; } = null!;
+        public DbSet<AvaliacaoQuestaoModel> AvaliacoesQuestoes { get; set; } = null!;
 
         public DbSet<ContatoModel> Contatos { get; set; } = null!;
         public DbSet<InstituicaoModel> Instituicoes { get; set; } = null!;
@@ -36,6 +38,8 @@ namespace EduAssess.Data
                 e.HasKey(x => new { x.UsuarioId, x.InstituicaoId });
                 e.HasOne(x => x.Usuario).WithMany(u => u.Instituicoes).HasForeignKey(x => x.UsuarioId);
                 e.HasOne(x => x.Instituicao).WithMany().HasForeignKey(x => x.InstituicaoId);
+                // NOVO: unidade (prédio) da pessoa. Restrict: não dá para apagar uma unidade que ainda tem gente lotada.
+                e.HasOne(x => x.Unidade).WithMany().HasForeignKey(x => x.UnidadeId).OnDelete(DeleteBehavior.Restrict);
                 // guarda "Professor" no banco em vez de 2; se você reordenar o enum, os dados não se corrompem
                 e.Property(x => x.Papel).HasConversion<string>();
             });
@@ -48,6 +52,20 @@ namespace EduAssess.Data
 
             modelBuilder.Entity<UnidadeModel>()
                 .HasIndex(x => new { x.InstituicaoId, x.Sigla, x.Slug }).IsUnique();
+
+            // NOVO: avaliações (provas/simulados). O código (ex.: PSI-26-10-9GN) não pode se repetir.
+            modelBuilder.Entity<AvaliacaoModel>(e =>
+            {
+                e.HasIndex(x => x.Codigo).IsUnique();
+            });
+
+            // NOVO: ligação avaliação x questão. A mesma questão não entra 2x na mesma avaliação;
+            // apagar a avaliação apaga só as ligações (as questões continuam no banco).
+            modelBuilder.Entity<AvaliacaoQuestaoModel>(e =>
+            {
+                e.HasKey(x => new { x.AvaliacaoId, x.QuestaoId });
+                e.HasOne(x => x.Avaliacao).WithMany(a => a.Questoes).HasForeignKey(x => x.AvaliacaoId).OnDelete(DeleteBehavior.Cascade);
+            });
 
             var dateOnlyConverter = new ValueConverter<DateOnly, DateTime>(
                 d => d.ToDateTime(TimeOnly.MinValue),
