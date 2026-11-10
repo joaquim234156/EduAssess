@@ -1,6 +1,7 @@
 using System.ComponentModel.DataAnnotations;
 using EduAssess.Data;
 using EduAssess.Models;
+using EduAssess.Models.Global;
 using Microsoft.EntityFrameworkCore;
 
 namespace EduAssess.Web;

@@ -14,7 +14,7 @@ namespace EduAssess.Application.Routes
             var route = app.MapGroup("turmas").WithTags("Turmas");
 
             route.MapPost("create",
-                async (TurmaRequest req, AppDbContext context, ITurmaService turmaService) =>
+                async (TurmaRequest req, AppDbContext context) =>
                 {
                     if (!MiniValidation.MiniValidator.TryValidate(req, out var errors))
                         return Results.BadRequest(errors);
@@ -32,21 +32,7 @@ namespace EduAssess.Application.Routes
                     await context.Turmas.AddAsync(turma);
                     await context.SaveChangesAsync();
                     return Results.Ok(new { message = "Turma criada com sucesso", turmaId = turma.Id });
-                }).RequireAuthorization("Admin");
-
-            route.MapGet("list",
-                async (ITurmaService turmaService) =>
-                {
-                    var turmas = await turmaService.ListarTurmasAsync();
-                    return Results.Ok(new { message = "Lista de turmas", turmas });
-                }).RequireAuthorization("Admin");
-            
-            route.MapGet("list/professor/{professorId:guid}",
-                async (Guid professorId, ITurmaService turmaService) =>
-                {
-                    var turmas = await turmaService.ListarTurmasPorProfessorAsync(professorId);
-                    return Results.Ok(new { message = "Lista de turmas do professor", turmas });
-                }).RequireAuthorization("Admin");
+                }).RequireAuthorization("Gestao");
 
             route.MapGet("list",
                 async (AppDbContext context) =>
@@ -68,7 +54,7 @@ namespace EduAssess.Application.Routes
 
 
             route.MapGet("get/{id:guid}",
-                async (Guid id, AppDbContext context, ITurmaService turmaService) =>
+                async (Guid id, AppDbContext context) =>
                 {
                     var turma = await context.Turmas.AsNoTracking().FirstOrDefaultAsync(t => t.Id == id);
                     if (turma == null || !turma.Ativa)

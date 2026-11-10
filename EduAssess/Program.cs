@@ -1,6 +1,3 @@
-using System.Security.Claims;
-using System.Text;
-using System.Threading.RateLimiting;
 using EduAssess.Application.Interfaces;
 using EduAssess.Application.Routes;
 using EduAssess.Application.Routes.InstituicaoRoutes;
@@ -15,10 +12,14 @@ using EduAssess.Web;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.AspNetCore.Localization;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata.Internal;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
+using System.Security.Claims;
+using System.Security.Cryptography.Xml;
+using System.Text;
+using System.Threading.RateLimiting;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -53,7 +54,8 @@ builder.Services.AddAuthentication(options =>
 })
 .AddJwtBearer(options =>
 {
-    options.RequireHttpsMetadata = true;
+    options.RequireHttpsMetadata = false;
+    options.SaveToken = true;
     options.TokenValidationParameters = new TokenValidationParameters
     {
         ValidateIssuerSigningKey = true,
@@ -101,43 +103,33 @@ builder.Services.AddAuthentication(options =>
             }
 
             var factory = context.HttpContext.RequestServices.GetRequiredService<IDbContextFactory<AppDbContext>>();
-            var logger = context.HttpContext.RequestServices.GetRequiredService<ILoggerFactory>()
-                .CreateLogger("CookieValidation");
-            try
+            await using var db = await factory.CreateDbContextAsync();
+            var row = await db.Users.AsNoTracking()
+                .Where(u => u.Id == userId)
+                .Select(u => new { u.Name, u.Email, u.Role, u.Ativa })
+                .FirstOrDefaultAsync();
+
+            if (row is null || !row.Ativa)
             {
-                await using var db = await factory.CreateDbContextAsync();
-                var row = await db.Users.AsNoTracking()
-                    .Where(u => u.Id == userId)
-                    .Select(u => new { u.Name, u.Email, u.Role, u.Ativa })
-                    .FirstOrDefaultAsync();
-
-                if (row is null || !row.Ativa)
-                {
-                    context.RejectPrincipal();
-                    await context.HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
-                    return;
-                }
-
-                var current = context.Principal!;
-                if (current.FindFirst(ClaimTypes.Role)?.Value != row.Role.ToString()
-                    || current.FindFirst(ClaimTypes.Name)?.Value != row.Name
-                    || current.FindFirst(ClaimTypes.Email)?.Value != row.Email)
-                {
-                    var identity = new ClaimsIdentity(new[]
-                    {
-                        new Claim(ClaimTypes.NameIdentifier, userId.ToString()),
-                        new Claim(ClaimTypes.Name, row.Name),
-                        new Claim(ClaimTypes.Email, row.Email),
-                        new Claim(ClaimTypes.Role, row.Role.ToString())
-                    }, CookieAuthenticationDefaults.AuthenticationScheme);
-                    context.ReplacePrincipal(new ClaimsPrincipal(identity));
-                    context.ShouldRenew = true;
-                }
+                context.RejectPrincipal();
+                await context.HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+                return;
             }
-            catch (Exception ex)
+
+            var current = context.Principal!;
+            if (current.FindFirst(ClaimTypes.Role)?.Value != row.Role.ToString()
+                || current.FindFirst(ClaimTypes.Name)?.Value != row.Name
+                || current.FindFirst(ClaimTypes.Email)?.Value != row.Email)
             {
-                logger.LogCritical(ex, "Falha ao validar o cookie de autenticação para o usuário {UserId}.", userId);
-                throw;
+                var identity = new ClaimsIdentity(new[]
+                {
+                    new Claim(ClaimTypes.NameIdentifier, userId.ToString()),
+                    new Claim(ClaimTypes.Name, row.Name),
+                    new Claim(ClaimTypes.Email, row.Email),
+                    new Claim(ClaimTypes.Role, row.Role.ToString())
+                }, CookieAuthenticationDefaults.AuthenticationScheme);
+                context.ReplacePrincipal(new ClaimsPrincipal(identity));
+                context.ShouldRenew = true;
             }
         }
     };
@@ -145,11 +137,29 @@ builder.Services.AddAuthentication(options =>
 
 builder.Services.AddAuthorization(options =>
 {
-    options.AddPolicy("Admin", policy => policy.RequireRole("Admin", "Gestor"));
-    options.AddPolicy("Professor", policy => policy.RequireRole("Professor"));
-    options.AddPolicy("Gestor", policy => policy.RequireRole("Gestor"));
-    options.AddPolicy("AtribuirAluno", policy => policy.RequireRole("Admin", "Gestor", "Professor"));
-    
+    options.AddPolicy("Admin", policy => policy.RequireRole(nameof(UserRole.Admin)));
+    options.AddPolicy("Gestor", policy => policy.RequireRole(nameof(UserRole.Gestor)));
+    options.AddPolicy("Gestao", policy => policy.RequireRole(nameof(UserRole.Admin), nameof(UserRole.Gestor)));
+    options.AddPolicy("Professor", policy => policy.RequireRole(nameof(UserRole.Professor)));
+    options.AddPolicy("Aluno", policy => policy.RequireRole(nameof(UserRole.Aluno)));
+    options.AddPolicy("Docencia", policy => policy.RequireRole(nameof(UserRole.Admin), nameof(UserRole.Gestor), nameof(UserRole.Professor)));
+    options.AddPolicy("AtribuirAluno", policy => policy.RequireRole(nameof(UserRole.Admin), nameof(UserRole.Gestor), nameof(UserRole.Professor)));
+});
+builder.Services.AddCascadingAuthenticationState();
+
+// ───────────── Limite de tentativas nas rotas públicas de autenticação ─────────────
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    options.AddPolicy("public-auth", httpContext =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            httpContext.Connection.RemoteIpAddress?.ToString() ?? "desconhecido",
+            _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 30,
+                Window = TimeSpan.FromMinutes(1),
+                QueueLimit = 0
+            }));
 });
 
 // ───────────── Banco de dados ─────────────
@@ -168,6 +178,8 @@ builder.Services.AddScoped<AcademicService>();
 builder.Services.AddScoped<AccountRegistrationService>();
 builder.Services.AddScoped<AccountProfileService>();
 builder.Services.AddScoped<ContactService>();
+
+//Services
 builder.Services.AddScoped<INotaService, NotaService>();
 builder.Services.AddScoped<ICursoService, CursoService>();
 builder.Services.AddScoped<IDisciplinaService, DisciplinaService>();
@@ -202,17 +214,12 @@ builder.Services.AddSwaggerGen(c =>
         Scheme = "bearer",
         BearerFormat = "JWT",
         In = ParameterLocation.Header,
-        Description = "Insira o token JWT abaixo (obtido em POST /auth/login):"
+        Description = "Insira o token JWT abaixo:"
     });
     c.AddSecurityRequirement(new OpenApiSecurityRequirement
     {
-        public static void Main(string[] args)
         {
-            var builder = WebApplication.CreateBuilder(args);
-
-            var key = builder.Configuration.GetValue<string>("JwtSettings:Secret");
-
-            builder.Services.ConfigureHttpJsonOptions(options =>
+            new OpenApiSecurityScheme
             {
                 Reference = new OpenApiReference { Type = ReferenceType.SecurityScheme, Id = "Bearer" }
             },
@@ -221,15 +228,14 @@ builder.Services.AddSwaggerGen(c =>
     });
 });
 
-var app = builder.Build();
+builder.Services.AddDbContext<AppDbContext>(options =>
+{
+    // Usa SQLite por padrão; se desejar outro provedor altere a connection string e o Use... correspondente
+    var conn = builder.Configuration.GetConnectionString("DefaultConnection") ?? "Data Source=eduassess.db";
+    options.UseSqlite(conn);
+});
 
-var appLifetime = app.Services.GetRequiredService<IHostApplicationLifetime>();
-appLifetime.ApplicationStopping.Register(() => app.Logger.LogWarning("O host está iniciando o encerramento."));
-AppDomain.CurrentDomain.UnhandledException += (_, eventArgs) =>
-    app.Logger.LogCritical(eventArgs.ExceptionObject as Exception,
-        "Exceção não tratada no processo. IsTerminating={IsTerminating}.", eventArgs.IsTerminating);
-AppDomain.CurrentDomain.ProcessExit += (_, _) =>
-    app.Logger.LogWarning("O processo EduAssess está saindo.");
+var app = builder.Build();
 
 
 app.UseHttpsRedirection();

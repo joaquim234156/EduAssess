@@ -28,7 +28,7 @@ namespace EduAssess.Application.Routes
                     await context.SaveChangesAsync();
 
                     return Results.Ok(new { message = "Curso criado com sucesso", cursoId = curso.Id });
-                }).RequireAuthorization("Admin");
+                }).RequireAuthorization("Gestao");
 
             route.MapGet("list",
                 async (AppDbContext context) =>

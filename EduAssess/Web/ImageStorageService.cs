@@ -26,10 +26,9 @@ public sealed class ImageStorageService
     public const long MaxUploadBytes = 8 * 1024 * 1024;   // 8 MB aceitos no envio
     private const int MaxFullSide = 1024;
     private const int ThumbSide = 256;
-    private const long MaxPixels = 2_000_000;             // limite adequado para avatar e para reduzir o pico de memória
+    private const long MaxPixels = 40_000_000;            // protege contra imagens "bomba" (ex.: 30000x30000)
 
     private static readonly string[] AllowedFormats = ["JPEG", "PNG", "WEBP", "GIF"];
-    private static readonly SemaphoreSlim ProcessingGate = new(1, 1);
 
     private readonly string _root;
 
@@ -50,19 +49,6 @@ public sealed class ImageStorageService
         HasAvatar(userId) ? File.GetLastWriteTimeUtc(ThumbPath(userId)).Ticks : 0;
 
     public async Task<AvatarResult> SaveAvatarAsync(Guid userId, Stream input, CancellationToken ct = default)
-    {
-        await ProcessingGate.WaitAsync(ct);
-        try
-        {
-            return await SaveAvatarCoreAsync(userId, input, ct);
-        }
-        finally
-        {
-            ProcessingGate.Release();
-        }
-    }
-
-    private async Task<AvatarResult> SaveAvatarCoreAsync(Guid userId, Stream input, CancellationToken ct)
     {
         // 1. Ler tudo para a memória (já limitado a 8 MB por quem abriu o stream).
         using var buffer = new MemoryStream();
@@ -88,7 +74,7 @@ public sealed class ImageStorageService
         if (!AllowedFormats.Contains(format, StringComparer.OrdinalIgnoreCase))
             throw new ArgumentException("Formato não aceito. Envie JPG, PNG, WebP ou GIF.");
         if ((long)info.Width * info.Height > MaxPixels)
-            throw new ArgumentException("A resolução da imagem excede o limite de 2 megapixels. Reduza a resolução e tente novamente.");
+            throw new ArgumentException("A imagem tem pixels demais. Envie uma foto menor.");
 
         // 3. Decodificar, corrigir a rotação do celular e remover metadados.
         buffer.Position = 0;
@@ -107,24 +93,25 @@ public sealed class ImageStorageService
             image.Metadata.IptcProfile = null;
             image.Metadata.XmpProfile = null;
 
-            // 4a. Reduz a imagem original em memória antes de criar outras versões.
-            if (image.Width > MaxFullSide || image.Height > MaxFullSide)
+            // 4a. Versão leve do servidor: só reduz se passar de 1024 px (nunca aumenta).
+            using (var full = image.Clone(x =>
             {
-                image.Mutate(x => x.Resize(new ResizeOptions
+                if (image.Width > MaxFullSide || image.Height > MaxFullSide)
                 {
-                    Mode = ResizeMode.Max,
-                    Size = new Size(MaxFullSide, MaxFullSide)
-                }));
-            }
-
-            using (var ms = new MemoryStream())
+                    x.Resize(new ResizeOptions
+                    {
+                        Mode = ResizeMode.Max,
+                        Size = new Size(MaxFullSide, MaxFullSide)
+                    });
+                }
+            }))
             {
-                await image.SaveAsync(ms, new WebpEncoder { Quality = 70 }, ct);
+                using var ms = new MemoryStream();
+                await full.SaveAsync(ms, new WebpEncoder { Quality = 70 }, ct);
                 fullBytes = ms.ToArray();
             }
 
             // 4b. Ícone: quadrado 256x256, recortado no centro, com qualidade alta.
-            // A miniatura parte da imagem já reduzida para limitar o uso de memória.
             using (var thumb = image.Clone(x => x.Resize(new ResizeOptions
             {
                 Mode = ResizeMode.Crop,

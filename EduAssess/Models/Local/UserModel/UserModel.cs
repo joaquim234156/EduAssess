@@ -30,11 +30,8 @@ namespace EduAssess.Models.Local
             DataNascimento = dataNascimento;
             Role = role;
             PasswordHash = BCrypt.Net.BCrypt.HashPassword(password);
-            IdTurma = Guid.Empty;
-
+            
             Ativa = true;
-
-            Matriculas = new List<MatriculaModel>();
         }
 
         public Guid Id { get; init; }

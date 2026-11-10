@@ -4,7 +4,6 @@
 @inject AccountProfileService Profile
 @inject UiSession Session
 @inject ImageStorageService Images
-@inject ILogger<Account> Logger
 
 <PageTitle>Minha conta | Faculdade Luciano Feijão</PageTitle>
 
@@ -39,7 +38,7 @@ else
                     {
                         <span class="dz-ico"><Icon Name="upload" Size="26" /></span>
                         <strong>Arraste uma foto aqui ou clique para escolher</strong>
-                    <small>JPG, PNG, WebP ou GIF · até 8 MB · máximo 2 MP</small>
+                        <small>JPG, PNG, WebP ou GIF · até 8 MB</small>
                     }
                 </div>
 
@@ -140,12 +139,6 @@ else
         catch (Exception ex) when (ex is ArgumentException or UnauthorizedAccessException or IOException)
         {
             photoMessage = ex.Message; photoError = true;
-        }
-        catch (Exception ex) when (ex is not OutOfMemoryException)
-        {
-            Logger.LogError(ex, "Falha inesperada ao enviar a foto do usuário {UserId}", Session.User?.Id);
-            photoMessage = "Não foi possível enviar a imagem. Tente outro arquivo ou tente novamente mais tarde.";
-            photoError = true;
         }
         finally { uploading = false; }
     }

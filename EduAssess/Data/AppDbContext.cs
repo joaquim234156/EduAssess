@@ -23,6 +23,10 @@ namespace EduAssess.Data
         public DbSet<AvaliacaoQuestaoModel> AvaliacoesQuestoes { get; set; } = null!;
 
         public DbSet<ContatoModel> Contatos { get; set; } = null!;
+        public DbSet<InstituicaoModel> Instituicoes { get; set; } = null!;
+        public DbSet<UnidadeModel> Unidades { get; set; } = null!;
+        public DbSet<UsuarioInstituicaoModel> UsuariosInstituicoes { get; set; } = null!;
+
 
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)

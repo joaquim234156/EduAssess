@@ -3,7 +3,6 @@ using EduAssess.Application.DTOs.Nota;
 using EduAssess.Application.Interfaces;
 using EduAssess.Data;
 using Microsoft.EntityFrameworkCore;
-using System.Security.Claims;
 
 namespace EduAssess.Application.Routes
 {

@@ -28,12 +28,6 @@ namespace EduAssess.Application.Routes
 
                     var matricula = await matriculaService.CriarMatriculaAsync(req);
 
-                    var turmaAtiva = await context.Turmas.AnyAsync(turma =>
-                        turma.Id == req.turmaId && turma.Ativo);
-                    if (!turmaAtiva)
-                        return Results.BadRequest(new { message = "A turma informada não existe ou está inativa." });
-
-                    var matricula = await matriculaService.CriarMatriculaAsync(req);
                     return Results.Ok(new
                     {
                         message = "Matrícula registrada com sucesso",

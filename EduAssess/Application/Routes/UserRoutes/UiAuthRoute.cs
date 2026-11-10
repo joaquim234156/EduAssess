@@ -67,21 +67,10 @@ namespace EduAssess.Application.Routes
             .DisableAntiforgery()
             .RequireRateLimiting("public-auth");
 
-            app.MapPost("/ui/logout", async (HttpContext http, ILoggerFactory loggerFactory) =>
+            app.MapPost("/ui/logout", async (HttpContext http) =>
             {
-                var logger = loggerFactory.CreateLogger("UiAuthRoute");
-                logger.LogInformation("Iniciando POST /ui/logout.");
-                try
-                {
-                    await http.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
-                    logger.LogInformation("Cookie removido em POST /ui/logout.");
-                    return Results.Redirect("/login");
-                }
-                catch (Exception ex)
-                {
-                    logger.LogCritical(ex, "Falha durante POST /ui/logout.");
-                    throw;
-                }
+                await http.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+                return Results.Redirect("/login");
             })
             .DisableAntiforgery();
         }
