@@ -1,4 +1,5 @@
 using SixLabors.ImageSharp;
+using SixLabors.ImageSharp.Formats;
 using SixLabors.ImageSharp.Formats.Webp;
 using SixLabors.ImageSharp.Processing;
 
@@ -34,9 +35,24 @@ public sealed class ImageStorageService
 
     public ImageStorageService(IWebHostEnvironment env)
     {
-        // App_Data já está no .gitignore, então as fotos nunca vão para o repositório.
-        _root = Path.Combine(env.ContentRootPath, "App_Data", "uploads", "avatars");
+        var localDataPath = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+        if (string.IsNullOrWhiteSpace(localDataPath))
+            localDataPath = AppContext.BaseDirectory;
+
+        // Arquivos fora do ContentRoot não provocam reinício pelo Hot Reload do Visual Studio.
+        _root = Path.Combine(localDataPath, "EduAssess", "uploads", "avatars");
         Directory.CreateDirectory(_root);
+
+        var legacyRoot = Path.Combine(env.ContentRootPath, "App_Data", "uploads", "avatars");
+        if (Directory.Exists(legacyRoot))
+        {
+            foreach (var legacyFile in Directory.EnumerateFiles(legacyRoot, "*.webp"))
+            {
+                var destination = Path.Combine(_root, Path.GetFileName(legacyFile));
+                if (!File.Exists(destination))
+                    File.Copy(legacyFile, destination);
+            }
+        }
     }
 
     public string FullPath(Guid userId) => Path.Combine(_root, $"{userId:N}.full.webp");
@@ -81,11 +97,7 @@ public sealed class ImageStorageService
         byte[] fullBytes, thumbBytes;
         try
         {
-            using var image = await Image.LoadAsync(buffer, ct);
-
-            // GIF animado: ficamos só com o primeiro quadro.
-            while (image.Frames.Count > 1)
-                image.Frames.RemoveFrame(image.Frames.Count - 1);
+            using var image = await Image.LoadAsync(new DecoderOptions { MaxFrames = 1 }, buffer, ct);
 
             image.Mutate(x => x.AutoOrient());
             image.Metadata.ExifProfile = null;
@@ -93,25 +105,23 @@ public sealed class ImageStorageService
             image.Metadata.IptcProfile = null;
             image.Metadata.XmpProfile = null;
 
-            // 4a. Versão leve do servidor: só reduz se passar de 1024 px (nunca aumenta).
-            using (var full = image.Clone(x =>
+            // Reduz a imagem original em memória antes de gerar os arquivos, evitando clones em resolução alta.
+            if (image.Width > MaxFullSide || image.Height > MaxFullSide)
             {
-                if (image.Width > MaxFullSide || image.Height > MaxFullSide)
+                image.Mutate(x => x.Resize(new ResizeOptions
                 {
-                    x.Resize(new ResizeOptions
-                    {
-                        Mode = ResizeMode.Max,
-                        Size = new Size(MaxFullSide, MaxFullSide)
-                    });
-                }
-            }))
+                    Mode = ResizeMode.Max,
+                    Size = new Size(MaxFullSide, MaxFullSide)
+                }));
+            }
+
+            using (var ms = new MemoryStream())
             {
-                using var ms = new MemoryStream();
-                await full.SaveAsync(ms, new WebpEncoder { Quality = 70 }, ct);
+                await image.SaveAsync(ms, new WebpEncoder { Quality = 70 }, ct);
                 fullBytes = ms.ToArray();
             }
 
-            // 4b. Ícone: quadrado 256x256, recortado no centro, com qualidade alta.
+            // Ícone: quadrado 256x256, recortado no centro, com qualidade alta.
             using (var thumb = image.Clone(x => x.Resize(new ResizeOptions
             {
                 Mode = ResizeMode.Crop,

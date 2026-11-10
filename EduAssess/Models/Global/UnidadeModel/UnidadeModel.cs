@@ -24,7 +24,7 @@ namespace EduAssess.Models.Global
         public Guid InstituicaoId { get; set; }
         public string Nome { get; set; } = string.Empty;
         public TipoUnidade Tipo { get; set; }
-        public string Sigla { get; set; }
+        public string Sigla { get; set; } = string.Empty;
         public string Slug { get; set; } = string.Empty;
         public bool Ativa { get; set; }
         public DateTime CriadoEm { get; set; }
