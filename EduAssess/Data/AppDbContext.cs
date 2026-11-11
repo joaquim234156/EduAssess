@@ -68,11 +68,11 @@ namespace EduAssess.Data
             });
 
             var dateOnlyConverter = new ValueConverter<DateOnly, DateTime>(
-                d => d.ToDateTime(TimeOnly.MinValue),
+                d => DateTime.SpecifyKind(d.ToDateTime(TimeOnly.MinValue), DateTimeKind.Utc),
                 d => DateOnly.FromDateTime(d));
 
             var nullableDateOnlyConverter = new ValueConverter<DateOnly?, DateTime?>(
-                d => d.HasValue ? d.Value.ToDateTime(TimeOnly.MinValue) : (DateTime?)null,
+                d => d.HasValue ? DateTime.SpecifyKind(d.Value.ToDateTime(TimeOnly.MinValue), DateTimeKind.Utc) : (DateTime?)null,
                 d => d.HasValue ? DateOnly.FromDateTime(d.Value) : (DateOnly?)null);
 
             foreach (var entityType in modelBuilder.Model.GetEntityTypes())

@@ -164,8 +164,9 @@ builder.Services.AddRateLimiter(options =>
 
 // ───────────── Banco de dados ─────────────
 // A fábrica cria contextos curtos (um por operação) para o painel Blazor; a API recebe um contexto por requisição.
-var connectionString = builder.Configuration.GetConnectionString("DefaultConnection") ?? "Data Source=eduassess.db";
-builder.Services.AddDbContextFactory<AppDbContext>(options => options.UseSqlite(connectionString));
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
+    ?? "Host=localhost;Port=5432;Database=eduassess;Username=postgres";
+builder.Services.AddDbContextFactory<AppDbContext>(options => options.UseNpgsql(connectionString));
 builder.Services.AddScoped(sp => sp.GetRequiredService<IDbContextFactory<AppDbContext>>().CreateDbContext());
 
 // ───────────── Aplicação ─────────────
@@ -230,9 +231,7 @@ builder.Services.AddSwaggerGen(c =>
 
 builder.Services.AddDbContext<AppDbContext>(options =>
 {
-    // Usa SQLite por padrão; se desejar outro provedor altere a connection string e o Use... correspondente
-    var conn = builder.Configuration.GetConnectionString("DefaultConnection") ?? "Data Source=eduassess.db";
-    options.UseSqlite(conn);
+    options.UseNpgsql(connectionString);
 });
 
 var app = builder.Build();

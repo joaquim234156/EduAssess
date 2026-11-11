@@ -1,4 +1,3 @@
-using System.Data;
 using System.Text;
 using EduAssess.Models;
 using EduAssess.Models.Global;
@@ -8,10 +7,7 @@ using Microsoft.EntityFrameworkCore;
 namespace EduAssess.Data;
 
 /// <summary>
-/// Prepara o banco na inicialização:
-///  1. Banco novo (vazio): cria o schema direto do modelo e marca todas as migrations como aplicadas.
-///  2. Banco existente: aplica as migrations pendentes (inclui o alinhamento de Disciplinas/Contatos).
-///  3. Cria o administrador inicial (BootstrapAdmin) e, em Desenvolvimento, dados de demonstração.
+/// Aplica as migrations pendentes e prepara os dados iniciais do sistema.
 /// </summary>
 public static class DatabaseInitializer
 {
@@ -27,7 +23,7 @@ public static class DatabaseInitializer
         var env = scope.ServiceProvider.GetRequiredService<IHostEnvironment>();
         var logger = scope.ServiceProvider.GetRequiredService<ILoggerFactory>().CreateLogger("DatabaseInitializer");
 
-        PrepareSchema(db, logger);
+        await db.Database.MigrateAsync();
         await EnsureAdminAsync(db, config, env, logger);
 
         // NOVO: a instituição (Faculdade Luciano Feijão) e seus prédios existem em QUALQUER ambiente.
@@ -40,44 +36,6 @@ public static class DatabaseInitializer
             await SeedDemoQuestionsAsync(db, logger);
             await SeedDemoExamsAsync(db, logger);
             await SeedDemoUnitLinksAsync(db, logger);   // NOVO: distribui as contas de demonstração pelos três prédios
-        }
-    }
-
-    private static void PrepareSchema(AppDbContext db, ILogger logger)
-    {
-        var hasHistory = db.Database.GetAppliedMigrations().Any();
-        if (!hasHistory && !HasAnyTable(db))
-        {
-            logger.LogInformation("Banco novo: criando o schema a partir do modelo atual.");
-            db.Database.EnsureCreated();
-            db.Database.ExecuteSqlRaw(
-                "CREATE TABLE IF NOT EXISTS \"__EFMigrationsHistory\" (\"MigrationId\" TEXT NOT NULL CONSTRAINT \"PK___EFMigrationsHistory\" PRIMARY KEY, \"ProductVersion\" TEXT NOT NULL)");
-            foreach (var migrationId in db.Database.GetMigrations())
-            {
-                db.Database.ExecuteSqlRaw(
-                    "INSERT OR IGNORE INTO \"__EFMigrationsHistory\" (\"MigrationId\", \"ProductVersion\") VALUES ({0}, {1})",
-                    migrationId, "8.0.31");
-            }
-            return;
-        }
-
-        db.Database.Migrate();
-    }
-
-    private static bool HasAnyTable(AppDbContext db)
-    {
-        var connection = db.Database.GetDbConnection();
-        var wasClosed = connection.State != ConnectionState.Open;
-        if (wasClosed) connection.Open();
-        try
-        {
-            using var command = connection.CreateCommand();
-            command.CommandText = "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'";
-            return Convert.ToInt32(command.ExecuteScalar()) > 0;
-        }
-        finally
-        {
-            if (wasClosed) connection.Close();
         }
     }
 
