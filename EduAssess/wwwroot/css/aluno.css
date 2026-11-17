@@ -49,7 +49,7 @@
 .focus-card { display: flex; align-items: center; gap: 16px; padding: 18px 22px; border-radius: 20px; text-decoration: none; color: var(--ink-900);
   background: linear-gradient(100deg, #e1f4fb, #e3e9fb); border: 1px solid #c4defa; transition: transform .2s, box-shadow .2s; }
 .focus-card:hover { transform: translateY(-2px); box-shadow: var(--shadow); }
-.focus-card div { flex: 1; display: grid; gap: 2px; }
+.focus-card div { flex: 1; min-width: 0; display: grid; gap: 2px; }
 .focus-card small { color: var(--muted); }
 .focus-ico { width: 46px; height: 46px; border-radius: 15px; display: grid; place-items: center; color: #fff; background: var(--forest-700); flex: none; }
 .focus-go { display: inline-flex; align-items: center; gap: 6px; font-weight: 800; color: var(--forest-700); }
@@ -245,5 +245,6 @@
 @media (max-width: 560px) {
   .stu-hero { padding: 22px; } .stu-hero-main { flex-direction: column; align-items: flex-start; }
   .ai-form { grid-template-columns: 1fr; } .q-card { padding: 20px; } .result { padding: 26px 20px; }
+  .disc-grid, .class-grid, .course-grid, .pick-grid { grid-template-columns: minmax(0, 1fr); }
   .setup .btn { margin-left: 0; width: 100%; }
 }

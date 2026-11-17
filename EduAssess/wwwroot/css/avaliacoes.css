@@ -191,7 +191,7 @@
   .result-count { width: 100%; }
 }
 @media (max-width: 560px) {
-  .exam-grid { grid-template-columns: 1fr; }
+  .exam-grid, .exam-grid.compact { grid-template-columns: minmax(0, 1fr); }
   .modal-head, .modal-body, .modal-foot { padding-left: 18px; padding-right: 18px; }
   .toolbar-search { min-width: 0; width: 100%; }
 }

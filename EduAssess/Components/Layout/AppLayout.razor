@@ -5,10 +5,9 @@
 
 @* ALTERADO: o elemento raiz agora recebe as classes de tema (perfil + prédio), ex.: "role-professor unit-medicina".
    Todo o visual exclusivo está em temas.css. O fundo fixo em linha foi para o CSS (.shell { background: var(--paper) }). *@
-<div class="shell @Session.ThemeClass" style="@Session.ThemeStyle">
-    <input type="checkbox" id="menu-toggle" class="menu-toggle" aria-hidden="true" checked="@menuOpen" @onchange="OnMenuChanged" />
-    <aside class="sidebar">
-        <Logo Light="@(!UiTheme.LightSidebar(Session.User?.Role))" Href="@homePath" />
+<div class="shell @Session.ThemeClass @(menuOpen ? "menu-open" : string.Empty) @(sidebarCollapsed ? "sidebar-collapsed" : string.Empty)" style="@Session.ThemeStyle">
+    <aside class="sidebar" id="primary-navigation">
+        <Logo Light="@(!UiTheme.LightSidebar(Session.User?.Role))" Compactable="true" Href="@homePath" />
 
         @* NOVO: selo do prédio (Principal, Medicina, Odontologia) na barra lateral. *@
         @if (Session.IsSignedIn)
@@ -28,65 +27,65 @@
             {
                 <div class="nav-group">
                     <span>Instituição</span>
-                    <NavLink class="nav-link" href="/painel" Match="NavLinkMatch.All" @onclick="CloseMenu"><Icon Name="dashboard" /> Visão geral</NavLink>
-                    <NavLink class="nav-link" href="/instituicao" @onclick="CloseMenu"><Icon Name="building" /> Unidades e pessoas</NavLink>
-                    <NavLink class="nav-link" href="/cursos" @onclick="CloseMenu"><Icon Name="book" /> Cursos</NavLink>
-                    <NavLink class="nav-link" href="/disciplinas" @onclick="CloseMenu"><Icon Name="file" /> Disciplinas</NavLink>
-                    <NavLink class="nav-link" href="/turmas" @onclick="CloseMenu"><Icon Name="layers" /> Turmas</NavLink>
+                    <NavLink class="nav-link" href="/painel" title="Visão geral" Match="NavLinkMatch.All" @onclick="CloseMenu"><Icon Name="dashboard" /> Visão geral</NavLink>
+                    <NavLink class="nav-link" href="/instituicao" title="Unidades e pessoas" @onclick="CloseMenu"><Icon Name="building" /> Unidades e pessoas</NavLink>
+                    <NavLink class="nav-link" href="/cursos" title="Cursos" @onclick="CloseMenu"><Icon Name="book" /> Cursos</NavLink>
+                    <NavLink class="nav-link" href="/disciplinas" title="Disciplinas" @onclick="CloseMenu"><Icon Name="file" /> Disciplinas</NavLink>
+                    <NavLink class="nav-link" href="/turmas" title="Turmas" @onclick="CloseMenu"><Icon Name="layers" /> Turmas</NavLink>
                 </div>
                 <div class="nav-group">
                     <span>Pessoas</span>
-                    <NavLink class="nav-link" href="/equipe" @onclick="CloseMenu"><Icon Name="users" /> Equipe</NavLink>
-                    <NavLink class="nav-link" href="/alunos" @onclick="CloseMenu"><Icon Name="cap" /> Alunos</NavLink>
-                    <NavLink class="nav-link" href="/matriculas" @onclick="CloseMenu"><Icon Name="clipboard" /> Matrículas</NavLink>
+                    <NavLink class="nav-link" href="/equipe" title="Equipe" @onclick="CloseMenu"><Icon Name="users" /> Equipe</NavLink>
+                    <NavLink class="nav-link" href="/alunos" title="Alunos" @onclick="CloseMenu"><Icon Name="cap" /> Alunos</NavLink>
+                    <NavLink class="nav-link" href="/matriculas" title="Matrículas" @onclick="CloseMenu"><Icon Name="clipboard" /> Matrículas</NavLink>
                 </div>
                 <div class="nav-group">
                     <span>Avaliação</span>
-                    <NavLink class="nav-link" href="/notas" @onclick="CloseMenu"><Icon Name="pen" /> Notas</NavLink>
-                    <NavLink class="nav-link" href="/avaliacoes" @onclick="CloseMenu"><Icon Name="clipboard" /> Avaliações</NavLink>
-                    <NavLink class="nav-link" href="/banco-questoes" @onclick="CloseMenu"><Icon Name="sparkles" /> Banco de questões</NavLink>
-                    <NavLink class="nav-link" href="/praticar" @onclick="CloseMenu"><Icon Name="zap" /> Ver como aluno</NavLink>
+                    <NavLink class="nav-link" href="/notas" title="Notas" @onclick="CloseMenu"><Icon Name="pen" /> Notas</NavLink>
+                    <NavLink class="nav-link" href="/avaliacoes" title="Avaliações" @onclick="CloseMenu"><Icon Name="clipboard" /> Avaliações</NavLink>
+                    <NavLink class="nav-link" href="/banco-questoes" title="Banco de questões" @onclick="CloseMenu"><Icon Name="sparkles" /> Banco de questões</NavLink>
+                    <NavLink class="nav-link" href="/praticar" title="Ver como aluno" @onclick="CloseMenu"><Icon Name="zap" /> Ver como aluno</NavLink>
                 </div>
             }
             else if (Session.IsProfessor)
             {
                 <div class="nav-group">
                     <span>Docência</span>
-                    <NavLink class="nav-link" href="/professor" Match="NavLinkMatch.All" @onclick="CloseMenu"><Icon Name="dashboard" /> Meu painel</NavLink>
-                    <NavLink class="nav-link" href="/notas" @onclick="CloseMenu"><Icon Name="pen" /> Lançar notas</NavLink>
-                    <NavLink class="nav-link" href="/alunos" @onclick="CloseMenu"><Icon Name="cap" /> Alunos</NavLink>
+                    <NavLink class="nav-link" href="/professor" title="Meu painel" Match="NavLinkMatch.All" @onclick="CloseMenu"><Icon Name="dashboard" /> Meu painel</NavLink>
+                    <NavLink class="nav-link" href="/notas" title="Lançar notas" @onclick="CloseMenu"><Icon Name="pen" /> Lançar notas</NavLink>
+                    <NavLink class="nav-link" href="/alunos" title="Alunos" @onclick="CloseMenu"><Icon Name="cap" /> Alunos</NavLink>
                 </div>
                 <div class="nav-group">
                     <span>Avaliações</span>
-                    <NavLink class="nav-link" href="/avaliacoes" @onclick="CloseMenu"><Icon Name="clipboard" /> Provas e simulados</NavLink>
-                    <NavLink class="nav-link" href="/banco-questoes" @onclick="CloseMenu"><Icon Name="sparkles" /> Banco de questões</NavLink>
-                    <NavLink class="nav-link" href="/praticar" @onclick="CloseMenu"><Icon Name="zap" /> Ver como aluno</NavLink>
+                    <NavLink class="nav-link" href="/avaliacoes" title="Provas e simulados" @onclick="CloseMenu"><Icon Name="clipboard" /> Provas e simulados</NavLink>
+                    <NavLink class="nav-link" href="/banco-questoes" title="Banco de questões" @onclick="CloseMenu"><Icon Name="sparkles" /> Banco de questões</NavLink>
+                    <NavLink class="nav-link" href="/praticar" title="Ver como aluno" @onclick="CloseMenu"><Icon Name="zap" /> Ver como aluno</NavLink>
                 </div>
             }
             else if (Session.User?.Role == UserRole.Aluno)
             {
                 <div class="nav-group">
                     <span>Estudante</span>
-                    <NavLink class="nav-link" href="/aluno" Match="NavLinkMatch.All" @onclick="CloseMenu"><Icon Name="dashboard" /> Meu painel</NavLink>
-                    <NavLink class="nav-link" href="/aluno/notas" @onclick="CloseMenu"><Icon Name="chart" /> Minhas notas</NavLink>
-                    <NavLink class="nav-link" href="/praticar" @onclick="CloseMenu"><Icon Name="zap" /> Praticar questões</NavLink>
+                    <NavLink class="nav-link" href="/aluno" title="Meu painel" Match="NavLinkMatch.All" @onclick="CloseMenu"><Icon Name="dashboard" /> Meu painel</NavLink>
+                    <NavLink class="nav-link" href="/aluno/notas" title="Minhas notas" @onclick="CloseMenu"><Icon Name="chart" /> Minhas notas</NavLink>
+                    <NavLink class="nav-link" href="/praticar" title="Praticar questões" @onclick="CloseMenu"><Icon Name="zap" /> Praticar questões</NavLink>
                 </div>
             }
             else
             {
                 <div class="nav-group">
                     <span>Conta</span>
-                    <NavLink class="nav-link" href="/aguardando" Match="NavLinkMatch.All" @onclick="CloseMenu"><Icon Name="clock" /> Status do acesso</NavLink>
+                    <NavLink class="nav-link" href="/aguardando" title="Status do acesso" Match="NavLinkMatch.All" @onclick="CloseMenu"><Icon Name="clock" /> Status do acesso</NavLink>
                 </div>
             }
 
             <div class="nav-group">
                 <span>Minha área</span>
-                <NavLink class="nav-link" href="/conta" @onclick="CloseMenu"><Icon Name="user-circle" /> Minha conta</NavLink>
+                <NavLink class="nav-link" href="/conta" title="Minha conta" @onclick="CloseMenu"><Icon Name="user-circle" /> Minha conta</NavLink>
             </div>
 
             <div class="sidebar-foot">
-                <div class="who">
+                <div class="who" title="@Session.User?.Name">
                     <AvatarImage UserId="Session.User!.Id" Name="@Session.User.Name" Stamp="Session.AvatarStamp" />
                     <div>
                         <strong>@Session.User?.Name</strong>
@@ -94,19 +93,26 @@
                     </div>
                 </div>
                 <form method="post" action="/ui/logout">
-                    <button type="submit" class="signout"><Icon Name="logout" Size="18" /> Sair da conta</button>
+                    <button type="submit" class="signout" title="Sair da conta"><Icon Name="logout" Size="18" /> Sair da conta</button>
                 </form>
             </div>
         }
     </aside>
-    <label for="menu-toggle" class="menu-scrim" aria-label="Fechar menu"></label>
+    <button type="button" class="menu-scrim" aria-label="Fechar menu" @onclick="CloseMenu"></button>
 
     <div class="main">
         <header class="topbar">
-            <div style="display:flex;align-items:center;gap:14px">
-                <label for="menu-toggle" class="menu-burger" aria-label="Abrir menu"><Icon Name="menu" Size="22" /></label>
+            <div class="topbar-start">
+                <button type="button" class="sidebar-collapse" aria-label="@(sidebarCollapsed ? "Expandir menu" : "Recolher menu")" aria-controls="primary-navigation" aria-expanded="@(!sidebarCollapsed)" @onclick="ToggleSidebar">
+                    <Icon Name="@(sidebarCollapsed ? "arrow-right" : "arrow-left")" Size="20" />
+                </button>
+                <button type="button" class="menu-burger" aria-label="Abrir menu" aria-controls="primary-navigation" aria-expanded="@menuOpen" @onclick="ToggleMenu">
+                    <svg class="bi bi-list" width="21" height="21" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+                        <path fill-rule="evenodd" d="M2.5 12a.5.5 0 0 1 .5-.5h11a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5m0-4a.5.5 0 0 1 .5-.5h11a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5m0-4a.5.5 0 0 1 .5-.5h11a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5" />
+                    </svg>
+                </button>
                 <div class="hello">
-                    @UiFormat.LongDate(DateTime.Now)
+                    <span class="hello-date">@UiFormat.LongDate(DateTime.Now)</span>
                     <b>@UiTheme.Greeting(Session.User?.Role, UiFormat.FirstName(Session.User?.Name))</b>
                 </div>
             </div>
@@ -129,6 +135,7 @@
                         <Icon Name="@UiTheme.RoleIcon(Session.User.Role)" Size="14" />
                         @UiFormat.RoleLabel(Session.User.Role)@(string.IsNullOrEmpty(Session.ThemeShort) ? "" : " · " + Session.ThemeShort)
                     </span>
+                    <ThemeToggle Class="theme-toggle-panel" />
                     <a href="/conta" aria-label="Minha conta"><AvatarImage UserId="Session.User.Id" Name="@Session.User.Name" Class="sm" Stamp="Session.AvatarStamp" /></a>
                 }
             </div>
@@ -140,6 +147,7 @@
 
 @code {
     private bool menuOpen;
+    private bool sidebarCollapsed;
     private string homePath = "/painel";
 
     protected override async Task OnInitializedAsync()
@@ -151,7 +159,9 @@
             homePath = UiFormat.HomePath(Session.User.Role);
     }
 
-    private void OnMenuChanged(ChangeEventArgs e) => menuOpen = e.Value is true;
+    private void ToggleMenu() => menuOpen = !menuOpen;
+
+    private void ToggleSidebar() => sidebarCollapsed = !sidebarCollapsed;
 
     private void CloseMenu() => menuOpen = false;
 
