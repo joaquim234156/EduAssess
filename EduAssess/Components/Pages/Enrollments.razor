@@ -11,7 +11,7 @@
 
 <div class="cols">
     <div class="card sticky">
-        <div class="card-head"><div><h2>Nova matrícula</h2><p>Escolha o aluno e a turma.</p></div></div>
+        <div class="card-head"><div><h2>@(editingId is null ? "Nova matrícula" : "Editar matrícula")</h2><p>Escolha o aluno e a turma.</p></div></div>
         @if (students is not null && (students.Count == 0 || classes!.Count == 0))
         {
             <div class="hint" style="margin-top:0">
@@ -24,7 +24,7 @@
         }
         else
         {
-            <EditForm Model="form" OnValidSubmit="CreateAsync" FormName="matricula">
+            <EditForm Model="form" OnValidSubmit="SaveAsync" FormName="matricula">
                 <DataAnnotationsValidator />
                 <div class="field"><label for="m-aluno">Aluno</label>
                     <InputSelect id="m-aluno" class="select" @bind-Value="form.StudentId">
@@ -40,7 +40,10 @@
                     </InputSelect>
                     <ValidationMessage For="@(() => form.ClassId)" />
                 </div>
-                <button class="btn btn-primary" type="submit" disabled="@busy">Matricular aluno</button>
+                <div class="form-actions">
+                    <button class="btn btn-primary" type="submit" disabled="@busy">@(editingId is null ? "Matricular aluno" : "Salvar alterações")</button>
+                    @if (editingId is not null) { <button class="btn btn-ghost" type="button" @onclick="CancelEdit">Cancelar</button> }
+                </div>
             </EditForm>
         }
     </div>
@@ -68,7 +71,9 @@
                                 <td>@item.ClassName<span class="cell-sub">@item.CourseName</span></td>
                                 <td><span class="badge @(item.Active ? "badge-green" : "badge-gray")">@(item.Active ? "Ativa" : "Encerrada")</span><span class="cell-sub">desde @UiFormat.Date(item.EnrolledAt)</span></td>
                                 <td><div class="row-actions">
-                                    @if (item.Active) { <button class="btn-text danger" type="button" @onclick="() => EndAsync(item)">Encerrar</button> }
+                                    <button class="btn-text" type="button" @onclick="() => Edit(item)">Editar</button>
+                                    @if (item.Active) { <button class="btn-text danger" type="button" @onclick="() => AskEnd(item)">Encerrar</button> }
+                                    else { <button class="btn-text" type="button" @onclick="() => AskReactivate(item)">Reativar</button> }
                                 </div></td>
                             </tr>
                         }
@@ -79,11 +84,34 @@
     </div>
 </div>
 
+<Modal Open="endTarget is not null" Eyebrow="Encerrar matrícula" Title="@(endTarget is null ? "" : endTarget.StudentName + " — " + endTarget.ClassName)" OnClose="CancelEnd">
+    <ChildContent>
+        <p>O aluno deixará de estar ativo nesta turma e não receberá novas notas por esta matrícula. O histórico já lançado será preservado. Deseja continuar?</p>
+    </ChildContent>
+    <Footer>
+        <button type="button" class="btn btn-ghost" @onclick="CancelEnd">Cancelar</button>
+        <button type="button" class="btn btn-danger" disabled="@busy" @onclick="ConfirmEndAsync">Encerrar matrícula</button>
+    </Footer>
+</Modal>
+
+<Modal Open="reactivateTarget is not null" Eyebrow="Reativar matrícula" Title="@(reactivateTarget is null ? "" : reactivateTarget.StudentName + " — " + reactivateTarget.ClassName)" OnClose="CancelReactivate">
+    <ChildContent>
+        <p>A matrícula voltará a ficar ativa e poderá receber novos lançamentos de notas. Deseja continuar?</p>
+    </ChildContent>
+    <Footer>
+        <button type="button" class="btn btn-ghost" @onclick="CancelReactivate">Cancelar</button>
+        <button type="button" class="btn btn-primary" disabled="@busy" @onclick="ConfirmReactivateAsync">Reativar matrícula</button>
+    </Footer>
+</Modal>
+
 @code {
     private List<EnrollmentRow>? enrollments;
     private List<PersonRow>? students;
     private List<ClassRow>? classes;
-    private readonly EnrollmentForm form = new();
+    private EnrollmentRow? endTarget;
+    private EnrollmentRow? reactivateTarget;
+    private EnrollmentForm form = new();
+    private Guid? editingId;
     private string? message;
     private bool isError;
     private bool busy;
@@ -105,29 +133,74 @@
         }
     }
 
-    private async Task CreateAsync()
+    private async Task SaveAsync()
     {
         busy = true;
         try
         {
-            await Academic.CreateEnrollmentAsync(form.StudentId ?? Guid.Empty, form.ClassId ?? Guid.Empty);
-            message = "Matrícula realizada com sucesso."; isError = false;
-            form.StudentId = null; form.ClassId = null;
+            if (editingId is null)
+                await Academic.CreateEnrollmentAsync(form.StudentId ?? Guid.Empty, form.ClassId ?? Guid.Empty);
+            else
+                await Academic.UpdateEnrollmentAsync(editingId.Value, form.StudentId ?? Guid.Empty, form.ClassId ?? Guid.Empty);
+            message = editingId is null ? "Matrícula realizada com sucesso." : "Matrícula atualizada com sucesso."; isError = false;
+            CancelEdit();
             await LoadAsync();
         }
-        catch (Exception ex) when (ex is ArgumentException or UnauthorizedAccessException) { message = ex.Message; isError = true; }
+        catch (Exception ex) when (ex is ArgumentException or InvalidOperationException or UnauthorizedAccessException) { message = ex.Message; isError = true; }
         finally { busy = false; }
     }
 
-    private async Task EndAsync(EnrollmentRow item)
+    private void Edit(EnrollmentRow item)
     {
+        editingId = item.Id;
+        form = new EnrollmentForm { StudentId = item.StudentId, ClassId = item.ClassId };
+        message = null;
+    }
+
+    private void CancelEdit()
+    {
+        editingId = null;
+        form = new EnrollmentForm();
+    }
+
+    private void AskEnd(EnrollmentRow item) => endTarget = item;
+
+    private void CancelEnd() => endTarget = null;
+
+    private void AskReactivate(EnrollmentRow item) => reactivateTarget = item;
+    private void CancelReactivate() => reactivateTarget = null;
+
+    private async Task ConfirmReactivateAsync()
+    {
+        if (reactivateTarget is null) return;
+        var item = reactivateTarget;
+        busy = true;
+        try
+        {
+            await Academic.ReactivateEnrollmentAsync(item.Id);
+            reactivateTarget = null;
+            message = $"Matrícula de {item.StudentName} reativada.";
+            isError = false;
+            await LoadAsync();
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or UnauthorizedAccessException) { message = ex.Message; isError = true; }
+        finally { busy = false; }
+    }
+
+    private async Task ConfirmEndAsync()
+    {
+        if (endTarget is null) return;
+        var item = endTarget;
+        busy = true;
         try
         {
             await Academic.EndEnrollmentAsync(item.Id);
+            endTarget = null;
             message = $"Matrícula de {item.StudentName} encerrada."; isError = false;
             await LoadAsync();
         }
         catch (Exception ex) when (ex is InvalidOperationException or UnauthorizedAccessException) { message = ex.Message; isError = true; }
+        finally { busy = false; }
     }
 
     private sealed class EnrollmentForm

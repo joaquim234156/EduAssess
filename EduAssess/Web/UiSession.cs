@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using EduAssess.Data;
 using EduAssess.Models;
+using EduAssess.Models.Global;
 using EduAssess.Models.Local;
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.EntityFrameworkCore;
@@ -13,7 +14,9 @@ namespace EduAssess.Web;
 /// </summary>
 public sealed class UiSession(AuthenticationStateProvider authenticationStateProvider, IDbContextFactory<AppDbContext> dbFactory)
 {
+    private const string InstitutionClaim = "eduassess:institution_id";
     private bool initialized;
+    private Guid? selectedInstitutionId;
 
     /// <summary>
     /// Avisa o layout (menu lateral e topo) quando algo da sessão muda sem trocar de página,
@@ -37,6 +40,10 @@ public sealed class UiSession(AuthenticationStateProvider authenticationStatePro
 
     /// <summary>Nome da instituição da pessoa (ex.: Faculdade Luciano Feijão), mesmo sem unidade.</summary>
     public string InstitutionName { get; private set; } = "Faculdade Luciano Feijão";
+
+    public Guid? InstitutionId => selectedInstitutionId;
+    public IReadOnlyList<InstitutionOption> AvailableInstitutions { get; private set; } = Array.Empty<InstitutionOption>();
+    public bool RequiresInstitutionSelection => User is not null && AvailableInstitutions.Count > 1 && InstitutionId is null;
 
     /// <summary>Todas as unidades ativas (só carregadas para o Admin, que pode "ver como" cada prédio).</summary>
     public IReadOnlyList<UnitInfo> AllUnits { get; private set; } = Array.Empty<UnitInfo>();
@@ -122,6 +129,9 @@ public sealed class UiSession(AuthenticationStateProvider authenticationStatePro
                 principal.FindFirst(ClaimTypes.Name)?.Value ?? "Usuário",
                 principal.FindFirst(ClaimTypes.Email)?.Value ?? "",
                 role);
+
+            if (Guid.TryParse(principal.FindFirst(InstitutionClaim)?.Value, out var institutionId))
+                selectedInstitutionId = institutionId;
         }
 
         if (User is not null)
@@ -139,29 +149,55 @@ public sealed class UiSession(AuthenticationStateProvider authenticationStatePro
         try
         {
             await using var db = await dbFactory.CreateDbContextAsync();
-
-            var link = await db.UsuariosInstituicoes.AsNoTracking()
+            var userRole = User?.Role;
+            var institutionsQuery = db.UsuariosInstituicoes.AsNoTracking()
                 .Where(ui => ui.UsuarioId == userId && ui.Ativa)
-                .OrderByDescending(ui => ui.VinculadoEm)
                 .Select(ui => new
                 {
                     ui.InstituicaoId,
                     Institution = ui.Instituicao!.Nome,
+                    Role = ui.Papel,
                     Unit = ui.Unidade == null ? null : new { ui.Unidade.Id, ui.Unidade.Nome, ui.Unidade.Slug, ui.Unidade.Sigla, ui.Unidade.Tipo, ui.Unidade.Ativa }
-                })
-                .FirstOrDefaultAsync();
+                });
+
+            var links = await institutionsQuery.ToListAsync();
+            var institutions = links.Select(x => new InstitutionOption(x.InstituicaoId, x.Institution)).ToList();
+
+            if (userRole == UserRole.Admin)
+            {
+                institutions = await db.Instituicoes.AsNoTracking()
+                    .Where(x => x.Ativa)
+                    .OrderBy(x => x.Nome)
+                    .Select(x => new InstitutionOption(x.Id, x.Nome))
+                    .ToListAsync();
+            }
+
+            AvailableInstitutions = institutions;
+            if (selectedInstitutionId is null && institutions.Count == 1)
+                selectedInstitutionId = institutions[0].Id;
+            if (selectedInstitutionId is not null && institutions.All(x => x.Id != selectedInstitutionId))
+                selectedInstitutionId = null;
+
+            var link = selectedInstitutionId is Guid activeId
+                ? links.FirstOrDefault(x => x.InstituicaoId == activeId)
+                : null;
+
+            if (User is not null && User.Role != UserRole.Admin)
+                User = User with { Role = link is null ? UserRole.User : ToUserRole(link.Role) };
 
             Unit = link?.Unit is { Ativa: true } u
                 ? new UnitInfo(u.Id, u.Nome, u.Slug, u.Sigla ?? "", u.Tipo, link.InstituicaoId, link.Institution)
                 : null;
-            InstitutionName = link?.Institution ?? InstitutionName;
+            InstitutionName = institutions.FirstOrDefault(x => x.Id == selectedInstitutionId)?.Name ?? "Selecione uma instituição";
 
-            CourseThemeKey = await DetectCourseThemeAsync(db, userId);
+            CourseThemeKey = selectedInstitutionId is Guid institutionId
+                ? await DetectCourseThemeAsync(db, userId, institutionId)
+                : null;
 
             if (User?.Role == UserRole.Admin)
             {
                 AllUnits = await db.Unidades.AsNoTracking()
-                    .Where(x => x.Ativa)
+                    .Where(x => x.Ativa && (selectedInstitutionId == null || x.InstituicaoId == selectedInstitutionId))
                     .OrderBy(x => x.Nome)
                     .Select(x => new UnitInfo(x.Id, x.Nome, x.Slug, x.Sigla ?? "", x.Tipo, x.InstituicaoId, x.Instituicao!.Nome))
                     .ToListAsync();
@@ -169,10 +205,31 @@ public sealed class UiSession(AuthenticationStateProvider authenticationStatePro
         }
         catch (Exception)
         {
-            // Mantém o visual padrão da rede: o tema nunca pode impedir o painel de abrir.
+            // Falhas no carregamento do contexto não devem ampliar o escopo nem revelar outro tenant.
             Unit = null;
+            selectedInstitutionId = null;
+            AvailableInstitutions = Array.Empty<InstitutionOption>();
         }
     }
+
+    public async Task SelectInstitutionAsync(Guid institutionId)
+    {
+        await InitializeAsync();
+        if (AvailableInstitutions.All(x => x.Id != institutionId))
+            throw new UnauthorizedAccessException("Você não tem vínculo com essa instituição.");
+
+        selectedInstitutionId = institutionId;
+        await LoadUnitAsync(User!.Id);
+        Changed?.Invoke();
+    }
+
+    private static UserRole ToUserRole(PapelInstituicao role) => role switch
+    {
+        PapelInstituicao.Aluno => UserRole.Aluno,
+        PapelInstituicao.Professor => UserRole.Professor,
+        PapelInstituicao.Gestor => UserRole.Gestor,
+        _ => UserRole.User
+    };
 
     /// <summary>
     /// Revalida a conta no banco e garante que o perfil atual está entre os permitidos.
@@ -197,9 +254,28 @@ public sealed class UiSession(AuthenticationStateProvider authenticationStatePro
             throw new UnauthorizedAccessException("Sua sessão expirou. Entre novamente.");
         }
 
-        User = new UserSummary(userId, row.Name, row.Email, row.Role);
+        var role = row.Role;
+        if (row.Role != UserRole.Admin)
+        {
+            if (selectedInstitutionId is Guid institutionId)
+            {
+                var linkRole = await db.UsuariosInstituicoes.AsNoTracking()
+                    .Where(x => x.UsuarioId == userId && x.InstituicaoId == institutionId && x.Ativa)
+                    .Select(x => (PapelInstituicao?)x.Papel)
+                    .FirstOrDefaultAsync();
+                role = linkRole is null ? UserRole.User : ToUserRole(linkRole.Value);
+            }
+            else if (allowedRoles.Length > 0)
+            {
+                throw new UnauthorizedAccessException(RequiresInstitutionSelection
+                    ? "Selecione uma instituição para continuar."
+                    : "Você não tem vínculo ativo com uma instituição.");
+            }
+        }
 
-        if (allowedRoles.Length > 0 && !allowedRoles.Contains(row.Role))
+        User = new UserSummary(userId, row.Name, row.Email, role);
+
+        if (allowedRoles.Length > 0 && !allowedRoles.Contains(role))
             throw new UnauthorizedAccessException("Seu perfil não tem permissão para esta ação.");
 
         return User;
@@ -210,7 +286,7 @@ public sealed class UiSession(AuthenticationStateProvider authenticationStatePro
     /// Medicina. Professor: turma ativa do curso de Medicina. "Medicina Veterinária" não conta.
     /// Regra pelo nome do curso (começa com "Medicina"); se o nome mudar, ajuste aqui.
     /// </summary>
-    private async Task<string?> DetectCourseThemeAsync(AppDbContext db, Guid userId)
+    private async Task<string?> DetectCourseThemeAsync(AppDbContext db, Guid userId, Guid institutionId)
     {
         var role = User?.Role;
         bool inMedicine = false;
@@ -218,14 +294,14 @@ public sealed class UiSession(AuthenticationStateProvider authenticationStatePro
         if (role == UserRole.Aluno)
         {
             inMedicine = await db.Matriculas.AsNoTracking().AnyAsync(m =>
-                m.UsuarioId == userId && m.Ativa && m.Turma.Ativa && m.Turma.Curso.Ativo
+                m.InstituicaoId == institutionId && m.UsuarioId == userId && m.Ativa && m.Turma.Ativa && m.Turma.Curso.Ativo
                 && EF.Functions.Like(m.Turma.Curso.Nome, "Medicina%")
                 && !EF.Functions.Like(m.Turma.Curso.Nome, "%veterin%"));
         }
         else if (role == UserRole.Professor)
         {
             inMedicine = await db.Turmas.AsNoTracking().AnyAsync(t =>
-                t.ProfessorId == userId && t.Ativa && t.Curso.Ativo
+                t.InstituicaoId == institutionId && t.ProfessorId == userId && t.Ativa && t.Curso.Ativo
                 && EF.Functions.Like(t.Curso.Nome, "Medicina%")
                 && !EF.Functions.Like(t.Curso.Nome, "%veterin%"));
         }

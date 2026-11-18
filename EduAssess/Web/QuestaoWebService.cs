@@ -1,6 +1,7 @@
 using EduAssess.Application.Interfaces;
 using EduAssess.Data;
 using EduAssess.Models;
+using EduAssess.Models.Global;
 using EduAssess.Models.Local;
 using Microsoft.EntityFrameworkCore;
 
@@ -41,9 +42,10 @@ public sealed class QuestaoWebService(
     public async Task<List<DisciplineOption>> GetMyDisciplinesAsync()
     {
         var me = await session.RequireAsync(Teaching);
+        var institutionId = session.InstitutionId ?? throw new UnauthorizedAccessException("Selecione uma instituição.");
         await using var db = await dbFactory.CreateDbContextAsync();
         var id = me.Id;
-        var query = db.Disciplinas.AsNoTracking().Where(d => d.Ativa);
+        var query = db.Disciplinas.AsNoTracking().Where(d => d.InstituicaoId == institutionId && d.Ativa);
         if (!IsStaff(me))
             query = query.Where(d => d.ProfessorId == id);
 
@@ -53,10 +55,11 @@ public sealed class QuestaoWebService(
     public async Task<List<QuestionRow>> GetMyQuestionsAsync(Guid? disciplineId, string? topic, DificuldadeQuestao? difficulty)
     {
         var me = await session.RequireAsync(Teaching);
+        var institutionId = session.InstitutionId ?? throw new UnauthorizedAccessException("Selecione uma instituição.");
         await using var db = await dbFactory.CreateDbContextAsync();
         var id = me.Id;
 
-        var query = db.Questoes.AsNoTracking().Where(q => q.Ativa);
+        var query = db.Questoes.AsNoTracking().Where(q => q.InstituicaoId == institutionId && q.Ativa);
         if (!IsStaff(me))
             query = query.Where(q => q.ProfessorId == id);
         if (disciplineId.HasValue)
@@ -71,7 +74,7 @@ public sealed class QuestaoWebService(
 
         var rows = await query.OrderBy(q => q.Assunto).Take(300).ToListAsync();
 
-        var names = (await db.Disciplinas.AsNoTracking().Select(d => new { d.Id, d.Nome }).ToListAsync())
+        var names = (await db.Disciplinas.AsNoTracking().Where(d => d.InstituicaoId == institutionId).Select(d => new { d.Id, d.Nome }).ToListAsync())
             .ToDictionary(d => d.Id, d => d.Nome);
 
         return rows.Select(q => ToRow(q, names.TryGetValue(q.DisciplinaId, out var n) ? n : "—")).ToList();
@@ -86,6 +89,7 @@ public sealed class QuestaoWebService(
         Guid disciplineId, string topic, DificuldadeQuestao difficulty, int quantity, string? recommendations = null)
     {
         var me = await session.RequireAsync(Teaching);
+        var institutionId = session.InstitutionId ?? throw new UnauthorizedAccessException("Selecione uma instituição.");
         topic = (topic ?? "").Trim();
         if (topic.Length is < 2 or > 100)
             throw new ArgumentException("Informe um assunto entre 2 e 100 caracteres.");
@@ -97,12 +101,12 @@ public sealed class QuestaoWebService(
         var myId = me.Id;
         var staff = IsStaff(me);
         var discipline = await db.Disciplinas.AsNoTracking()
-            .FirstOrDefaultAsync(d => d.Id == disciplineId && d.Ativa && (staff || d.ProfessorId == myId))
+            .FirstOrDefaultAsync(d => d.Id == disciplineId && d.InstituicaoId == institutionId && d.Ativa && (staff || d.ProfessorId == myId))
             ?? throw new InvalidOperationException("Disciplina não encontrada.");
 
         // Enunciados que já existem nesse assunto: a IA é instruída a não repeti-los.
         var existing = await db.Questoes.AsNoTracking()
-            .Where(q => q.Ativa && q.DisciplinaId == disciplineId && q.Assunto == topic)
+            .Where(q => q.InstituicaoId == institutionId && q.Ativa && q.DisciplinaId == disciplineId && q.Assunto == topic)
             .Take(15).Select(q => q.Enunciado).ToListAsync();
 
         var generated = await ia.GerarQuestoesAsync(disciplineId, discipline.Nome, topic, difficulty, quantity, existing, recommendations);
@@ -124,6 +128,7 @@ public sealed class QuestaoWebService(
     public async Task<List<Guid>> SaveDraftsAsync(Guid disciplineId, string topic, DificuldadeQuestao difficulty, IEnumerable<DraftQuestion> drafts)
     {
         var me = await session.RequireAsync(Teaching);
+        var institutionId = session.InstitutionId ?? throw new UnauthorizedAccessException("Selecione uma instituição.");
         topic = (topic ?? "").Trim();
         if (topic.Length is < 2 or > 100)
             throw new ArgumentException("Informe um assunto entre 2 e 100 caracteres.");
@@ -137,7 +142,7 @@ public sealed class QuestaoWebService(
         await using var db = await dbFactory.CreateDbContextAsync();
         var myId = me.Id;
         var staff = IsStaff(me);
-        if (!await db.Disciplinas.AnyAsync(d => d.Id == disciplineId && d.Ativa && (staff || d.ProfessorId == myId)))
+        if (!await db.Disciplinas.AnyAsync(d => d.Id == disciplineId && d.InstituicaoId == institutionId && d.Ativa && (staff || d.ProfessorId == myId)))
             throw new InvalidOperationException("Disciplina não encontrada.");
 
         var created = new List<Guid>();
@@ -148,7 +153,7 @@ public sealed class QuestaoWebService(
             var model = new QuestaoModel(
                 me.Id, disciplineId, d.Statement.Trim(), a[d.CorrectIndex],
                 a[0], a[1], a[2], a[3], a[4],
-                topic, d.Explanation.Trim(), difficulty);
+                topic, d.Explanation.Trim(), difficulty, institutionId);
             db.Questoes.Add(model);
             created.Add(model.Id);
         }
@@ -160,10 +165,11 @@ public sealed class QuestaoWebService(
     public async Task DisableQuestionAsync(Guid id)
     {
         var me = await session.RequireAsync(Teaching);
+        var institutionId = session.InstitutionId ?? throw new UnauthorizedAccessException("Selecione uma instituição.");
         await using var db = await dbFactory.CreateDbContextAsync();
         var myId = me.Id;
         var staff = IsStaff(me);
-        var question = await db.Questoes.FirstOrDefaultAsync(q => q.Id == id && q.Ativa && (staff || q.ProfessorId == myId))
+        var question = await db.Questoes.FirstOrDefaultAsync(q => q.Id == id && q.InstituicaoId == institutionId && q.Ativa && (staff || q.ProfessorId == myId))
             ?? throw new InvalidOperationException("A questão não foi encontrada.");
         question.Disable();
         await db.SaveChangesAsync();
@@ -175,19 +181,22 @@ public sealed class QuestaoWebService(
     public async Task<List<PracticeDiscipline>> GetPracticeDisciplinesAsync()
     {
         await session.RequireAsync(Learners);
+        var institutionId = session.InstitutionId ?? throw new UnauthorizedAccessException("Selecione uma instituição.");
         await using var db = await dbFactory.CreateDbContextAsync();
 
         // Só duas colunas por questão; a contagem por dificuldade é feita em memória.
-        var counts = await db.Questoes.AsNoTracking().Where(q => q.Ativa)
+        var counts = await db.Questoes.AsNoTracking().Where(q => q.InstituicaoId == institutionId && q.Ativa)
             .Select(q => new { q.DisciplinaId, q.Dificuldade }).ToListAsync();
         if (counts.Count == 0)
             return new();
 
         var ids = counts.Select(c => c.DisciplinaId).Distinct().ToList();
         var disciplines = await db.Disciplinas.AsNoTracking()
-            .Where(d => d.Ativa && ids.Contains(d.Id))
+            .Where(d => d.InstituicaoId == institutionId && d.Ativa && ids.Contains(d.Id))
             .Select(d => new { d.Id, d.Nome, d.ProfessorId }).ToListAsync();
-        var teachers = (await db.Users.AsNoTracking().Select(u => new { u.Id, u.Name }).ToListAsync())
+        var teachers = (await db.Users.AsNoTracking()
+            .Where(u => db.UsuariosInstituicoes.Any(ui => ui.UsuarioId == u.Id && ui.InstituicaoId == institutionId && ui.Ativa))
+            .Select(u => new { u.Id, u.Name }).ToListAsync())
             .ToDictionary(u => u.Id, u => u.Name);
 
         return disciplines.Select(d =>
@@ -210,10 +219,13 @@ public sealed class QuestaoWebService(
     public async Task<List<PracticeQuestion>> BuildPracticeAsync(Guid disciplineId, DificuldadeQuestao? difficulty, int count)
     {
         await session.RequireAsync(Learners);
+        var institutionId = session.InstitutionId ?? throw new UnauthorizedAccessException("Selecione uma instituição.");
         count = Math.Clamp(count, 1, 20);
 
         await using var db = await dbFactory.CreateDbContextAsync();
-        var query = db.Questoes.AsNoTracking().Where(q => q.Ativa && q.DisciplinaId == disciplineId);
+        if (!await db.Disciplinas.AnyAsync(d => d.Id == disciplineId && d.InstituicaoId == institutionId && d.Ativa))
+            throw new InvalidOperationException("Disciplina não encontrada.");
+        var query = db.Questoes.AsNoTracking().Where(q => q.InstituicaoId == institutionId && q.Ativa && q.DisciplinaId == disciplineId);
         if (difficulty.HasValue)
             query = query.Where(q => q.Dificuldade == difficulty.Value);
 

@@ -9,9 +9,10 @@ namespace EduAssess.Models.Local
             Notas = new List<NotaModel>();
         }
 
-        public MatriculaModel(Guid usuarioId, Guid turmaId)
+        public MatriculaModel(Guid usuarioId, Guid turmaId, Guid? instituicaoId = null)
         {
             Id = Guid.NewGuid();
+            InstituicaoId = instituicaoId;
             UsuarioId = usuarioId;
             TurmaId = turmaId;
             DataMatricula = DateTime.UtcNow;
@@ -22,6 +23,7 @@ namespace EduAssess.Models.Local
         }
 
         public Guid Id { get; init; }
+        public Guid? InstituicaoId { get; private set; }
         public Guid UsuarioId { get; set; }
         public Guid TurmaId { get; private set; }
         public DateTime DataMatricula { get; set; }

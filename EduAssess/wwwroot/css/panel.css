@@ -133,6 +133,7 @@ td.num, th.num { text-align: right; }
 /* ───────────── Cursos ───────────── */
 .course-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; }
 .course-card { display: flex; flex-direction: column; gap: 10px; padding: 22px; border-radius: var(--radius); background: var(--mint-50); border: 1px solid var(--line-cool); transition: transform .2s var(--ease), box-shadow .2s var(--ease); }
+.course-card.off { opacity: .7; }
 .course-card:hover { transform: translateY(-3px); box-shadow: var(--shadow); }
 .course-card .top { display: flex; align-items: center; justify-content: space-between; }
 .course-card .ico { display: grid; place-items: center; width: 42px; height: 42px; border-radius: 12px; background: var(--forest-700); color: var(--sky-200); }

@@ -1,5 +1,6 @@
 using EduAssess.Data;
 using EduAssess.Models;
+using EduAssess.Models.Global;
 using EduAssess.Models.Local;
 using Microsoft.EntityFrameworkCore;
 
@@ -25,11 +26,12 @@ public sealed class AvaliacaoWebService(IDbContextFactory<AppDbContext> dbFactor
     public async Task<List<DisciplineOption>> GetDisciplinesAsync()
     {
         var me = await session.RequireAsync(Teaching);
+        var institutionId = session.InstitutionId ?? throw new UnauthorizedAccessException("Selecione uma instituição.");
         await using var db = await dbFactory.CreateDbContextAsync();
         var id = me.Id;
-        var query = db.Disciplinas.AsNoTracking().Where(d => d.Ativa);
+        var query = db.Disciplinas.AsNoTracking().Where(d => d.InstituicaoId == institutionId && d.Ativa);
         if (!IsStaff(me))
-            query = query.Where(d => d.ProfessorId == id);
+            query = query.Where(d => d.ProfessorId == id && db.UsuariosInstituicoes.Any(ui => ui.UsuarioId == id && ui.InstituicaoId == institutionId && ui.Ativa && ui.Papel == PapelInstituicao.Professor));
         return await query.OrderBy(d => d.Nome).Select(d => new DisciplineOption(d.Id, d.Nome)).ToListAsync();
     }
 
@@ -37,17 +39,18 @@ public sealed class AvaliacaoWebService(IDbContextFactory<AppDbContext> dbFactor
     public async Task<List<ExamCard>> GetExamsAsync(bool onlyMine, string? search, StatusAvaliacao? status, string sort)
     {
         var me = await session.RequireAsync(Teaching);
+        var institutionId = session.InstitutionId ?? throw new UnauthorizedAccessException("Selecione uma instituição.");
         await using var db = await dbFactory.CreateDbContextAsync();
         var myId = me.Id;
 
-        var query = db.Avaliacoes.AsNoTracking().Where(a => a.Ativa);
+        var query = db.Avaliacoes.AsNoTracking().Where(a => a.InstituicaoId == institutionId && a.Ativa);
         if (onlyMine)
             query = query.Where(a => a.AutorId == myId);
         if (status.HasValue)
             query = query.Where(a => a.Status == status.Value);
 
         var rows = await query.ToListAsync();
-        return (await BuildCardsAsync(db, rows, me))
+        return (await BuildCardsAsync(db, rows, me, institutionId))
             .Where(c => string.IsNullOrWhiteSpace(search)
                 || Contains(c.Title, search) || Contains(c.Code, search)
                 || Contains(c.DisciplineName, search) || Contains(c.AuthorName, search))
@@ -61,11 +64,12 @@ public sealed class AvaliacaoWebService(IDbContextFactory<AppDbContext> dbFactor
     public async Task<ExamDetail> GetExamAsync(Guid id)
     {
         var me = await session.RequireAsync(Teaching);
+        var institutionId = session.InstitutionId ?? throw new UnauthorizedAccessException("Selecione uma instituição.");
         await using var db = await dbFactory.CreateDbContextAsync();
-        var exam = await db.Avaliacoes.AsNoTracking().FirstOrDefaultAsync(a => a.Id == id && a.Ativa)
+        var exam = await db.Avaliacoes.AsNoTracking().FirstOrDefaultAsync(a => a.Id == id && a.InstituicaoId == institutionId && a.Ativa)
             ?? throw new InvalidOperationException("A avaliação não foi encontrada.");
-        var card = (await BuildCardsAsync(db, [exam], me)).First();
-        var questions = await LoadQuestionsAsync(db, id, card.DisciplineName);
+        var card = (await BuildCardsAsync(db, [exam], me, institutionId)).First();
+        var questions = await LoadQuestionsAsync(db, id, card.DisciplineName, institutionId);
         return new ExamDetail(card, questions);
     }
 
@@ -73,6 +77,7 @@ public sealed class AvaliacaoWebService(IDbContextFactory<AppDbContext> dbFactor
     public async Task<Guid> SaveExamAsync(Guid? id, ExamForm form)
     {
         var me = await session.RequireAsync(Teaching);
+        var institutionId = session.InstitutionId ?? throw new UnauthorizedAccessException("Selecione uma instituição.");
         var title = (form.Title ?? "").Trim();
         var details = (form.Details ?? "").Trim();
         if (title.Length is < 3 or > 80)
@@ -90,17 +95,17 @@ public sealed class AvaliacaoWebService(IDbContextFactory<AppDbContext> dbFactor
         if (id is null)
         {
             var discipline = await db.Disciplinas.AsNoTracking()
-                .FirstOrDefaultAsync(d => d.Id == form.DisciplineId && d.Ativa && (staff || d.ProfessorId == myId))
+                .FirstOrDefaultAsync(d => d.Id == form.DisciplineId && d.InstituicaoId == institutionId && d.Ativa && (staff || d.ProfessorId == myId))
                 ?? throw new ArgumentException("Selecione uma disciplina.");
 
             var code = await NewCodeAsync(db, discipline.Nome);
-            var exam = new AvaliacaoModel(code, title, form.Type, me.Id, discipline.Id, details, form.Periodicity, duration);
+            var exam = new AvaliacaoModel(code, title, form.Type, me.Id, discipline.Id, details, form.Periodicity, duration, institutionId);
             db.Avaliacoes.Add(exam);
             await db.SaveChangesAsync();
             return exam.Id;
         }
 
-        var existing = await db.Avaliacoes.FirstOrDefaultAsync(a => a.Id == id && a.Ativa && (staff || a.AutorId == myId))
+        var existing = await db.Avaliacoes.FirstOrDefaultAsync(a => a.Id == id && a.InstituicaoId == institutionId && a.Ativa && (staff || a.AutorId == myId))
             ?? throw new InvalidOperationException("A avaliação não foi encontrada ou você não pode alterá-la.");
         existing.Update(title, form.Type, details, form.Periodicity, duration);
         await db.SaveChangesAsync();
@@ -111,13 +116,14 @@ public sealed class AvaliacaoWebService(IDbContextFactory<AppDbContext> dbFactor
     public async Task SetAppliedAsync(Guid id, bool applied)
     {
         var me = await session.RequireAsync(Teaching);
+        var institutionId = session.InstitutionId ?? throw new UnauthorizedAccessException("Selecione uma instituição.");
         await using var db = await dbFactory.CreateDbContextAsync();
-        var exam = await FindEditableAsync(db, id, me);
+        var exam = await FindEditableAsync(db, id, me, institutionId);
 
         if (applied)
         {
             var linked = await db.AvaliacoesQuestoes.Where(l => l.AvaliacaoId == id).Select(l => l.QuestaoId).ToListAsync();
-            var activeCount = await db.Questoes.CountAsync(q => q.Ativa && linked.Contains(q.Id));
+            var activeCount = await db.Questoes.CountAsync(q => q.InstituicaoId == institutionId && q.Ativa && linked.Contains(q.Id));
             if (activeCount == 0)
                 throw new InvalidOperationException("Adicione ao menos uma questão antes de aplicar.");
             exam.Aplicar();
@@ -133,8 +139,9 @@ public sealed class AvaliacaoWebService(IDbContextFactory<AppDbContext> dbFactor
     public async Task DeleteExamAsync(Guid id)
     {
         var me = await session.RequireAsync(Teaching);
+        var institutionId = session.InstitutionId ?? throw new UnauthorizedAccessException("Selecione uma instituição.");
         await using var db = await dbFactory.CreateDbContextAsync();
-        var exam = await FindEditableAsync(db, id, me);
+        var exam = await FindEditableAsync(db, id, me, institutionId);
         exam.Disable();
         await db.SaveChangesAsync();
     }
@@ -143,13 +150,14 @@ public sealed class AvaliacaoWebService(IDbContextFactory<AppDbContext> dbFactor
     public async Task<List<QuestionRow>> GetBankAsync(Guid examId, string? search)
     {
         var me = await session.RequireAsync(Teaching);
+        var institutionId = session.InstitutionId ?? throw new UnauthorizedAccessException("Selecione uma instituição.");
         await using var db = await dbFactory.CreateDbContextAsync();
-        var exam = await FindEditableAsync(db, examId, me);
-        var discipline = await db.Disciplinas.AsNoTracking().FirstAsync(d => d.Id == exam.DisciplinaId);
+        var exam = await FindEditableAsync(db, examId, me, institutionId);
+        var discipline = await db.Disciplinas.AsNoTracking().FirstAsync(d => d.Id == exam.DisciplinaId && d.InstituicaoId == institutionId);
 
         var already = await db.AvaliacoesQuestoes.Where(l => l.AvaliacaoId == examId).Select(l => l.QuestaoId).ToListAsync();
         var rows = await db.Questoes.AsNoTracking()
-            .Where(q => q.Ativa && q.DisciplinaId == exam.DisciplinaId && !already.Contains(q.Id))
+            .Where(q => q.InstituicaoId == institutionId && q.Ativa && q.DisciplinaId == exam.DisciplinaId && !already.Contains(q.Id))
             .OrderBy(q => q.Assunto).Take(200).ToListAsync();
 
         return rows.Select(q => QuestaoWebService.ToRow(q, discipline.Nome))
@@ -160,8 +168,9 @@ public sealed class AvaliacaoWebService(IDbContextFactory<AppDbContext> dbFactor
     public async Task AddQuestionsAsync(Guid examId, IEnumerable<Guid> questionIds)
     {
         var me = await session.RequireAsync(Teaching);
+        var institutionId = session.InstitutionId ?? throw new UnauthorizedAccessException("Selecione uma instituição.");
         await using var db = await dbFactory.CreateDbContextAsync();
-        var exam = await FindEditableAsync(db, examId, me);
+        var exam = await FindEditableAsync(db, examId, me, institutionId);
 
         var wanted = questionIds.Distinct().ToList();
         if (wanted.Count == 0)
@@ -169,7 +178,7 @@ public sealed class AvaliacaoWebService(IDbContextFactory<AppDbContext> dbFactor
 
         // Só entram questões ativas DA MESMA DISCIPLINA da avaliação.
         var valid = await db.Questoes.AsNoTracking()
-            .Where(q => q.Ativa && q.DisciplinaId == exam.DisciplinaId && wanted.Contains(q.Id))
+            .Where(q => q.InstituicaoId == institutionId && q.Ativa && q.DisciplinaId == exam.DisciplinaId && wanted.Contains(q.Id))
             .Select(q => q.Id).ToListAsync();
         var already = await db.AvaliacoesQuestoes.Where(l => l.AvaliacaoId == examId).ToListAsync();
         var next = already.Count == 0 ? 1 : already.Max(l => l.Ordem) + 1;
@@ -183,8 +192,9 @@ public sealed class AvaliacaoWebService(IDbContextFactory<AppDbContext> dbFactor
     public async Task RemoveQuestionAsync(Guid examId, Guid questionId)
     {
         var me = await session.RequireAsync(Teaching);
+        var institutionId = session.InstitutionId ?? throw new UnauthorizedAccessException("Selecione uma instituição.");
         await using var db = await dbFactory.CreateDbContextAsync();
-        await FindEditableAsync(db, examId, me);
+        await FindEditableAsync(db, examId, me, institutionId);
 
         var link = await db.AvaliacoesQuestoes.FirstOrDefaultAsync(l => l.AvaliacaoId == examId && l.QuestaoId == questionId);
         if (link is not null)
@@ -198,8 +208,9 @@ public sealed class AvaliacaoWebService(IDbContextFactory<AppDbContext> dbFactor
     public async Task MoveQuestionAsync(Guid examId, Guid questionId, int direction)
     {
         var me = await session.RequireAsync(Teaching);
+        var institutionId = session.InstitutionId ?? throw new UnauthorizedAccessException("Selecione uma instituição.");
         await using var db = await dbFactory.CreateDbContextAsync();
-        await FindEditableAsync(db, examId, me);
+        await FindEditableAsync(db, examId, me, institutionId);
 
         var links = await db.AvaliacoesQuestoes.Where(l => l.AvaliacaoId == examId).OrderBy(l => l.Ordem).ToListAsync();
         var index = links.FindIndex(l => l.QuestaoId == questionId);
@@ -221,37 +232,40 @@ public sealed class AvaliacaoWebService(IDbContextFactory<AppDbContext> dbFactor
     public async Task<List<PracticeExam>> GetAppliedAsync()
     {
         await session.RequireAsync(Learners);
+        var institutionId = session.InstitutionId ?? throw new UnauthorizedAccessException("Selecione uma instituição.");
         await using var db = await dbFactory.CreateDbContextAsync();
         var rows = await db.Avaliacoes.AsNoTracking()
-            .Where(a => a.Ativa && a.Status == StatusAvaliacao.Aplicada)
+            .Where(a => a.InstituicaoId == institutionId && a.Ativa && a.Status == StatusAvaliacao.Aplicada)
             .OrderByDescending(a => a.CriadaEm).ToListAsync();
-        return await ToPracticeExamsAsync(db, rows);
+        return await ToPracticeExamsAsync(db, rows, institutionId);
     }
 
     /// <summary>Procura uma avaliação aplicada pelo código (ex.: PSI-26-10-9GN).</summary>
     public async Task<PracticeExam?> FindAppliedByCodeAsync(string? code)
     {
         await session.RequireAsync(Learners);
+        var institutionId = session.InstitutionId ?? throw new UnauthorizedAccessException("Selecione uma instituição.");
         var normalized = (code ?? "").Trim().ToUpperInvariant();
         if (normalized.Length is < 6 or > 20)
             return null;
 
         await using var db = await dbFactory.CreateDbContextAsync();
         var row = await db.Avaliacoes.AsNoTracking()
-            .FirstOrDefaultAsync(a => a.Ativa && a.Status == StatusAvaliacao.Aplicada && a.Codigo == normalized);
-        return row is null ? null : (await ToPracticeExamsAsync(db, [row])).FirstOrDefault();
+            .FirstOrDefaultAsync(a => a.InstituicaoId == institutionId && a.Ativa && a.Status == StatusAvaliacao.Aplicada && a.Codigo == normalized);
+        return row is null ? null : (await ToPracticeExamsAsync(db, [row], institutionId)).FirstOrDefault();
     }
 
     /// <summary>Monta as questões da avaliação na ordem definida; só as alternativas são embaralhadas.</summary>
     public async Task<List<PracticeQuestion>> BuildExamAsync(Guid examId)
     {
         await session.RequireAsync(Learners);
+        var institutionId = session.InstitutionId ?? throw new UnauthorizedAccessException("Selecione uma instituição.");
         await using var db = await dbFactory.CreateDbContextAsync();
         var exam = await db.Avaliacoes.AsNoTracking()
-            .FirstOrDefaultAsync(a => a.Id == examId && a.Ativa && a.Status == StatusAvaliacao.Aplicada)
+            .FirstOrDefaultAsync(a => a.Id == examId && a.InstituicaoId == institutionId && a.Ativa && a.Status == StatusAvaliacao.Aplicada)
             ?? throw new InvalidOperationException("Essa avaliação não está disponível.");
 
-        var questions = await LoadQuestionsAsync(db, exam.Id, "");
+        var questions = await LoadQuestionsAsync(db, exam.Id, "", institutionId);
         var result = new List<PracticeQuestion>();
         foreach (var item in questions)
         {
@@ -271,11 +285,11 @@ public sealed class AvaliacaoWebService(IDbContextFactory<AppDbContext> dbFactor
     private static bool Contains(string text, string term) =>
         text.Contains(term.Trim(), StringComparison.OrdinalIgnoreCase);
 
-    private static async Task<AvaliacaoModel> FindEditableAsync(AppDbContext db, Guid id, UserSummary me)
+    private static async Task<AvaliacaoModel> FindEditableAsync(AppDbContext db, Guid id, UserSummary me, Guid institutionId)
     {
         var staff = IsStaff(me);
         var myId = me.Id;
-        return await db.Avaliacoes.FirstOrDefaultAsync(a => a.Id == id && a.Ativa && (staff || a.AutorId == myId))
+        return await db.Avaliacoes.FirstOrDefaultAsync(a => a.Id == id && a.InstituicaoId == institutionId && a.Ativa && (staff || a.AutorId == myId))
             ?? throw new InvalidOperationException("A avaliação não foi encontrada ou você não pode alterá-la.");
     }
 
@@ -291,7 +305,7 @@ public sealed class AvaliacaoWebService(IDbContextFactory<AppDbContext> dbFactor
         throw new InvalidOperationException("Não foi possível gerar um código único. Tente novamente.");
     }
 
-    private static async Task<List<ExamCard>> BuildCardsAsync(AppDbContext db, List<AvaliacaoModel> rows, UserSummary me)
+    private static async Task<List<ExamCard>> BuildCardsAsync(AppDbContext db, List<AvaliacaoModel> rows, UserSummary me, Guid institutionId)
     {
         if (rows.Count == 0)
             return new();
@@ -300,12 +314,14 @@ public sealed class AvaliacaoWebService(IDbContextFactory<AppDbContext> dbFactor
         var links = await db.AvaliacoesQuestoes.AsNoTracking().Where(l => ids.Contains(l.AvaliacaoId))
             .Select(l => new { l.AvaliacaoId, l.QuestaoId }).ToListAsync();
         var questionIds = links.Select(l => l.QuestaoId).Distinct().ToList();
-        var activeQuestions = (await db.Questoes.AsNoTracking().Where(q => q.Ativa && questionIds.Contains(q.Id))
+        var activeQuestions = (await db.Questoes.AsNoTracking().Where(q => q.InstituicaoId == institutionId && q.Ativa && questionIds.Contains(q.Id))
             .Select(q => q.Id).ToListAsync()).ToHashSet();
 
-        var disciplines = (await db.Disciplinas.AsNoTracking().Select(d => new { d.Id, d.Nome }).ToListAsync())
+        var disciplines = (await db.Disciplinas.AsNoTracking().Where(d => d.InstituicaoId == institutionId).Select(d => new { d.Id, d.Nome }).ToListAsync())
             .ToDictionary(d => d.Id, d => d.Nome);
-        var users = (await db.Users.AsNoTracking().Select(u => new { u.Id, u.Name }).ToListAsync())
+        var users = (await db.Users.AsNoTracking()
+            .Where(u => db.UsuariosInstituicoes.Any(ui => ui.UsuarioId == u.Id && ui.InstituicaoId == institutionId && ui.Ativa))
+            .Select(u => new { u.Id, u.Name }).ToListAsync())
             .ToDictionary(u => u.Id, u => u.Name);
         var staff = IsStaff(me);
 
@@ -318,12 +334,12 @@ public sealed class AvaliacaoWebService(IDbContextFactory<AppDbContext> dbFactor
             staff || a.AutorId == me.Id)).ToList();
     }
 
-    private static async Task<List<ExamQuestion>> LoadQuestionsAsync(AppDbContext db, Guid examId, string disciplineName)
+    private static async Task<List<ExamQuestion>> LoadQuestionsAsync(AppDbContext db, Guid examId, string disciplineName, Guid institutionId)
     {
         var links = await db.AvaliacoesQuestoes.AsNoTracking().Where(l => l.AvaliacaoId == examId)
             .OrderBy(l => l.Ordem).ToListAsync();
         var ids = links.Select(l => l.QuestaoId).ToList();
-        var questions = (await db.Questoes.AsNoTracking().Where(q => q.Ativa && ids.Contains(q.Id)).ToListAsync())
+        var questions = (await db.Questoes.AsNoTracking().Where(q => q.InstituicaoId == institutionId && q.Ativa && ids.Contains(q.Id)).ToListAsync())
             .ToDictionary(q => q.Id);
 
         return links.Where(l => questions.ContainsKey(l.QuestaoId))
@@ -331,7 +347,7 @@ public sealed class AvaliacaoWebService(IDbContextFactory<AppDbContext> dbFactor
             .ToList();
     }
 
-    private static async Task<List<PracticeExam>> ToPracticeExamsAsync(AppDbContext db, List<AvaliacaoModel> rows)
+    private static async Task<List<PracticeExam>> ToPracticeExamsAsync(AppDbContext db, List<AvaliacaoModel> rows, Guid institutionId)
     {
         if (rows.Count == 0)
             return new();
@@ -340,11 +356,13 @@ public sealed class AvaliacaoWebService(IDbContextFactory<AppDbContext> dbFactor
         var links = await db.AvaliacoesQuestoes.AsNoTracking().Where(l => ids.Contains(l.AvaliacaoId))
             .Select(l => new { l.AvaliacaoId, l.QuestaoId }).ToListAsync();
         var questionIds = links.Select(l => l.QuestaoId).Distinct().ToList();
-        var active = (await db.Questoes.AsNoTracking().Where(q => q.Ativa && questionIds.Contains(q.Id))
+        var active = (await db.Questoes.AsNoTracking().Where(q => q.InstituicaoId == institutionId && q.Ativa && questionIds.Contains(q.Id))
             .Select(q => q.Id).ToListAsync()).ToHashSet();
-        var disciplines = (await db.Disciplinas.AsNoTracking().Select(d => new { d.Id, d.Nome }).ToListAsync())
+        var disciplines = (await db.Disciplinas.AsNoTracking().Where(d => d.InstituicaoId == institutionId).Select(d => new { d.Id, d.Nome }).ToListAsync())
             .ToDictionary(d => d.Id, d => d.Nome);
-        var users = (await db.Users.AsNoTracking().Select(u => new { u.Id, u.Name }).ToListAsync())
+        var users = (await db.Users.AsNoTracking()
+            .Where(u => db.UsuariosInstituicoes.Any(ui => ui.UsuarioId == u.Id && ui.InstituicaoId == institutionId && ui.Ativa))
+            .Select(u => new { u.Id, u.Name }).ToListAsync())
             .ToDictionary(u => u.Id, u => u.Name);
 
         return rows

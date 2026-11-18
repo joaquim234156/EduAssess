@@ -24,6 +24,7 @@ namespace EduAssess.Data
 
         public DbSet<ContatoModel> Contatos { get; set; } = null!;
         public DbSet<InstituicaoModel> Instituicoes { get; set; } = null!;
+        public DbSet<MantenedorModel> Mantenedores { get; set; } = null!;
         public DbSet<UnidadeModel> Unidades { get; set; } = null!;
         public DbSet<UsuarioInstituicaoModel> UsuariosInstituicoes { get; set; } = null!;
 
@@ -48,7 +49,31 @@ namespace EduAssess.Data
             {
                 e.HasIndex(x => x.Slug).IsUnique();
                 e.HasIndex(x => x.Cnpj).IsUnique(); // no SQLite, vários NULL são permitidos
+                e.HasOne(x => x.Mantenedor).WithMany(x => x.Instituicoes)
+                    .HasForeignKey(x => x.MantenedorId).OnDelete(DeleteBehavior.Restrict);
             });
+
+            modelBuilder.Entity<CursoModel>().HasOne<InstituicaoModel>()
+                .WithMany().HasForeignKey(x => x.InstituicaoId).OnDelete(DeleteBehavior.Restrict);
+            modelBuilder.Entity<CursoModel>().HasIndex(x => x.InstituicaoId);
+            modelBuilder.Entity<DisciplinaModel>().HasOne<InstituicaoModel>()
+                .WithMany().HasForeignKey(x => x.InstituicaoId).OnDelete(DeleteBehavior.Restrict);
+            modelBuilder.Entity<DisciplinaModel>().HasIndex(x => x.InstituicaoId);
+            modelBuilder.Entity<TurmaModel>().HasOne<InstituicaoModel>()
+                .WithMany().HasForeignKey(x => x.InstituicaoId).OnDelete(DeleteBehavior.Restrict);
+            modelBuilder.Entity<TurmaModel>().HasIndex(x => x.InstituicaoId);
+            modelBuilder.Entity<MatriculaModel>().HasOne<InstituicaoModel>()
+                .WithMany().HasForeignKey(x => x.InstituicaoId).OnDelete(DeleteBehavior.Restrict);
+            modelBuilder.Entity<MatriculaModel>().HasIndex(x => x.InstituicaoId);
+            modelBuilder.Entity<NotaModel>().HasOne<InstituicaoModel>()
+                .WithMany().HasForeignKey(x => x.InstituicaoId).OnDelete(DeleteBehavior.Restrict);
+            modelBuilder.Entity<NotaModel>().HasIndex(x => x.InstituicaoId);
+            modelBuilder.Entity<QuestaoModel>().HasOne<InstituicaoModel>()
+                .WithMany().HasForeignKey(x => x.InstituicaoId).OnDelete(DeleteBehavior.Restrict);
+            modelBuilder.Entity<QuestaoModel>().HasIndex(x => x.InstituicaoId);
+            modelBuilder.Entity<AvaliacaoModel>().HasOne<InstituicaoModel>()
+                .WithMany().HasForeignKey(x => x.InstituicaoId).OnDelete(DeleteBehavior.Restrict);
+            modelBuilder.Entity<AvaliacaoModel>().HasIndex(x => x.InstituicaoId);
 
             modelBuilder.Entity<UnidadeModel>()
                 .HasIndex(x => new { x.InstituicaoId, x.Sigla, x.Slug }).IsUnique();

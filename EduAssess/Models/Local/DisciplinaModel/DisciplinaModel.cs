@@ -4,9 +4,10 @@
     {
         protected DisciplinaModel() { }
 
-        public DisciplinaModel(string nome, string descricao, Guid professorId)
+        public DisciplinaModel(string nome, string descricao, Guid professorId, Guid? instituicaoId = null)
         {
             Id = Guid.NewGuid();
+            InstituicaoId = instituicaoId;
             ProfessorId = professorId;
             Nome = nome;
             Descricao = descricao;
@@ -14,6 +15,7 @@
         }
 
         public Guid Id { get; init; }
+        public Guid? InstituicaoId { get; private set; }
         public Guid ProfessorId{ get; private set;}
         public string Nome { get; private set; } = null!;
         public string Descricao { get; private set; } = null!;
