@@ -4,9 +4,10 @@ namespace EduAssess.Models.Local
     public class TurmaModel
     {
         protected TurmaModel() { }
-        public TurmaModel(string nome, Guid professorId, Guid cursoId)
+        public TurmaModel(string nome, Guid professorId, Guid cursoId, Guid? instituicaoId = null)
         {
             Id = Guid.NewGuid();
+            InstituicaoId = instituicaoId;
             ProfessorId = professorId;
             CursoId = cursoId;
             Periodo = 1;
@@ -15,6 +16,7 @@ namespace EduAssess.Models.Local
         }
 
         public Guid Id { get; init; }
+        public Guid? InstituicaoId { get; private set; }
         public Guid ProfessorId { get; private set; }
         public Guid CursoId { get; private set; }
         public int Periodo { get; private set; } = 0;

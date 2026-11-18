@@ -6,11 +6,11 @@ namespace EduAssess.Web;
 
 public sealed record PersonRow(Guid Id, string Name, string Email, string Phone);
 public sealed record StaffRow(Guid Id, string Name, string Email, UserRole Role);
-public sealed record InstructorRow(Guid Id, string Name);
-public sealed record CourseRow(Guid Id, string Name, string Description, int Duration, int ClassCount);
-public sealed record DisciplineRow(Guid Id, string Name, string Description, Guid TeacherId, string TeacherName);
-public sealed record ClassRow(Guid Id, string Name, string CourseName, string InstructorName, int Period, int StudentCount);
-public sealed record EnrollmentRow(Guid Id, string StudentName, string ClassName, string CourseName, DateTime EnrolledAt, bool Active);
+public sealed record InstructorRow(Guid Id, string Name, bool Active = true);
+public sealed record CourseRow(Guid Id, string Name, string Description, int Duration, int ClassCount, bool Active);
+public sealed record DisciplineRow(Guid Id, string Name, string Description, Guid TeacherId, string TeacherName, bool Active);
+public sealed record ClassRow(Guid Id, string Name, string CourseName, string InstructorName, int Period, int StudentCount, Guid CourseId, Guid InstructorId, bool Active);
+public sealed record EnrollmentRow(Guid Id, string StudentName, string ClassName, string CourseName, DateTime EnrolledAt, bool Active, Guid StudentId = default, Guid ClassId = default);
 public sealed record GradeRow(Guid Id, string StudentName, string ClassName, string DisciplineName, string Description, decimal Value, DateTime CreatedAt, string LaunchedBy);
 public sealed record EnrollmentOption(Guid Id, string Label);
 public sealed record DisciplineOption(Guid Id, string Name);

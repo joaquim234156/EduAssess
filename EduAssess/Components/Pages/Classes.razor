@@ -11,7 +11,7 @@
 
 <div class="cols">
     <div class="card sticky">
-        <div class="card-head"><div><h2>Nova turma</h2><p>Escolha o curso e o professor.</p></div></div>
+        <div class="card-head"><div><h2>@(editingId is null ? "Nova turma" : "Editar turma")</h2><p>Escolha o curso e o professor.</p></div></div>
         @if (courses is not null && (courses.Count == 0 || teachers!.Count == 0))
         {
             <div class="hint" style="margin-top:0">
@@ -24,7 +24,7 @@
         }
         else
         {
-            <EditForm Model="form" OnValidSubmit="CreateAsync" FormName="turma">
+            <EditForm Model="form" OnValidSubmit="SaveAsync" FormName="turma">
                 <DataAnnotationsValidator />
                 <div class="field"><label for="t-nome">Nome da turma</label><InputText id="t-nome" class="input" @bind-Value="form.Name" placeholder="Ex.: Administração — Noite" /><ValidationMessage For="@(() => form.Name)" /></div>
                 <div class="field"><label for="t-curso">Curso</label>
@@ -41,13 +41,16 @@
                     </InputSelect>
                     <ValidationMessage For="@(() => form.TeacherId)" />
                 </div>
-                <button class="btn btn-primary" type="submit" disabled="@busy">Criar turma</button>
+                <div class="form-actions">
+                    <button class="btn btn-primary" type="submit" disabled="@busy">@(editingId is null ? "Criar turma" : "Salvar alterações")</button>
+                    @if (editingId is not null) { <button class="btn btn-ghost" type="button" @onclick="CancelEdit">Cancelar</button> }
+                </div>
             </EditForm>
         }
     </div>
 
     <div class="card">
-        <div class="card-head"><div><h2>Turmas ativas</h2><p>Alunos matriculados em cada turma.</p></div><span class="count-pill">@(classes?.Count ?? 0)</span></div>
+        <div class="card-head"><div><h2>@(showInactive ? "Todas as turmas" : "Turmas ativas")</h2><p>Alunos matriculados em cada turma.</p></div><div class="row-actions"><button type="button" class="btn btn-ghost btn-sm" @onclick="ToggleInactive">@(showInactive ? "Mostrar ativas" : "Mostrar inativas")</button><span class="count-pill">@(classes?.Count ?? 0)</span></div></div>
         @if (classes is null)
         {
             <div class="loading"><span class="spinner"></span> Carregando…</div>
@@ -60,15 +63,27 @@
         {
             <div class="table-wrap">
                 <table>
-                    <thead><tr><th>Turma</th><th>Curso</th><th>Professor</th><th class="num">Alunos</th></tr></thead>
+                    <thead><tr><th>Turma</th><th>Curso</th><th>Professor</th><th>Status</th><th class="num">Alunos</th><th></th></tr></thead>
                     <tbody>
                         @foreach (var item in classes)
                         {
-                            <tr>
+                            <tr class="@(item.Active ? "" : "inactive-row")">
                                 <td><strong>@item.Name</strong><span class="cell-sub">@item.Period º período</span></td>
                                 <td>@item.CourseName</td>
                                 <td><div class="person"><div class="avatar sm">@UiFormat.Initials(item.InstructorName)</div>@item.InstructorName</div></td>
+                                <td><span class="badge @(item.Active ? "badge-green" : "badge-gray")">@(item.Active ? "Ativa" : "Inativa")</span></td>
                                 <td class="num"><span class="badge badge-gray">@item.StudentCount</span></td>
+                                <td><div class="row-actions">
+                                    <button class="btn-text" type="button" @onclick="() => Edit(item)">Editar</button>
+                                    @if (item.Active)
+                                    {
+                                        <button class="btn-text danger" type="button" @onclick="() => AskDisable(item)">Desativar</button>
+                                    }
+                                    else
+                                    {
+                                        <button class="btn-text" type="button" @onclick="() => SetActiveAsync(item, true)">Reativar</button>
+                                    }
+                                </div></td>
                             </tr>
                         }
                     </tbody>
@@ -78,11 +93,24 @@
     </div>
 </div>
 
+<Modal Open="disableTarget is not null" Eyebrow="Desativar turma" Title="@(disableTarget?.Name ?? "")" OnClose="CancelDisable">
+    <ChildContent>
+        <p>A turma deixará de ficar disponível para novas matrículas. Matrículas e notas existentes serão preservadas. Deseja continuar?</p>
+    </ChildContent>
+    <Footer>
+        <button type="button" class="btn btn-ghost" @onclick="CancelDisable">Cancelar</button>
+        <button type="button" class="btn btn-danger" disabled="@busy" @onclick="ConfirmDisableAsync">Desativar turma</button>
+    </Footer>
+</Modal>
+
 @code {
     private List<ClassRow>? classes;
     private List<CourseRow>? courses;
     private List<InstructorRow>? teachers;
-    private readonly ClassForm form = new();
+    private ClassForm form = new();
+    private Guid? editingId;
+    private ClassRow? disableTarget;
+    private bool showInactive;
     private string? message;
     private bool isError;
     private bool busy;
@@ -95,7 +123,7 @@
         {
             courses = await Academic.GetCoursesAsync();
             teachers = await Academic.GetInstructorsAsync();
-            classes = await Academic.GetClassesAsync();
+            classes = await Academic.GetClassesAsync(showInactive);
         }
         catch (UnauthorizedAccessException ex)
         {
@@ -104,17 +132,62 @@
         }
     }
 
-    private async Task CreateAsync()
+    private async Task ToggleInactive()
+    {
+        showInactive = !showInactive;
+        await LoadAsync();
+    }
+
+    private async Task SaveAsync()
     {
         busy = true;
         try
         {
-            await Academic.CreateClassAsync(form.Name, form.CourseId ?? Guid.Empty, form.TeacherId ?? Guid.Empty);
-            message = "Turma criada com sucesso."; isError = false;
-            form.Name = ""; form.CourseId = null; form.TeacherId = null;
+            await Academic.SaveClassAsync(editingId, form.Name, form.CourseId ?? Guid.Empty, form.TeacherId ?? Guid.Empty);
+            message = editingId is null ? "Turma criada com sucesso." : "Turma atualizada com sucesso."; isError = false;
+            CancelEdit();
             await LoadAsync();
         }
-        catch (Exception ex) when (ex is ArgumentException or UnauthorizedAccessException) { message = ex.Message; isError = true; }
+        catch (Exception ex) when (ex is ArgumentException or InvalidOperationException or UnauthorizedAccessException) { message = ex.Message; isError = true; }
+        finally { busy = false; }
+    }
+
+    private void Edit(ClassRow item)
+    {
+        editingId = item.Id;
+        form = new ClassForm { Name = item.Name, CourseId = item.CourseId, TeacherId = item.InstructorId };
+        message = null;
+    }
+
+    private void CancelEdit()
+    {
+        editingId = null;
+        form = new ClassForm();
+    }
+
+    private void AskDisable(ClassRow item) => disableTarget = item;
+    private void CancelDisable() => disableTarget = null;
+
+    private async Task ConfirmDisableAsync()
+    {
+        if (disableTarget is null) return;
+        var item = disableTarget;
+        disableTarget = null;
+        await SetActiveAsync(item, false);
+    }
+
+    private async Task SetActiveAsync(ClassRow item, bool active)
+    {
+        busy = true;
+        try
+        {
+            await Academic.SetClassActiveAsync(item.Id, active);
+            message = active ? $"Turma “{item.Name}” reativada." : $"Turma “{item.Name}” desativada.";
+            isError = false;
+            if (!active && editingId == item.Id) CancelEdit();
+            await LoadAsync();
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or UnauthorizedAccessException) { message = ex.Message; isError = true; }
         finally { busy = false; }
     }
 

@@ -30,6 +30,11 @@ namespace EduAssess.Models.Global
         public string Slug { get; set; } = string.Empty;
         public DateTime CriadaEm { get; set; }
         public DateTime AtualizadaEm { get; set; }
+        public Guid? MantenedorId { get; set; }
+        public MantenedorModel? Mantenedor { get; set; }
+        public string? LogoPath { get; private set; }
+        public string CorPrimaria { get; private set; } = "#1F4E79";
+        public string CorSecundaria { get; private set; } = "#D6A94B";
         public List<UnidadeModel> Unidades { get; set; } = new();
 
         public void Update(string nome, string cnpj, string email, string telefone, string endereco)
@@ -52,6 +57,14 @@ namespace EduAssess.Models.Global
         public void Enable()
         {
             Ativa = true;
+            AtualizadaEm = DateTime.UtcNow;
+        }
+
+        public void UpdateBranding(string? logoPath, string corPrimaria, string corSecundaria)
+        {
+            LogoPath = logoPath;
+            CorPrimaria = corPrimaria;
+            CorSecundaria = corSecundaria;
             AtualizadaEm = DateTime.UtcNow;
         }
     }

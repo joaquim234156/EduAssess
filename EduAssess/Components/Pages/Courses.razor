@@ -28,7 +28,7 @@
     </div>
 
     <div class="card">
-        <div class="card-head"><div><h2>Cursos ativos</h2><p>Gerencie o catálogo da instituição.</p></div><span class="count-pill">@(courses?.Count ?? 0)</span></div>
+        <div class="card-head"><div><h2>@(showInactive ? "Todos os cursos" : "Cursos ativos")</h2><p>Gerencie o catálogo da instituição.</p></div><div class="row-actions"><button type="button" class="btn btn-ghost btn-sm" @onclick="ToggleInactive">@(showInactive ? "Mostrar ativos" : "Mostrar inativos")</button><span class="count-pill">@(courses?.Count ?? 0)</span></div></div>
         @if (courses is null)
         {
             <div class="loading"><span class="spinner"></span> Carregando…</div>
@@ -42,15 +42,22 @@
             <div class="course-grid">
                 @foreach (var course in courses)
                 {
-                    <div class="course-card">
-                        <div class="top"><div class="ico"><Icon Name="book" Size="20" /></div><span class="badge badge-violet">@course.Duration @(course.Duration == 1 ? "ano" : "anos")</span></div>
+                    <div class="course-card @(course.Active ? "" : "off")">
+                        <div class="top"><div class="ico"><Icon Name="book" Size="20" /></div><span class="badge badge-violet">@course.Duration @(course.Duration == 1 ? "ano" : "anos")</span><span class="badge @(course.Active ? "badge-green" : "badge-gray")">@(course.Active ? "Ativo" : "Inativo")</span></div>
                         <h3>@course.Name</h3>
                         <p>@(string.IsNullOrWhiteSpace(course.Description) ? "Sem descrição." : course.Description)</p>
                         <div class="foot">
                             <span class="badge badge-gray">@course.ClassCount @(course.ClassCount == 1 ? "turma" : "turmas")</span>
                             <div class="row-actions">
                                 <button class="btn-text" type="button" @onclick="() => Edit(course)">Editar</button>
-                                <button class="btn-text danger" type="button" @onclick="() => DisableAsync(course)">Desativar</button>
+                                @if (course.Active)
+                                {
+                                    <button class="btn-text danger" type="button" @onclick="() => AskDisable(course)">Desativar</button>
+                                }
+                                else
+                                {
+                                    <button class="btn-text" type="button" @onclick="() => EnableAsync(course)">Reativar</button>
+                                }
                             </div>
                         </div>
                     </div>
@@ -60,10 +67,22 @@
     </div>
 </div>
 
+<Modal Open="disableTarget is not null" Eyebrow="Desativar curso" Title="@(disableTarget?.Name ?? "")" OnClose="CancelDisable">
+    <ChildContent>
+        <p>O curso deixará de aparecer entre os cursos ativos e não poderá ser usado em novos cadastros. Deseja continuar?</p>
+    </ChildContent>
+    <Footer>
+        <button type="button" class="btn btn-ghost" @onclick="CancelDisable">Cancelar</button>
+        <button type="button" class="btn btn-danger" disabled="@busy" @onclick="ConfirmDisableAsync">Desativar curso</button>
+    </Footer>
+</Modal>
+
 @code {
     private List<CourseRow>? courses;
     private CourseForm form = new();
     private Guid? editingId;
+    private CourseRow? disableTarget;
+    private bool showInactive;
     private string? message;
     private bool isError;
     private bool busy;
@@ -72,8 +91,14 @@
 
     private async Task LoadAsync()
     {
-        try { courses = await Academic.GetCoursesAsync(); }
+        try { courses = await Academic.GetCoursesAsync(showInactive); }
         catch (UnauthorizedAccessException ex) { Fail(ex.Message); courses = new(); }
+    }
+
+    private async Task ToggleInactive()
+    {
+        showInactive = !showInactive;
+        await LoadAsync();
     }
 
     private async Task SaveAsync()
@@ -103,16 +128,38 @@
         form = new CourseForm();
     }
 
-    private async Task DisableAsync(CourseRow course)
+    private void AskDisable(CourseRow course) => disableTarget = course;
+
+    private void CancelDisable() => disableTarget = null;
+
+    private async Task EnableAsync(CourseRow course)
     {
+        busy = true;
+        try
+        {
+            await Academic.EnableCourseAsync(course.Id);
+            Ok($"Curso “{course.Name}” reativado.");
+            await LoadAsync();
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or UnauthorizedAccessException) { Fail(ex.Message); }
+        finally { busy = false; }
+    }
+
+    private async Task ConfirmDisableAsync()
+    {
+        if (disableTarget is null) return;
+        var course = disableTarget;
+        busy = true;
         try
         {
             await Academic.DisableCourseAsync(course.Id);
             Ok($"Curso “{course.Name}” desativado.");
+            disableTarget = null;
             if (editingId == course.Id) CancelEdit();
             await LoadAsync();
         }
         catch (Exception ex) when (ex is InvalidOperationException or UnauthorizedAccessException) { Fail(ex.Message); }
+        finally { busy = false; }
     }
 
     private void Ok(string text) { message = text; isError = false; }

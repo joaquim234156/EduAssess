@@ -10,9 +10,10 @@ namespace EduAssess.Models.Local
     public class QuestaoModel
     {
           protected QuestaoModel(){ }
-        public QuestaoModel(Guid professorId, Guid disciplinaId, string enunciado, string alternativaCorreta,string alternativa1, string alternativa2, string alternativa3, string alternativa4, string alternativa5,string assunto,string explicacao, DificuldadeQuestao dificuldade = DificuldadeQuestao.Facil)
+        public QuestaoModel(Guid professorId, Guid disciplinaId, string enunciado, string alternativaCorreta,string alternativa1, string alternativa2, string alternativa3, string alternativa4, string alternativa5,string assunto,string explicacao, DificuldadeQuestao dificuldade = DificuldadeQuestao.Facil, Guid? instituicaoId = null)
         {
             Id = Guid.NewGuid();
+            InstituicaoId = instituicaoId;
             ProfessorId = professorId;
             DisciplinaId = disciplinaId;
             Enunciado = enunciado;
@@ -29,6 +30,7 @@ namespace EduAssess.Models.Local
             
         }
         public Guid Id {get;init;}
+        public Guid? InstituicaoId { get; private set; }
         public Guid ProfessorId {get; private set;}
         public Guid DisciplinaId {get;private set;}
         public string Enunciado { get; private set; } = string.Empty;

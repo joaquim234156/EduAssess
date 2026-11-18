@@ -6,9 +6,10 @@ namespace EduAssess.Models
     {
         protected NotaModel() { }
 
-        public NotaModel(Guid matriculaId, Guid usuarioId, Guid disciplinaId, string descricao, decimal valor)
+        public NotaModel(Guid matriculaId, Guid usuarioId, Guid disciplinaId, string descricao, decimal valor, Guid? instituicaoId = null)
         {
             Id = Guid.NewGuid();
+            InstituicaoId = instituicaoId;
             MatriculaId = matriculaId;
             UsuarioId = usuarioId;
             DisciplinaId = disciplinaId;
@@ -18,6 +19,7 @@ namespace EduAssess.Models
         }
 
         public Guid Id { get; init; }
+        public Guid? InstituicaoId { get; private set; }
         public Guid UsuarioId { get; set; }
         public Guid DisciplinaId { get; set; }
         public Guid MatriculaId { get; private set; }

@@ -77,7 +77,7 @@ else
                         </ol>
                         <p class="draft-explain"><Icon Name="check-circle" Size="16" /> @question.Explanation</p>
                         <div class="bank-actions">
-                            <button type="button" class="btn-text danger" @onclick="() => DeleteAsync(question.Id)"><Icon Name="trash" Size="16" /> Apagar questão</button>
+                            <button type="button" class="btn-text danger" @onclick="() => AskDelete(question)"><Icon Name="trash" Size="16" /> Apagar questão</button>
                         </div>
                     </details>
                 }
@@ -85,6 +85,16 @@ else
         }
     </section>
 }
+
+<Modal Open="deleteTarget is not null" Eyebrow="Desativar questão" Title="@(deleteTarget?.Statement ?? "")" OnClose="CancelDelete">
+    <ChildContent>
+        <p>A questão deixará de aparecer no seu banco e não poderá ser usada em novas avaliações. Se já estiver vinculada a uma avaliação, essa relação histórica será preservada. Deseja continuar?</p>
+    </ChildContent>
+    <Footer>
+        <button type="button" class="btn btn-ghost" @onclick="CancelDelete">Cancelar</button>
+        <button type="button" class="btn btn-danger" disabled="@busy" @onclick="ConfirmDeleteAsync"><Icon Name="trash" Size="16" /> Desativar questão</button>
+    </Footer>
+</Modal>
 
 @code {
     private static readonly DificuldadeQuestao[] Difficulties = [DificuldadeQuestao.Facil, DificuldadeQuestao.Media, DificuldadeQuestao.Dificil];
@@ -95,6 +105,8 @@ else
     private Guid? filterDiscipline;
     private string filterTopic = "";
     private DificuldadeQuestao? filterDifficulty;
+    private QuestionRow? deleteTarget;
+    private bool busy;
 
     private bool isError;
     private string? message;
@@ -118,15 +130,24 @@ else
         Ok($"{ids.Count} questão(ões) salva(s). Já aparecem na lista abaixo.");
     }
 
-    private async Task DeleteAsync(Guid id)
+    private void AskDelete(QuestionRow question) => deleteTarget = question;
+
+    private void CancelDelete() => deleteTarget = null;
+
+    private async Task ConfirmDeleteAsync()
     {
+        if (deleteTarget is null) return;
+        var id = deleteTarget.Id;
+        busy = true;
         try
         {
             await Questions.DisableQuestionAsync(id);
+            deleteTarget = null;
             await LoadBankAsync();
             Ok("Questão apagada.");
         }
         catch (Exception ex) when (ex is InvalidOperationException or UnauthorizedAccessException) { Fail(ex.Message); }
+        finally { busy = false; }
     }
 
     private async Task OnFilterDiscipline(ChangeEventArgs e)

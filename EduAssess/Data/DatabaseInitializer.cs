@@ -37,6 +37,8 @@ public static class DatabaseInitializer
             await SeedDemoExamsAsync(db, logger);
             await SeedDemoUnitLinksAsync(db, logger);   // NOVO: distribui as contas de demonstração pelos três prédios
         }
+
+        await BackfillAcademicInstitutionAsync(db);
     }
 
     private static async Task EnsureAdminAsync(AppDbContext db, IConfiguration config, IHostEnvironment env, ILogger logger)
@@ -266,12 +268,32 @@ public static class DatabaseInitializer
     /// </summary>
     private static async Task SeedBaseInstitutionAsync(AppDbContext db, IConfiguration config, ILogger logger)
     {
-        if (!config.GetValue("Seed:BaseInstitution", true) || await db.Instituicoes.AnyAsync())
+        if (!config.GetValue("Seed:BaseInstitution", true))
             return;
+
+        var existing = await db.Instituicoes.FirstOrDefaultAsync(i => i.Slug == "faculdade-luciano-feijao");
+        if (existing is null && await db.Instituicoes.AnyAsync())
+            return;
+
+        var maintainer = await db.Mantenedores.FirstOrDefaultAsync(x => x.Nome == "Luciano Feijão");
+        if (maintainer is null)
+        {
+            maintainer = new MantenedorModel("Luciano Feijão");
+            db.Mantenedores.Add(maintainer);
+            await db.SaveChangesAsync();
+        }
+
+        if (existing is not null)
+        {
+            existing.MantenedorId ??= maintainer.Id;
+            await db.SaveChangesAsync();
+            return;
+        }
 
         var institution = new InstituicaoModel(
             "Faculdade Luciano Feijão", "09.533.217/0003-01", "", "",
             "Rua José Lopes Ponte, 400, Dom Expedito, Sobral-CE, CEP 62050-215");
+        institution.MantenedorId = maintainer.Id;
         db.Instituicoes.Add(institution);
 
         db.Unidades.AddRange(
@@ -281,6 +303,24 @@ public static class DatabaseInitializer
 
         await db.SaveChangesAsync();
         logger.LogInformation("Instituição base criada: Faculdade Luciano Feijão (Prédio Principal, Anexo e Odontologia).");
+    }
+
+    private static async Task BackfillAcademicInstitutionAsync(AppDbContext db)
+    {
+        var institutionId = await db.Instituicoes.AsNoTracking()
+            .Where(i => i.Slug == "faculdade-luciano-feijao")
+            .Select(i => (Guid?)i.Id)
+            .FirstOrDefaultAsync();
+        if (institutionId is null)
+            return;
+
+        await db.Cursos.Where(x => x.InstituicaoId == null).ExecuteUpdateAsync(s => s.SetProperty(x => x.InstituicaoId, institutionId));
+        await db.Disciplinas.Where(x => x.InstituicaoId == null).ExecuteUpdateAsync(s => s.SetProperty(x => x.InstituicaoId, institutionId));
+        await db.Turmas.Where(x => x.InstituicaoId == null).ExecuteUpdateAsync(s => s.SetProperty(x => x.InstituicaoId, institutionId));
+        await db.Matriculas.Where(x => x.InstituicaoId == null).ExecuteUpdateAsync(s => s.SetProperty(x => x.InstituicaoId, institutionId));
+        await db.Notas.Where(x => x.InstituicaoId == null).ExecuteUpdateAsync(s => s.SetProperty(x => x.InstituicaoId, institutionId));
+        await db.Questoes.Where(x => x.InstituicaoId == null).ExecuteUpdateAsync(s => s.SetProperty(x => x.InstituicaoId, institutionId));
+        await db.Avaliacoes.Where(x => x.InstituicaoId == null).ExecuteUpdateAsync(s => s.SetProperty(x => x.InstituicaoId, institutionId));
     }
 
     /// <summary>

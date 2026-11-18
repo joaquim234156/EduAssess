@@ -192,6 +192,16 @@ else
     </Footer>
 </Modal>
 
+<Modal Open="unitToDeactivate is not null" Eyebrow="Desativar unidade" Title="@(unitToDeactivate?.Name ?? "")" OnClose="CancelUnitDeactivation">
+    <ChildContent>
+        <p>A unidade deixará de ficar disponível para novas lotações. Para desativá-la, todas as pessoas precisam ser movidas para outra unidade. Deseja continuar?</p>
+    </ChildContent>
+    <Footer>
+        <button type="button" class="btn btn-ghost" @onclick="CancelUnitDeactivation">Cancelar</button>
+        <button type="button" class="btn btn-danger" disabled="@busy" @onclick="ConfirmUnitDeactivationAsync">Desativar unidade</button>
+    </Footer>
+</Modal>
+
 @* ───────────── Janela: instituição ───────────── *@
 <Modal Open="showInstitution" Eyebrow="Instituição" Title="Dados da instituição" OnClose="CloseInstitution">
     <ChildContent>
@@ -219,6 +229,7 @@ else
 
     private bool showUnit, showInstitution, busy;
     private UnitCard? editingUnit;
+    private UnitCard? unitToDeactivate;
     private readonly UnitForm unitForm = new();
     private readonly InstitutionForm instForm = new();
     private string? formMessage, message, toast;
@@ -297,12 +308,33 @@ else
 
     private async Task ToggleUnit(UnitCard unit)
     {
+        if (unit.Active)
+        {
+            unitToDeactivate = unit;
+            return;
+        }
+
+        await SetUnitActiveAsync(unit, true);
+    }
+
+    private void CancelUnitDeactivation() => unitToDeactivate = null;
+
+    private async Task ConfirmUnitDeactivationAsync()
+    {
+        if (unitToDeactivate is null) return;
+        var unit = unitToDeactivate;
+        unitToDeactivate = null;
+        await SetUnitActiveAsync(unit, false);
+    }
+
+    private async Task SetUnitActiveAsync(UnitCard unit, bool active)
+    {
         try
         {
-            await Institution.SetUnitActiveAsync(unit.Id, !unit.Active);
+            await Institution.SetUnitActiveAsync(unit.Id, active);
             await ReloadAsync();
             if (Session.User?.Role == UserRole.Admin) await Session.RefreshUnitAsync();
-            Toast(unit.Active ? "Unidade desativada." : "Unidade reativada.");
+            Toast(active ? "Unidade reativada." : "Unidade desativada.");
         }
         catch (Exception ex) when (ex is InvalidOperationException or UnauthorizedAccessException) { message = ex.Message; }
     }

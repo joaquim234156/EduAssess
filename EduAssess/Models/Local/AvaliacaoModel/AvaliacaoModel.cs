@@ -38,9 +38,10 @@ namespace EduAssess.Models.Local
 
         public AvaliacaoModel(
             string codigo, string titulo, TipoAvaliacao tipo, Guid autorId, Guid disciplinaId,
-            string detalhes, PeriodicidadeAvaliacao periodicidade, int duracao)
+            string detalhes, PeriodicidadeAvaliacao periodicidade, int duracao, Guid? instituicaoId = null)
         {
             Id = Guid.NewGuid();
+            InstituicaoId = instituicaoId;
             Codigo = codigo;
             Titulo = titulo;
             Tipo = tipo;
@@ -56,6 +57,7 @@ namespace EduAssess.Models.Local
         }
 
         public Guid Id { get; init; }
+        public Guid? InstituicaoId { get; private set; }
         public string Codigo { get; private set; } = null!;
         public string Titulo { get; private set; } = null!;
         public TipoAvaliacao Tipo { get; private set; }
