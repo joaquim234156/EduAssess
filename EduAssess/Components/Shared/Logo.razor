@@ -2,11 +2,16 @@
    Light = true  -> versão toda branca (para fundos azuis/escuros: barra lateral, login, rodapé)
    Light = false -> versão colorida (para fundos claros: cabeçalho do site) *@
 <a class="brand @(Light ? "brand-light" : "")" href="@Href" aria-label="Faculdade Luciano Feijão — EduAssess">
-    <img src="@(Light ? "img/logo-flf-branca.png" : "img/logo-flf.png")"
+    <img class="brand-full" src="@(Light ? "img/logo-flf-branca.png" : "img/logo-flf.png")"
          alt="Faculdade Luciano Feijão" height="46" />
+    @if (Compactable)
+    {
+        <img class="brand-compact" src="img/favicon-flf.png" alt="" aria-hidden="true" />
+    }
 </a>
 
 @code {
     [Parameter] public bool Light { get; set; }
+    [Parameter] public bool Compactable { get; set; }
     [Parameter] public string Href { get; set; } = "/";
 }

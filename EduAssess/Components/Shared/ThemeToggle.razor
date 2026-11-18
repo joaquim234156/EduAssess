@@ -1,0 +1,32 @@
+@using Microsoft.JSInterop
+@inject IJSRuntime JS
+
+<button type="button" class="theme-toggle @Class" aria-label="@(isDark ? "Ativar modo claro" : "Ativar modo escuro")" title="@(isDark ? "Ativar modo claro" : "Ativar modo escuro")" aria-pressed="@isDark" @onclick="ToggleAsync">
+    @if (isDark)
+    {
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4" /><path d="M12 2v2m0 16v2M4.93 4.93l1.42 1.42m11.3 11.3 1.42 1.42M2 12h2m16 0h2M4.93 19.07l1.42-1.42m11.3-11.3 1.42-1.42" /></svg>
+    }
+    else
+    {
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.9 13A9 9 0 0 1 11 3.1 9 9 0 1 0 20.9 13Z" /></svg>
+    }
+    <span class="sr-only">@(isDark ? "Modo escuro ativo" : "Modo claro ativo")</span>
+</button>
+
+@code {
+    [Parameter] public string? Class { get; set; }
+
+    private bool isDark;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender)
+            return;
+
+        isDark = await JS.InvokeAsync<bool>("eduAssessTheme.isDark");
+        StateHasChanged();
+    }
+
+    private async Task ToggleAsync() =>
+        isDark = await JS.InvokeAsync<bool>("eduAssessTheme.toggle");
+}

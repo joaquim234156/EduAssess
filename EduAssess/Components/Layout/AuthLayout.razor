@@ -5,6 +5,7 @@
 @* ALTERADO: o layout de login agora aplica o tema do prédio escolhido na URL (/login?unidade=medicina).
    "display: contents" faz o elemento não interferir no layout da tela; ele só carrega as variáveis de cor. *@
 <div class="auth-theme unit-@UnitKey" style="display:contents">
+    <ThemeToggle Class="theme-toggle-floating" />
     @Body
 </div>
 

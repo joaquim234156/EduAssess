@@ -166,21 +166,23 @@
 /* ───── ADMIN · "Console": grafite com brilho na cor do prédio, rótulos em monoespaçada ───── */
 .role-admin { --radius-lg: 12px; --console: #0b1220; --console-2: #131d33; }
 .role-admin .sidebar { background: linear-gradient(180deg, var(--console), var(--console-2)); color: #cbd5e1;
-  background-image: linear-gradient(180deg, var(--console), var(--console-2)), linear-gradient(rgba(255, 255, 255, .035) 1px, transparent 1px), linear-gradient(90deg, rgba(255, 255, 255, .035) 1px, transparent 1px);
+  background-image: linear-gradient(180deg, var(--console), var(--console-2)), linear-gradient(rgba(255, 255, 255, .02) 1px, transparent 1px), linear-gradient(90deg, rgba(255, 255, 255, .02) 1px, transparent 1px);
   background-size: auto, 26px 26px, 26px 26px; background-blend-mode: normal; }
 .role-admin .sidebar .nav-group > span { color: var(--u-accent); font-family: ui-monospace, "Cascadia Mono", Consolas, monospace; letter-spacing: .14em; }
 .role-admin .nav-link { color: #cbd5e1; border-radius: 8px; }
 .role-admin .nav-link:hover { background: rgba(255, 255, 255, .06); }
-.role-admin .nav-link.active { background: color-mix(in srgb, var(--u-accent) 18%, transparent); color: #fff; box-shadow: inset 3px 0 0 var(--u-accent), 0 0 24px -6px var(--u-accent); }
+.role-admin .nav-link.active { background: color-mix(in srgb, var(--u-accent) 12%, transparent); color: #fff; box-shadow: inset 2px 0 0 var(--u-accent); }
 .role-admin .unit-badge { background: rgba(255, 255, 255, .05); border-color: color-mix(in srgb, var(--u-accent) 45%, transparent); }
-.role-admin .unit-badge .ub-ico { background: transparent; color: var(--u-accent); border: 1px solid var(--u-accent); box-shadow: 0 0 18px -4px var(--u-accent); }
+.role-admin .unit-badge .ub-ico { background: transparent; color: var(--u-accent); border: 1px solid color-mix(in srgb, var(--u-accent) 65%, transparent); }
 .role-admin .avatar { background: var(--u-accent); color: #08101f; }
 .role-admin .topbar { background: var(--console); border-bottom-color: var(--console-2); }
 .role-admin .topbar .hello { color: #94a3b8; font-family: ui-monospace, "Cascadia Mono", Consolas, monospace; text-transform: uppercase; letter-spacing: .06em; font-size: .7rem; }
 .role-admin .topbar .hello b { color: #f1f5f9; }
 .role-admin .badge-role { background: transparent; color: var(--u-accent); border: 1px solid var(--u-accent); font-family: ui-monospace, "Cascadia Mono", Consolas, monospace; text-transform: uppercase; letter-spacing: .08em; }
 .role-admin .badge-role::before { background: var(--u-accent); box-shadow: 0 0 8px var(--u-accent); }
-.role-admin .menu-burger { color: #f1f5f9; }
+.role-admin .menu-burger { color: var(--u-accent); }
+.role-admin .sidebar-collapse { background: var(--console-2); color: var(--u-accent); border-color: color-mix(in srgb, var(--u-accent) 50%, transparent); }
+.role-admin .sidebar-collapse:hover { background: color-mix(in srgb, var(--u-accent) 12%, var(--console-2)); }
 .role-admin .card, .role-admin .stat { border-radius: 12px; border-top: 2px solid var(--u-accent); }
 .role-admin .eyebrow, .role-admin .stat .label { font-family: ui-monospace, "Cascadia Mono", Consolas, monospace; }
 .role-admin .role-hero { border-radius: 14px; background: linear-gradient(120deg, var(--console), var(--console-2) 55%, color-mix(in srgb, var(--u2) 45%, var(--console-2))); border: 1px solid color-mix(in srgb, var(--u-accent) 40%, transparent); box-shadow: 0 0 60px -26px var(--u-accent); }
@@ -238,4 +240,9 @@
 @media (max-width: 720px) {
   .person-row { grid-template-columns: auto minmax(0, 1fr); } .person-row .badge, .person-row .unit-select { grid-column: 1 / -1; }
   .role-hero { padding: 22px; } .role-hero .rh-mark { display: none; }
+}
+
+@media (max-width: 560px) {
+  .unit-grid { grid-template-columns: minmax(0, 1fr); }
+  .unit-select { width: 100%; min-width: 0; max-width: 100%; }
 }
