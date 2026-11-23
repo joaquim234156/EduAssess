@@ -1,0 +1,21 @@
+@using global::EduAssess.Application.DTOs.Selo
+
+@* Selos de uma questão (Gerada com IA, ENEM 2021, Vestibular FUVEST...). Usa os mesmos badges do sistema.
+   Por padrão mostra só os selos que o professor marcou para exibir; ShowHidden mostra também os ocultos,
+   esmaecidos (uso do professor no banco de questões). *@
+@if (visible.Count > 0)
+{
+    <span class="seals" aria-label="Selos da questão">
+        @foreach (var s in visible)
+        {
+            <span class="badge badge-@s.Cor seal @(s.Exibir ? "" : "seal-off")" title="@(s.Exibir ? s.Texto : s.Texto + " (oculto para alunos e provas)")">@s.Texto</span>
+        }
+    </span>
+}
+
+@code {
+    [Parameter] public List<SeloDto>? Seals { get; set; }
+    [Parameter] public bool ShowHidden { get; set; }
+
+    private List<SeloDto> visible => (Seals ?? new()).Where(s => ShowHidden || s.Exibir).ToList();
+}

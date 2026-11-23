@@ -32,6 +32,8 @@ public sealed class ImageStorageService
     private static readonly string[] AllowedFormats = ["JPEG", "PNG", "WEBP", "GIF"];
 
     private readonly string _root;
+    private readonly string _logoRoot;   // NOVO: logotipos das instituições
+    private const int MaxLogoSide = 512;
 
     public ImageStorageService(IWebHostEnvironment env)
     {
@@ -42,6 +44,8 @@ public sealed class ImageStorageService
         // Arquivos fora do ContentRoot não provocam reinício pelo Hot Reload do Visual Studio.
         _root = Path.Combine(localDataPath, "EduAssess", "uploads", "avatars");
         Directory.CreateDirectory(_root);
+        _logoRoot = Path.Combine(localDataPath, "EduAssess", "uploads", "logos");
+        Directory.CreateDirectory(_logoRoot);
 
         var legacyRoot = Path.Combine(env.ContentRootPath, "App_Data", "uploads", "avatars");
         if (Directory.Exists(legacyRoot))
@@ -144,6 +148,68 @@ public sealed class ImageStorageService
         await WriteAtomicAsync(ThumbPath(userId), thumbBytes, ct);
 
         return new AvatarResult(originalBytes, fullBytes.Length, thumbBytes.Length);
+    }
+
+    // ───────────────────────── NOVO: logotipo da instituição ─────────────────────────
+
+    public string LogoPath(Guid institutionId) => Path.Combine(_logoRoot, $"{institutionId:N}.webp");
+    public bool HasLogo(Guid institutionId) => File.Exists(LogoPath(institutionId));
+    public long LogoVersion(Guid institutionId) => HasLogo(institutionId) ? File.GetLastWriteTimeUtc(LogoPath(institutionId)).Ticks : 0;
+
+    /// <summary>
+    /// Valida pelo CONTEÚDO (não pela extensão), limita pixels, remove metadados e salva um WebP de até 512 px
+    /// no maior lado. Diferente da foto de perfil, não recorta (o logo não pode perder bordas) e mantém a transparência.
+    /// </summary>
+    public async Task<AvatarResult> SaveLogoAsync(Guid institutionId, Stream input, CancellationToken ct = default)
+    {
+        using var buffer = new MemoryStream();
+        await input.CopyToAsync(buffer, ct);
+        var originalBytes = buffer.Length;
+        if (originalBytes == 0)
+            throw new ArgumentException("O arquivo está vazio.");
+        if (originalBytes > MaxUploadBytes)
+            throw new ArgumentException("A imagem passa de 8 MB. Escolha uma menor.");
+
+        buffer.Position = 0;
+        ImageInfo info;
+        try { info = await Image.IdentifyAsync(buffer, ct); }
+        catch (Exception ex) when (ex is UnknownImageFormatException or InvalidImageContentException or NotSupportedException)
+        { throw new ArgumentException("Esse arquivo não é uma imagem válida. Envie JPG, PNG, WebP ou GIF."); }
+
+        var format = info.Metadata.DecodedImageFormat?.Name ?? "";
+        if (!AllowedFormats.Contains(format, StringComparer.OrdinalIgnoreCase))
+            throw new ArgumentException("Formato não aceito. Envie JPG, PNG, WebP ou GIF.");
+        if ((long)info.Width * info.Height > MaxPixels)
+            throw new ArgumentException("A imagem tem pixels demais. Envie uma menor.");
+
+        buffer.Position = 0;
+        byte[] bytes;
+        try
+        {
+            using var image = await Image.LoadAsync(new DecoderOptions { MaxFrames = 1 }, buffer, ct);
+            image.Mutate(x => x.AutoOrient());
+            image.Metadata.ExifProfile = null;
+            image.Metadata.IccProfile = null;
+            image.Metadata.IptcProfile = null;
+            image.Metadata.XmpProfile = null;
+            if (image.Width > MaxLogoSide || image.Height > MaxLogoSide)
+                image.Mutate(x => x.Resize(new ResizeOptions { Mode = ResizeMode.Max, Size = new Size(MaxLogoSide, MaxLogoSide) }));
+
+            using var ms = new MemoryStream();
+            await image.SaveAsync(ms, new WebpEncoder { Quality = 90 }, ct);
+            bytes = ms.ToArray();
+        }
+        catch (Exception ex) when (ex is InvalidImageContentException or NotSupportedException)
+        { throw new ArgumentException("Não foi possível ler essa imagem. Tente outro arquivo."); }
+
+        await WriteAtomicAsync(LogoPath(institutionId), bytes, ct);
+        return new AvatarResult(originalBytes, bytes.Length, bytes.Length);
+    }
+
+    public void DeleteLogo(Guid institutionId)
+    {
+        var path = LogoPath(institutionId);
+        if (File.Exists(path)) File.Delete(path);
     }
 
     public void DeleteAvatar(Guid userId)

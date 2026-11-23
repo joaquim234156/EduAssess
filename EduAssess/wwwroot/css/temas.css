@@ -246,3 +246,33 @@
   .unit-grid { grid-template-columns: minmax(0, 1fr); }
   .unit-select { width: 100%; min-width: 0; max-width: 100%; }
 }
+
+/* ───────── NOVO: identidade da instituição (logotipo, cores, categoria, rede do mantenedor) ───────── */
+.inst-hero.branded { border-left: 6px solid var(--brand-primary, var(--forest-700)); box-shadow: var(--shadow-sm), inset 0 -4px 0 -0px var(--brand-secondary, var(--sun)); }
+.inst-hero .inst-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.swatches { display: flex; align-items: center; gap: 6px; font-size: .86rem; }
+.swatch { width: 18px; height: 18px; border-radius: 50%; border: 2px solid var(--surface); box-shadow: 0 0 0 1px var(--line-cool); flex: none; }
+.brand-mono { display: inline-grid; place-items: center; min-width: 40px; height: 40px; padding: 0 8px; border-radius: 12px; font-weight: 800; font-size: .9rem; letter-spacing: .04em; flex: none; }
+.brand-mono.big { min-width: 62px; height: 56px; font-size: 1.2rem; border-radius: 16px; }
+.brand-name { font-family: var(--font-display); font-size: 1rem; line-height: 1.15; color: var(--ink-900); max-width: 150px; }
+.brand-light .brand-name { color: #fff; }
+.brand-custom .brand-uploaded { max-height: 46px; width: auto; max-width: 100%; object-fit: contain; }
+.sidebar-collapsed .sidebar .brand .brand-name { display: none; }
+.sidebar-collapsed .sidebar .brand-custom .brand-mono { margin: 0 auto; }
+.inst-switch-form { display: inline-flex; margin: 0; }
+.unit-switch.inst-switch { max-width: 240px; }
+.network-list { display: grid; gap: 10px; }
+.network-item { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 12px 16px; border-radius: 14px; border: 1px solid var(--line); background: var(--surface); }
+.network-item.current { border-color: var(--ok); background: var(--ok-100); }
+.network-item strong { display: block; }
+.network-item small { color: var(--muted); }
+.network-item form { margin: 0; }
+.brand-logo-edit { display: grid; grid-template-columns: auto 1fr; gap: 16px; align-items: center; }
+.brand-logo-edit .logo-box { padding: 10px 14px; border-radius: 16px; background: var(--mint-50); }
+.brand-logo-edit .logo-box img { max-height: 56px; max-width: 160px; display: block; }
+.color-field { display: flex; align-items: center; gap: 10px; }
+.color-field input[type=color] { width: 48px; height: 42px; padding: 2px; border: 1px solid var(--line-cool); border-radius: 12px; background: var(--surface); cursor: pointer; flex: none; }
+.color-field .input { flex: 1; text-transform: uppercase; }
+.brand-preview { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 4px; }
+.bp-chip { padding: 8px 18px; border-radius: 999px; font-weight: 800; font-size: .85rem; }
+@media (max-width: 620px) { .brand-logo-edit { grid-template-columns: 1fr; } }

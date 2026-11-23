@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using EduAssess.Data;
+using EduAssess.Data.Audit;
 using EduAssess.Models;
 using EduAssess.Models.Global;
 using EduAssess.Models.Local;
@@ -12,7 +13,8 @@ namespace EduAssess.Web;
 /// Sessão do painel. A identidade vem do cookie de autenticação (sobrevive a F5 e a novas abas);
 /// cada operação protegida revalida no banco se a conta continua ativa e qual é o perfil atual.
 /// </summary>
-public sealed class UiSession(AuthenticationStateProvider authenticationStateProvider, IDbContextFactory<AppDbContext> dbFactory)
+public sealed class UiSession(AuthenticationStateProvider authenticationStateProvider, IDbContextFactory<AppDbContext> dbFactory,
+    IAuditActorAccessor auditActor, ImageStorageService images)
 {
     private const string InstitutionClaim = "eduassess:institution_id";
     private bool initialized;
@@ -42,6 +44,16 @@ public sealed class UiSession(AuthenticationStateProvider authenticationStatePro
     public string InstitutionName { get; private set; } = "Faculdade Luciano Feijão";
 
     public Guid? InstitutionId => selectedInstitutionId;
+
+    /// <summary>NOVO: logo e cores da instituição em uso (nulo se ainda não carregou/selecionou).</summary>
+    public InstitutionBrand? Brand { get; private set; }
+
+    /// <summary>NOVO: estilo inline do painel = variáveis do tema por prédio + variáveis de marca da instituição.</summary>
+    public string? ShellStyle => string.Join(";", new[] { ThemeStyle, Brand?.Style }.Where(x => !string.IsNullOrEmpty(x)));
+
+    /// <summary>NOVO: informa ao interceptor de auditoria quem está operando neste circuito.</summary>
+    private void SyncActor() =>
+        auditActor.Set(User is null ? null : new AuditActor(User.Id, User.Name, UiFormat.RoleLabel(User.Role), selectedInstitutionId, null));
     public IReadOnlyList<InstitutionOption> AvailableInstitutions { get; private set; } = Array.Empty<InstitutionOption>();
     public bool RequiresInstitutionSelection => User is not null && AvailableInstitutions.Count > 1 && InstitutionId is null;
 
@@ -137,6 +149,7 @@ public sealed class UiSession(AuthenticationStateProvider authenticationStatePro
         if (User is not null)
             await LoadUnitAsync(User.Id);
 
+        SyncActor();
         initialized = true;
     }
 
@@ -156,27 +169,34 @@ public sealed class UiSession(AuthenticationStateProvider authenticationStatePro
                 {
                     ui.InstituicaoId,
                     Institution = ui.Instituicao!.Nome,
+                    Tipo = ui.Instituicao!.Tipo,
+                    Sigla = ui.Instituicao!.Sigla,
+                    Criada = ui.Instituicao!.CriadaEm,
+                    InstAtiva = ui.Instituicao!.Ativa,
                     Role = ui.Papel,
                     Unit = ui.Unidade == null ? null : new { ui.Unidade.Id, ui.Unidade.Nome, ui.Unidade.Slug, ui.Unidade.Sigla, ui.Unidade.Tipo, ui.Unidade.Ativa }
                 });
 
-            var links = await institutionsQuery.ToListAsync();
-            var institutions = links.Select(x => new InstitutionOption(x.InstituicaoId, x.Institution)).ToList();
+            // Só instituições ativas, da mais antiga para a mais nova (a mais antiga é a padrão).
+            var links = (await institutionsQuery.ToListAsync()).Where(x => x.InstAtiva).OrderBy(x => x.Criada).ToList();
+            var institutions = links.Select(x => new InstitutionOption(x.InstituicaoId, x.Institution, x.Tipo, x.Sigla)).ToList();
 
             if (userRole == UserRole.Admin)
             {
                 institutions = await db.Instituicoes.AsNoTracking()
                     .Where(x => x.Ativa)
-                    .OrderBy(x => x.Nome)
-                    .Select(x => new InstitutionOption(x.Id, x.Nome))
+                    .OrderBy(x => x.CriadaEm)
+                    .Select(x => new InstitutionOption(x.Id, x.Nome, x.Tipo, x.Sigla))
                     .ToListAsync();
             }
 
             AvailableInstitutions = institutions;
-            if (selectedInstitutionId is null && institutions.Count == 1)
-                selectedInstitutionId = institutions[0].Id;
             if (selectedInstitutionId is not null && institutions.All(x => x.Id != selectedInstitutionId))
                 selectedInstitutionId = null;
+            // ALTERADO: com 2+ instituições (Faculdade e CLF) e nenhuma escolhida, usa a mais antiga em vez de bloquear o painel.
+            // A troca é feita no seletor do topo (POST /ui/instituicao/selecionar), que grava a escolha no cookie.
+            if (selectedInstitutionId is null && institutions.Count >= 1)
+                selectedInstitutionId = institutions[0].Id;
 
             var link = selectedInstitutionId is Guid activeId
                 ? links.FirstOrDefault(x => x.InstituicaoId == activeId)
@@ -189,6 +209,8 @@ public sealed class UiSession(AuthenticationStateProvider authenticationStatePro
                 ? new UnitInfo(u.Id, u.Nome, u.Slug, u.Sigla ?? "", u.Tipo, link.InstituicaoId, link.Institution)
                 : null;
             InstitutionName = institutions.FirstOrDefault(x => x.Id == selectedInstitutionId)?.Name ?? "Selecione uma instituição";
+
+            Brand = selectedInstitutionId is Guid brandId ? await LoadBrandAsync(db, brandId) : null;
 
             CourseThemeKey = selectedInstitutionId is Guid institutionId
                 ? await DetectCourseThemeAsync(db, userId, institutionId)
@@ -207,9 +229,29 @@ public sealed class UiSession(AuthenticationStateProvider authenticationStatePro
         {
             // Falhas no carregamento do contexto não devem ampliar o escopo nem revelar outro tenant.
             Unit = null;
+            Brand = null;
             selectedInstitutionId = null;
             AvailableInstitutions = Array.Empty<InstitutionOption>();
         }
+        SyncActor();
+    }
+
+    private async Task<InstitutionBrand?> LoadBrandAsync(AppDbContext db, Guid id)
+    {
+        var i = await db.Instituicoes.AsNoTracking().Where(x => x.Id == id)
+            .Select(x => new { x.Nome, x.Sigla, x.Tipo, x.LogoPath, x.CorPrimaria, x.CorSecundaria }).FirstOrDefaultAsync();
+        if (i is null) return null;
+        var hasLogo = !string.IsNullOrEmpty(i.LogoPath) && images.HasLogo(id);
+        return new InstitutionBrand(id, i.Nome, i.Sigla, i.Tipo, hasLogo, hasLogo ? images.LogoVersion(id) : 0, i.CorPrimaria, i.CorSecundaria);
+    }
+
+    /// <summary>NOVO: recarrega logo e cores (usado depois de editar a identidade visual).</summary>
+    public async Task RefreshBrandAsync()
+    {
+        if (selectedInstitutionId is not Guid id) return;
+        await using var db = await dbFactory.CreateDbContextAsync();
+        Brand = await LoadBrandAsync(db, id);
+        Changed?.Invoke();
     }
 
     public async Task SelectInstitutionAsync(Guid institutionId)
@@ -274,6 +316,7 @@ public sealed class UiSession(AuthenticationStateProvider authenticationStatePro
         }
 
         User = new UserSummary(userId, row.Name, row.Email, role);
+        SyncActor();
 
         if (allowedRoles.Length > 0 && !allowedRoles.Contains(role))
             throw new UnauthorizedAccessException("Seu perfil não tem permissão para esta ação.");

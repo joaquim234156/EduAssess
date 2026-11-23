@@ -5,12 +5,13 @@
 @attribute [Authorize]
 @inject QuestaoWebService Questions
 @inject AvaliacaoWebService Exams
+@inject PracticeResultService Results
 
 <PageTitle>Praticar questões | Faculdade Luciano Feijão</PageTitle>
 
 @if (step == Step.Pick)
 {
-    <PageHeader Eyebrow="Treino" Title="Praticar questões" Subtitle="Escolha uma disciplina, responda e veja a explicação na hora. Nada aqui vale nota: é só para você treinar." />
+    <PageHeader Eyebrow="Treino" Title="Praticar questões" Subtitle="Escolha uma disciplina, responda e veja a explicação na hora. Nada aqui vira nota oficial: é para você treinar, e você decide se o resultado entra no seu desempenho." />
     <Feedback Message="@message" IsError="true" />
 
     @* ───────────── Provas e simulados aplicados pelos professores ───────────── *@
@@ -133,6 +134,7 @@ else if (step == Step.Quiz)
                 <span class="badge badge-violet">@sessionLabel</span>
                 <span class="badge badge-gray">@question.Topic</span>
                 <span class="badge @DifficultyBadge(question.Difficulty)">@UiFormat.DifficultyLabel(question.Difficulty)</span>
+                <SealBadges Seals="question.Seals" />
             </div>
             <h2 class="q-statement">@question.Statement</h2>
 
@@ -143,7 +145,7 @@ else if (step == Step.Quiz)
                     var state = !answered ? "" :
                         index == question.CorrectIndex ? "correct" :
                         index == picks[current] ? "wrong" : "dim";
-                    <button type="button" class="opt @state" disabled="@answered" @onclick="() => Answer(index)">
+                    <button type="button" class="opt @state" disabled="@answered" @onclick="() => AnswerAsync(index)">
                         <span class="opt-letter">@Letter(index)</span>
                         <span class="opt-text">@question.Alternatives[index]</span>
                         @if (state == "correct") { <Icon Name="check-circle" Size="20" Class="opt-mark" /> }
@@ -160,7 +162,7 @@ else if (step == Step.Quiz)
                     <p>@question.Explanation</p>
                 </div>
                 <div class="quiz-actions">
-                    <button type="button" class="btn btn-primary btn-lg" @onclick="Next">
+                    <button type="button" class="btn btn-primary btn-lg" @onclick="NextAsync">
                         @(current + 1 < set.Count ? "Próxima questão" : "Ver meu resultado") <Icon Name="arrow-right" Size="18" />
                     </button>
                 </div>
@@ -188,6 +190,18 @@ else
             </div>
         </div>
     </div>
+
+    @if (savedResultId is Guid resultId)
+    {
+        <section class="card count-card reveal">
+            <div>
+                <strong>Contabilizar este resultado no meu desempenho?</strong>
+                <p>Este resultado é seu e não é nota oficial. Se você contabilizar, ele aparece no seu painel em "Simulados e treinos", sempre separado das notas lançadas pelos professores. Você pode mudar de ideia depois.</p>
+            </div>
+            <PracticeCountToggle ResultId="resultId" @bind-Counted="counted" OnError="e => message = e" />
+        </section>
+        <Feedback Message="@message" IsError="true" />
+    }
 
     @if (wrong.Count > 0)
     {
@@ -226,6 +240,12 @@ else
     private List<PracticeQuestion> set = new();
     private int[] picks = Array.Empty<int>();   // -1 = ainda não respondeu
     private int current, streak, bestStreak;
+
+    // NOVO: resultado gravado ao concluir (só para aluno) e a escolha de contabilizar
+    private Guid? savedResultId;
+    private bool counted;
+    private Guid? sessionDisciplineId;
+    private string sessionDisciplineName = "";
 
     protected override async Task OnInitializedAsync()
     {
@@ -272,7 +292,10 @@ else
             sessionLabel = exam.Title + " - " + (exam.Type == TipoAvaliacao.Simulado ? "simulado" : "prova");
             picks = Enumerable.Repeat(-1, set.Count).ToArray();
             current = 0; streak = 0; bestStreak = 0;
+            savedResultId = null; counted = false;
+            sessionDisciplineId = null; sessionDisciplineName = exam.DisciplineName;
             step = Step.Quiz;
+            await Results.LogStartAsync(exam.Type == TipoAvaliacao.Simulado ? OrigemPratica.Simulado : OrigemPratica.Prova, exam.Id, null, sessionLabel);
         }
         catch (Exception ex) when (ex is InvalidOperationException or UnauthorizedAccessException) { message = ex.Message; }
         finally { starting = false; }
@@ -315,16 +338,21 @@ else
             sessionLabel = chosen.Name;
             picks = Enumerable.Repeat(-1, set.Count).ToArray();
             current = 0; streak = 0; bestStreak = 0;
+            savedResultId = null; counted = false;
+            sessionDisciplineId = chosen.Id; sessionDisciplineName = chosen.Name;
             step = Step.Quiz;
+            await Results.LogStartAsync(OrigemPratica.Treino, null, chosen.Id, sessionLabel);
         }
         catch (UnauthorizedAccessException ex) { message = ex.Message; }
         finally { starting = false; }
     }
 
-    private void Answer(int index)
+    private async Task AnswerAsync(int index)
     {
         if (picks[current] >= 0) return;
         picks[current] = index;
+        // Histórico do professor: quais alunos responderam cada questão (só gera registro para alunos).
+        await Results.LogAnswerAsync(set[current].Id, index == set[current].CorrectIndex, sessionLabel);
         if (index == set[current].CorrectIndex)
         {
             streak++;
@@ -336,10 +364,25 @@ else
         }
     }
 
-    private void Next()
+    private async Task NextAsync()
     {
-        if (current + 1 < set.Count) current++;
-        else step = Step.Result;
+        if (current + 1 < set.Count) { current++; return; }
+
+        step = Step.Result;
+        message = null;
+        try
+        {
+            // Grava o resultado (não oficial; começa NÃO contabilizado até o aluno escolher). Null = quem não é aluno.
+            var origin = currentExam is null ? OrigemPratica.Treino
+                : currentExam.Type == TipoAvaliacao.Simulado ? OrigemPratica.Simulado : OrigemPratica.Prova;
+            savedResultId = await Results.FinishAsync(origin, currentExam?.Id, sessionDisciplineId, sessionLabel, sessionDisciplineName, set.Count, Score());
+            counted = false;
+        }
+        catch (Exception ex) when (ex is ArgumentException or InvalidOperationException or UnauthorizedAccessException)
+        {
+            savedResultId = null;
+            message = "Não consegui guardar este resultado: " + ex.Message;
+        }
     }
 
     private void Quit()

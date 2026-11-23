@@ -7,6 +7,7 @@ using EduAssess.Application.Services;
 using EduAssess.Components;
 using EduAssess.Converters;
 using EduAssess.Data;
+using EduAssess.Data.Audit;
 using EduAssess.Models.Local;
 using EduAssess.Web;
 using Microsoft.AspNetCore.Authentication;
@@ -121,13 +122,17 @@ builder.Services.AddAuthentication(options =>
                 || current.FindFirst(ClaimTypes.Name)?.Value != row.Name
                 || current.FindFirst(ClaimTypes.Email)?.Value != row.Email)
             {
-                var identity = new ClaimsIdentity(new[]
+                var claims = new List<Claim>
                 {
                     new Claim(ClaimTypes.NameIdentifier, userId.ToString()),
                     new Claim(ClaimTypes.Name, row.Name),
                     new Claim(ClaimTypes.Email, row.Email),
                     new Claim(ClaimTypes.Role, row.Role.ToString())
-                }, CookieAuthenticationDefaults.AuthenticationScheme);
+                };
+                // NOVO: a instituição escolhida (claim) precisa sobreviver à recriação da identidade.
+                var institutionClaim = current.FindFirst(AuditActorAccessor.InstitutionClaim);
+                if (institutionClaim is not null) claims.Add(new Claim(institutionClaim.Type, institutionClaim.Value));
+                var identity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
                 context.ReplacePrincipal(new ClaimsPrincipal(identity));
                 context.ShouldRenew = true;
             }
@@ -165,8 +170,14 @@ builder.Services.AddRateLimiter(options =>
 // ───────────── Banco de dados ─────────────
 // A fábrica cria contextos curtos (um por operação) para o painel Blazor; a API recebe um contexto por requisição.
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
-    ?? "Host=localhost;Port=5432;Database=eduassess;Username=postgres";
-builder.Services.AddDbContextFactory<AppDbContext>(options => options.UseNpgsql(connectionString));
+    ?? "Host=localhost;Port=5432;Database=eduassess;Username=postgres;Password=123456789";
+// ALTERADO: a fábrica agora tem escopo (um por circuito/requisição) para que cada contexto receba o IAuditActorAccessor
+// do próprio circuito, e o interceptor de auditoria saiba QUEM está salvando. Era Singleton.
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped<IAuditActorAccessor, AuditActorAccessor>();
+builder.Services.AddDbContextFactory<AppDbContext>(
+    options => options.UseNpgsql(connectionString).AddInterceptors(AuditSaveChangesInterceptor.Instance),
+    ServiceLifetime.Scoped);
 builder.Services.AddScoped(sp => sp.GetRequiredService<IDbContextFactory<AppDbContext>>().CreateDbContext());
 
 // ───────────── Aplicação ─────────────
@@ -189,6 +200,9 @@ builder.Services.AddScoped<IUnidadeService, UnidadeService>();
 builder.Services.AddScoped<IInstituicaoService, InstituicaoService>();
 builder.Services.AddScoped<IUsuarioInstituicaoService, UsuarioInstituicaoService>();
 builder.Services.AddScoped<ITurmaService, TurmaService>();
+builder.Services.AddScoped<AuditoriaService>();   // NOVO: histórico de atividades (somente leitura)
+builder.Services.AddScoped<AuditoriaWebService>();
+builder.Services.AddScoped<PracticeResultService>();
 
 // ALTERADO (questões com IA): o IaQuestaoService nunca tinha sido registrado, então qualquer
 // rota que pedisse IIaQuestaoService falharia. AddHttpClient entrega um HttpClient já gerenciado
@@ -231,7 +245,7 @@ builder.Services.AddSwaggerGen(c =>
 
 builder.Services.AddDbContext<AppDbContext>(options =>
 {
-    options.UseNpgsql(connectionString);
+    options.UseNpgsql(connectionString).AddInterceptors(AuditSaveChangesInterceptor.Instance);
 });
 
 var app = builder.Build();
@@ -291,6 +305,7 @@ app.QuestaoRoutes();   // ALTERADO: faltava esta linha, por isso as rotas /quest
 app.InstituicaoRoutes();
 app.UnidadeRoutes();
 app.UsuarioInstituicaoRoutes();
+app.AuditoriaRoutes();   // NOVO: GET /auditoria (somente leitura)
 
 if (appMode != "ApiOnly")
 {
@@ -305,6 +320,18 @@ if (appMode != "ApiOnly")
             ? images.FullPath(id)
             : images.ThumbPath(id);
 
+        if (!File.Exists(path))
+            return Results.NotFound();
+
+        http.Response.Headers.CacheControl = "private, max-age=31536000, immutable";
+        return Results.File(path, "image/webp");
+    })
+    .RequireAuthorization();
+
+    // NOVO: logotipo da instituição (exige login; a URL leva ?v=<versão> para o navegador atualizar o cache).
+    app.MapGet("/ui/instituicao-logo/{id:guid}", (Guid id, ImageStorageService images, HttpContext http) =>
+    {
+        var path = images.LogoPath(id);
         if (!File.Exists(path))
             return Results.NotFound();
 
@@ -329,7 +356,7 @@ app.Run();
 static class ApiPaths
 {
     private static readonly string[] Prefixes =
-        ["/auth", "/cursos", "/turmas", "/matricula", "/disciplina", "/notas", "/questoes", "/instituicoes", "/unidades", "/usuario-instituicao", "/swagger"];
+        ["/auth", "/auditoria", "/cursos", "/turmas", "/matricula", "/disciplina", "/notas", "/questoes", "/instituicoes", "/unidades", "/usuario-instituicao", "/swagger"];
 
     // Só conta como API quando há um subcaminho (ex.: /cursos/list). Os caminhos exatos /cursos, /turmas e /notas
     // são páginas do painel.

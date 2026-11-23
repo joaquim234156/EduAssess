@@ -1,0 +1,23 @@
+@* Edição do conteúdo de uma questão: enunciado, 5 alternativas (com a correta marcada) e justificativa.
+   Mesmos campos e limites do cadastro manual. Usado no modal de edição do banco e na revisão dos rascunhos da IA. *@
+<div class="question-editor">
+    <div class="field"><label for="@($"{Id}-st")">Enunciado</label><textarea id="@($"{Id}-st")" class="textarea" @bind="Draft.Statement" maxlength="1000"></textarea></div>
+    <div class="field">
+        <label>Alternativas (marque a correta)</label>
+        @for (var k = 0; k < 5; k++)
+        {
+            var idx = k;
+            <div class="alt-input">
+                <input type="radio" name="@($"{Id}-correct")" checked="@(Draft.CorrectIndex == idx)" @onchange="() => Draft.CorrectIndex = idx" aria-label="Alternativa @(idx + 1) é a correta" />
+                <input class="input" value="@Draft.Alternatives[idx]" @onchange="e => Draft.Alternatives[idx] = e.Value?.ToString() ?? string.Empty" placeholder="Alternativa @(idx + 1)" maxlength="300" />
+            </div>
+        }
+    </div>
+    <div class="field"><label for="@($"{Id}-ex")">Justificativa da resposta</label><textarea id="@($"{Id}-ex")" class="textarea" @bind="Draft.Explanation" maxlength="1000"></textarea></div>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public DraftQuestion Draft { get; set; } = new();
+    /// <summary>Prefixo dos ids HTML (vários editores na mesma página).</summary>
+    [Parameter] public string Id { get; set; } = "qe";
+}

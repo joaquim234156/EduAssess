@@ -1,4 +1,4 @@
-﻿using EduAssess.Application.DTOs.Instituicao;
+using EduAssess.Application.DTOs.Instituicao;
 
 namespace EduAssess.Application.Interfaces
 {
@@ -13,5 +13,9 @@ namespace EduAssess.Application.Interfaces
         Task<IEnumerable<InstituicaoResponseDTO>> ListarInstituicoesPorUsuarioAsync(Guid usuarioId);
         Task<bool> DeletarInstituicaoAsync(Guid id);
         Task<bool> AtivarInstituicaoAsync(Guid id);
+        // NOVO: mantenedor, identidade visual e logotipo
+        Task<IEnumerable<MantenedorResponseDTO>> ListarMantenedoresAsync();
+        Task<InstituicaoResponseDTO> AtualizarIdentidadeAsync(Guid id, InstituicaoIdentidadeRequest req);
+        Task<InstituicaoResponseDTO> DefinirLogoAsync(Guid id, bool temLogo);
     }
 }

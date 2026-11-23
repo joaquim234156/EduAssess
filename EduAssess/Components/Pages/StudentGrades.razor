@@ -3,10 +3,11 @@
 @layout AppLayout
 @attribute [Authorize(Policy = "Aluno")]
 @inject AcademicService Academic
+@inject PracticeResultService PracticeResults
 
 <PageTitle>Minhas notas | Faculdade Luciano Feijão</PageTitle>
 
-<PageHeader Eyebrow="Estudante" Title="Minhas notas" Subtitle="Um resumo das suas médias e da evolução das suas notas, sem complicação de boletim." />
+<PageHeader Eyebrow="Estudante" Title="Minhas notas" Subtitle="Suas notas oficiais e, separados, seus simulados e treinos. A média oficial só considera o que os professores lançaram." />
 
 @if (overview is null)
 {
@@ -72,8 +73,29 @@ else
                         <span>@UiFormat.Grade(grade.Value)</span>
                     </button>
                 }
+                @foreach (var pr in PracticeSeries())
+                {
+                    var self = pr;
+                    <button type="button" class="evo-bar self band-@UiFormat.GradeBand(self.Score) @(selectedPractice == self ? "on" : "")" style="height:@Pct(self.Score)%"
+                            title="Simulado/treino (não oficial) - @self.DisciplineName: @UiFormat.Grade(self.Score)"
+                            aria-label="Simulado ou treino não oficial, @self.DisciplineName, nota @UiFormat.Grade(self.Score)"
+                            @onclick="() => selectedPractice = selectedPractice == self ? null : self">
+                        <span>@UiFormat.Grade(self.Score)</span>
+                    </button>
+                }
             </div>
         </div>
+        @if (PracticeSeries().Count > 0)
+        {
+            <div class="dist-legend"><span><i class="d-high"></i> nota oficial</span><span><i class="d-self"></i> simulado/treino contabilizado (não oficial)</span></div>
+        }
+        @if (selectedPractice is not null && PracticeSeries().Contains(selectedPractice))
+        {
+            <div class="evo-detail">
+                <GradeBadge Value="selectedPractice.Score" />
+                <div><strong>@selectedPractice.DisciplineName <span class="badge badge-gray">Não oficial</span></strong><small>@selectedPractice.Title · @UiFormat.Date(selectedPractice.At)</small></div>
+            </div>
+        }
         @if (selected is not null && series.Contains(selected))
         {
             <div class="evo-detail">
@@ -118,8 +140,16 @@ else
     </div>
 }
 
+@* ───────────── NOVO: simulados e treinos (próprios, não oficiais) ───────────── *@
+@if (overview is not null && practice is not null)
+{
+    <div id="simulados"></div>
+    <PracticeResultsPanel Summary="practice" OfficialValues="overview.Grades.Select(g => g.Value).ToList()" Full="true" OnChanged="ReloadPracticeAsync" />
+}
+
 @code {
     private StudentOverview? overview;
+    private PracticeSummary? practice;
     private string? error;
     private string filter = "";
     private bool byName;
@@ -133,6 +163,7 @@ else
         try
         {
             overview = await Academic.GetStudentOverviewAsync();
+            practice = await PracticeResults.GetMineAsync();
             high = overview.Grades.Count(g => g.Value >= 7m);
             mid = overview.Grades.Count(g => g.Value >= 5m && g.Value < 7m);
             low = overview.Grades.Count(g => g.Value < 5m);
@@ -149,7 +180,19 @@ else
         ? overview!.Averages.OrderBy(a => a.DisciplineName)
         : overview!.Averages.OrderByDescending(a => a.Average);
 
-    private void SetFilter(string name) { filter = name; selected = null; }
+    private async Task ReloadPracticeAsync()
+    {
+        practice = await PracticeResults.GetMineAsync();
+        selectedPractice = null;
+    }
+
+    // Simulados contabilizados aparecem no gráfico com barras tracejadas, para nunca se confundirem com notas oficiais.
+    private PracticeResultRow? selectedPractice;
+    private List<PracticeResultRow> PracticeSeries() => (practice?.Results ?? new())
+        .Where(r => r.Counted && (filter == "" || r.DisciplineName == filter))
+        .OrderBy(r => r.At).ToList();
+
+    private void SetFilter(string name) { filter = name; selected = null; selectedPractice = null; }
     private void Select(MyGradeRow grade) => selected = selected == grade ? null : grade;
 
     private void Toggle(string name)

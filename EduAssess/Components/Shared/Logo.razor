@@ -1,17 +1,52 @@
+@using global::EduAssess.Models.Global
 @* Logo da Faculdade Luciano Feijão.
    Light = true  -> versão toda branca (para fundos azuis/escuros: barra lateral, login, rodapé)
-   Light = false -> versão colorida (para fundos claros: cabeçalho do site) *@
-<a class="brand @(Light ? "brand-light" : "")" href="@Href" aria-label="Faculdade Luciano Feijão — EduAssess">
-    <img class="brand-full" src="@(Light ? "img/logo-flf-branca.png" : "img/logo-flf.png")"
-         alt="Faculdade Luciano Feijão" height="46" />
-    @if (Compactable)
-    {
-        <img class="brand-compact" src="img/favicon-flf.png" alt="" aria-hidden="true" />
-    }
-</a>
+   Light = false -> versão colorida (para fundos claros: cabeçalho do site)
+
+   NOVO: com Brand (só o painel informa), mostra a identidade da instituição em uso:
+   - logotipo enviado pela instituição, se houver;
+   - a Faculdade Luciano Feijão (FLF) sem logotipo enviado continua com o logo original;
+   - qualquer outra instituição sem logotipo (ex.: Colégio CLF) mostra um monograma na cor primária dela. *@
+@if (Brand is not null && Brand.HasLogo)
+{
+    <a class="brand brand-custom @(Light ? "brand-light" : "")" href="@Href" aria-label="@Brand.Name — EduAssess">
+        <img class="brand-full brand-uploaded" src="ui/instituicao-logo/@Brand.Id?v=@Brand.LogoVersion" alt="@Brand.Name" height="46" />
+        @if (Compactable)
+        {
+            <img class="brand-compact brand-uploaded" src="ui/instituicao-logo/@Brand.Id?v=@Brand.LogoVersion" alt="" aria-hidden="true" />
+        }
+    </a>
+}
+else if (Brand is not null && !(Brand.Tipo == TipoInstituicao.Faculdade && Brand.Sigla == "FLF"))
+{
+    <a class="brand brand-custom @(Light ? "brand-light" : "")" href="@Href" aria-label="@Brand.Name — EduAssess">
+        <span class="brand-mono" style="background:var(--brand-primary,#1f4e79);color:var(--brand-primary-ink,#fff)" aria-hidden="true">@Monogram(Brand)</span>
+        <span class="brand-name brand-full">@Brand.Name</span>
+    </a>
+}
+else
+{
+    <a class="brand @(Light ? "brand-light" : "")" href="@Href" aria-label="Faculdade Luciano Feijão — EduAssess">
+        <img class="brand-full" src="@(Light ? "img/logo-flf-branca.png" : "img/logo-flf.png")"
+             alt="Faculdade Luciano Feijão" height="46" />
+        @if (Compactable)
+        {
+            <img class="brand-compact" src="img/favicon-flf.png" alt="" aria-hidden="true" />
+        }
+    </a>
+}
 
 @code {
     [Parameter] public bool Light { get; set; }
     [Parameter] public bool Compactable { get; set; }
     [Parameter] public string Href { get; set; } = "/";
+    /// <summary>NOVO: identidade da instituição em uso (nulo = logo padrão da FLF, como nas páginas públicas).</summary>
+    [Parameter] public EduAssess.Web.InstitutionBrand? Brand { get; set; }
+
+    private static string Monogram(EduAssess.Web.InstitutionBrand brand)
+    {
+        if (!string.IsNullOrWhiteSpace(brand.Sigla)) return brand.Sigla!;
+        var letters = brand.Name.Split(' ', StringSplitOptions.RemoveEmptyEntries).Where(w => w.Length > 2).Select(w => char.ToUpperInvariant(w[0]));
+        return string.Concat(letters.Take(3));
+    }
 }

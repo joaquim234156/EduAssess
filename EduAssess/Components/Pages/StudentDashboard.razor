@@ -4,6 +4,7 @@
 @attribute [Authorize(Policy = "Aluno")]
 @inject AcademicService Academic
 @inject UiSession Session
+@inject PracticeResultService PracticeResults
 
 <PageTitle>Meu painel | Faculdade Luciano Feijão</PageTitle>
 
@@ -98,6 +99,12 @@ else
         </div>
     }
 
+    @* ───────────── NOVO: simulados e treinos (próprios, não oficiais) ───────────── *@
+    @if (practice is not null)
+    {
+        <PracticeResultsPanel Summary="practice" OfficialValues="overview.Grades.Select(g => g.Value).ToList()" OnChanged="ReloadPracticeAsync" />
+    }
+
     @* ───────────── Turmas ───────────── *@
     <div class="sec-head"><h2>Minhas turmas</h2></div>
     @if (overview.Enrollments.Count == 0)
@@ -135,14 +142,21 @@ else
 
 @code {
     private StudentOverview? overview;
+    private PracticeSummary? practice;
     private string? error;
     private readonly HashSet<string> expanded = new();
 
     protected override async Task OnInitializedAsync()
     {
-        try { overview = await Academic.GetStudentOverviewAsync(); }
+        try
+        {
+            overview = await Academic.GetStudentOverviewAsync();
+            practice = await PracticeResults.GetMineAsync(5);
+        }
         catch (UnauthorizedAccessException ex) { error = ex.Message; }
     }
+
+    private async Task ReloadPracticeAsync() => practice = await PracticeResults.GetMineAsync(5);
 
     private void Toggle(string name)
     {

@@ -2,12 +2,13 @@
 @inherits LayoutComponentBase
 @implements IDisposable
 @inject UiSession Session
+@inject NavigationManager Nav
 
 @* ALTERADO: o elemento raiz agora recebe as classes de tema (perfil + prédio), ex.: "role-professor unit-medicina".
    Todo o visual exclusivo está em temas.css. O fundo fixo em linha foi para o CSS (.shell { background: var(--paper) }). *@
-<div class="shell @Session.ThemeClass @(menuOpen ? "menu-open" : string.Empty) @(sidebarCollapsed ? "sidebar-collapsed" : string.Empty)" style="@Session.ThemeStyle">
+<div class="shell @Session.ThemeClass @(menuOpen ? "menu-open" : string.Empty) @(sidebarCollapsed ? "sidebar-collapsed" : string.Empty)" style="@Session.ShellStyle">
     <aside class="sidebar" id="primary-navigation">
-        <Logo Light="@(!UiTheme.LightSidebar(Session.User?.Role))" Compactable="true" Href="@homePath" />
+        <Logo Light="@(!UiTheme.LightSidebar(Session.User?.Role))" Compactable="true" Href="@homePath" Brand="Session.Brand" />
 
         @* NOVO: selo do prédio (Principal, Medicina, Odontologia) na barra lateral. *@
         @if (Session.IsSignedIn)
@@ -29,6 +30,7 @@
                     <span>Instituição</span>
                     <NavLink class="nav-link" href="/painel" title="Visão geral" Match="NavLinkMatch.All" @onclick="CloseMenu"><Icon Name="dashboard" /> Visão geral</NavLink>
                     <NavLink class="nav-link" href="/instituicao" title="Unidades e pessoas" @onclick="CloseMenu"><Icon Name="building" /> Unidades e pessoas</NavLink>
+                    <NavLink class="nav-link" href="/historico" title="Histórico de atividades" @onclick="CloseMenu"><Icon Name="clock" /> Histórico</NavLink>
                     <NavLink class="nav-link" href="/cursos" title="Cursos" @onclick="CloseMenu"><Icon Name="book" /> Cursos</NavLink>
                     <NavLink class="nav-link" href="/disciplinas" title="Disciplinas" @onclick="CloseMenu"><Icon Name="file" /> Disciplinas</NavLink>
                     <NavLink class="nav-link" href="/turmas" title="Turmas" @onclick="CloseMenu"><Icon Name="layers" /> Turmas</NavLink>
@@ -54,6 +56,7 @@
                     <NavLink class="nav-link" href="/professor" title="Meu painel" Match="NavLinkMatch.All" @onclick="CloseMenu"><Icon Name="dashboard" /> Meu painel</NavLink>
                     <NavLink class="nav-link" href="/notas" title="Lançar notas" @onclick="CloseMenu"><Icon Name="pen" /> Lançar notas</NavLink>
                     <NavLink class="nav-link" href="/alunos" title="Alunos" @onclick="CloseMenu"><Icon Name="cap" /> Alunos</NavLink>
+                    <NavLink class="nav-link" href="/historico" title="Histórico das minhas turmas e conteúdos" @onclick="CloseMenu"><Icon Name="clock" /> Histórico</NavLink>
                 </div>
                 <div class="nav-group">
                     <span>Avaliações</span>
@@ -119,6 +122,22 @@
             <div class="topbar-right">
                 @if (Session.User is not null)
                 {
+                    @* NOVO: quem atua em mais de uma instituição (ex.: Faculdade e Colégio CLF) escolhe qual usar. A escolha
+                       vai para o cookie (POST /ui/instituicao/selecionar), então sobrevive ao recarregar a página. *@
+                    @if (Session.AvailableInstitutions.Count > 1)
+                    {
+                        <form method="post" action="/ui/instituicao/selecionar" class="inst-switch-form">
+                            <input type="hidden" name="returnUrl" value="/@Nav.ToBaseRelativePath(Nav.Uri)" />
+                            <select name="id" class="unit-switch inst-switch" aria-label="Instituição em uso" onchange="this.form.submit()">
+                                @foreach (var inst in Session.AvailableInstitutions)
+                                {
+                                    <option value="@inst.Id" selected="@(Session.InstitutionId == inst.Id)">@(string.IsNullOrEmpty(inst.Sigla) ? inst.Name : inst.Sigla + " · " + inst.Name)</option>
+                                }
+                            </select>
+                            <noscript><button type="submit" class="btn btn-ghost btn-sm">Trocar</button></noscript>
+                        </form>
+                    }
+
                     @* NOVO: só o Admin vê este seletor: ele pode "ver como" qualquer prédio para conferir o tema. *@
                     @if (Session.User.Role == UserRole.Admin && Session.AllUnits.Count > 0)
                     {
@@ -141,7 +160,7 @@
             </div>
         </header>
         <div class="page">@Body</div>
-        <footer class="page-foot">Faculdade Luciano Feijão@(Session.ThemeKey == "rede" ? "" : " · " + Session.ThemeLabel) · EduAssess</footer>
+        <footer class="page-foot">@(Session.Brand?.Name ?? "Faculdade Luciano Feijão")@(Session.ThemeKey == "rede" ? "" : " · " + Session.ThemeLabel) · EduAssess</footer>
     </div>
 </div>
 

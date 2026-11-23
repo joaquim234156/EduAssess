@@ -1,4 +1,5 @@
 using System.Text;
+using EduAssess.Application.Services;
 using EduAssess.Models;
 using EduAssess.Models.Global;
 using EduAssess.Models.Local;
@@ -24,6 +25,11 @@ public static class DatabaseInitializer
         var logger = scope.ServiceProvider.GetRequiredService<ILoggerFactory>().CreateLogger("DatabaseInitializer");
 
         await db.Database.MigrateAsync();
+
+        // NOVO: dados iniciais/demonstração não são ação de um usuário, então não entram no histórico de auditoria.
+        db.SuppressAudit = true;
+        await QuestaoSeloService.GarantirCatalogoAsync(db);   // catálogo de selos (IA, ENADE, ENAMED, ENEM, Vestibular)
+
         await EnsureAdminAsync(db, config, env, logger);
 
         // NOVO: a instituição (Faculdade Luciano Feijão) e seus prédios existem em QUALQUER ambiente.
@@ -292,7 +298,8 @@ public static class DatabaseInitializer
 
         var institution = new InstituicaoModel(
             "Faculdade Luciano Feijão", "09.533.217/0003-01", "", "",
-            "Rua José Lopes Ponte, 400, Dom Expedito, Sobral-CE, CEP 62050-215");
+            "Rua José Lopes Ponte, 400, Dom Expedito, Sobral-CE, CEP 62050-215",
+            TipoInstituicao.Faculdade, "FLF");   // NOVO: tipo e sigla
         institution.MantenedorId = maintainer.Id;
         db.Instituicoes.Add(institution);
 

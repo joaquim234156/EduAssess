@@ -1,0 +1,35 @@
+@inject PracticeResultService Results
+
+@* Interruptor "contabilizar no meu desempenho" de um resultado de treino/simulado do próprio aluno.
+   Só muda esse campo do resultado do aluno; nunca toca nas notas oficiais. *@
+<label class="switch @(busy ? "busy" : "")">
+    <input type="checkbox" role="switch" checked="@Counted" disabled="@busy" @onchange="ChangeAsync" aria-label="Contabilizar no meu desempenho" />
+    <span class="switch-ui" aria-hidden="true"></span>
+    <span class="switch-text">@(Counted ? "Contabilizado" : "Não contabilizado")</span>
+</label>
+
+@code {
+    [Parameter, EditorRequired] public Guid ResultId { get; set; }
+    [Parameter] public bool Counted { get; set; }
+    [Parameter] public EventCallback<bool> CountedChanged { get; set; }
+    [Parameter] public EventCallback<string> OnError { get; set; }
+
+    private bool busy;
+
+    private async Task ChangeAsync(ChangeEventArgs e)
+    {
+        var wanted = e.Value is true;
+        busy = true;
+        try
+        {
+            await Results.SetCountedAsync(ResultId, wanted);
+            Counted = wanted;
+            await CountedChanged.InvokeAsync(wanted);
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or UnauthorizedAccessException)
+        {
+            await OnError.InvokeAsync(ex.Message);
+        }
+        finally { busy = false; }
+    }
+}

@@ -236,6 +236,7 @@ else
                                     <b class="q-num">@n</b>
                                     <span class="badge badge-gray">@q.Topic</span>
                                     <span class="badge @DifficultyBadge(q.Difficulty)">@UiFormat.DifficultyLabel(q.Difficulty)</span>
+                                    <SealBadges Seals="q.Seals" />
                                     @if (canEdit)
                                     {
                                         <span class="q-tools">
@@ -290,7 +291,7 @@ else
                             var id = row.Id;
                             <label class="bank-pick @(bankSelected.Contains(id) ? "on" : "")">
                                 <input type="checkbox" checked="@bankSelected.Contains(id)" @onchange="e => TogglePick(id, e.Value is true)" />
-                                <span class="bp-main"><strong>@row.Statement</strong><small>@row.Topic</small></span>
+                                <span class="bp-main"><strong>@row.Statement</strong><small>@row.Topic</small><SealBadges Seals="row.Seals" ShowHidden="true" /></span>
                                 <span class="badge @DifficultyBadge(row.Difficulty)">@UiFormat.DifficultyLabel(row.Difficulty)</span>
                             </label>
                         }

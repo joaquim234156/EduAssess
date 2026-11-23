@@ -1,4 +1,5 @@
-﻿using EduAssess.Models;
+using EduAssess.Data.Audit;
+using EduAssess.Models;
 using EduAssess.Models.Global;
 using EduAssess.Models.Local;
 using Microsoft.EntityFrameworkCore;
@@ -10,7 +11,20 @@ namespace EduAssess.Data
 {
     public class AppDbContext : DbContext
     {
-        public AppDbContext(DbContextOptions<AppDbContext> options) : base(options) { }
+        private readonly IAuditActorAccessor? _auditActor;
+
+        // NOVO: o accessor é resolvido pela fábrica de contextos (escopo do circuito/requisição). É opcional
+        // para continuar funcionando em ferramentas de design e testes.
+        public AppDbContext(DbContextOptions<AppDbContext> options, IAuditActorAccessor? auditActor = null) : base(options)
+        {
+            _auditActor = auditActor;
+        }
+
+        /// <summary>NOVO: quem está operando agora (lido na hora de salvar, para refletir a sessão atual).</summary>
+        public AuditActor? CurrentActor => _auditActor?.Current;
+
+        /// <summary>NOVO: só o DatabaseInitializer usa (dados iniciais/demonstração não são ação de usuário).</summary>
+        public bool SuppressAudit { get; set; }
 
         public DbSet<UserModel> Users { get; set; } = null!;
         public DbSet<CursoModel> Cursos { get; set; } = null!;
@@ -27,6 +41,10 @@ namespace EduAssess.Data
         public DbSet<MantenedorModel> Mantenedores { get; set; } = null!;
         public DbSet<UnidadeModel> Unidades { get; set; } = null!;
         public DbSet<UsuarioInstituicaoModel> UsuariosInstituicoes { get; set; } = null!;
+        public DbSet<SeloTipoModel> SelosTipos { get; set; } = null!;
+        public DbSet<QuestaoSeloModel> QuestoesSelos { get; set; } = null!;
+        public DbSet<ResultadoPraticaModel> ResultadosPratica { get; set; } = null!;
+        public DbSet<RegistroAuditoriaModel> RegistrosAuditoria { get; set; } = null!;
 
 
 
@@ -49,6 +67,12 @@ namespace EduAssess.Data
             {
                 e.HasIndex(x => x.Slug).IsUnique();
                 e.HasIndex(x => x.Cnpj).IsUnique(); // no SQLite, vários NULL são permitidos
+                // NOVO: Faculdade ou Colégio (CLF), guardado como texto (igual ao Papel)
+                e.Property(x => x.Tipo).HasConversion<string>().HasMaxLength(20).HasDefaultValue(TipoInstituicao.Faculdade);
+                e.Property(x => x.Sigla).HasMaxLength(10);
+                // Já existiam como default de banco (migration AddInstitutionTenancyAndMaintainer); declarar aqui mantém o snapshot fiel.
+                e.Property(x => x.CorPrimaria).HasDefaultValue("#1F4E79");
+                e.Property(x => x.CorSecundaria).HasDefaultValue("#D6A94B");
                 e.HasOne(x => x.Mantenedor).WithMany(x => x.Instituicoes)
                     .HasForeignKey(x => x.MantenedorId).OnDelete(DeleteBehavior.Restrict);
             });
@@ -90,6 +114,55 @@ namespace EduAssess.Data
             {
                 e.HasKey(x => new { x.AvaliacaoId, x.QuestaoId });
                 e.HasOne(x => x.Avaliacao).WithMany(a => a.Questoes).HasForeignKey(x => x.AvaliacaoId).OnDelete(DeleteBehavior.Cascade);
+            });
+
+            // NOVO: catálogo de selos e selos aplicados às questões (sem duplicidade: chave questão + tipo).
+            modelBuilder.Entity<SeloTipoModel>(e =>
+            {
+                e.HasIndex(x => x.Codigo).IsUnique();
+                e.Property(x => x.Codigo).HasMaxLength(30);
+                e.Property(x => x.Nome).HasMaxLength(60);
+                e.Property(x => x.Cor).HasMaxLength(20);
+                e.Property(x => x.RotuloDetalhe).HasMaxLength(60);
+                e.Property(x => x.Descricao).HasMaxLength(200);
+            });
+            modelBuilder.Entity<QuestaoSeloModel>(e =>
+            {
+                e.HasKey(x => new { x.QuestaoId, x.SeloTipoId });
+                e.HasOne(x => x.Questao).WithMany(q => q.Selos).HasForeignKey(x => x.QuestaoId).OnDelete(DeleteBehavior.Cascade);
+                e.HasOne(x => x.SeloTipo).WithMany().HasForeignKey(x => x.SeloTipoId).OnDelete(DeleteBehavior.Restrict);
+                e.Property(x => x.Detalhe).HasMaxLength(80);
+                e.HasIndex(x => x.SeloTipoId);
+            });
+
+            // NOVO: resultados de treino/simulado do aluno (separados das notas oficiais).
+            modelBuilder.Entity<ResultadoPraticaModel>(e =>
+            {
+                e.HasOne<InstituicaoModel>().WithMany().HasForeignKey(x => x.InstituicaoId).OnDelete(DeleteBehavior.Restrict);
+                e.HasOne<UserModel>().WithMany().HasForeignKey(x => x.UsuarioId).OnDelete(DeleteBehavior.Restrict);
+                e.Property(x => x.Origem).HasConversion<string>().HasMaxLength(20);
+                e.Property(x => x.Titulo).HasMaxLength(120);
+                e.Property(x => x.DisciplinaNome).HasMaxLength(100);
+                e.Property(x => x.Nota).HasPrecision(4, 2);
+                e.HasIndex(x => new { x.UsuarioId, x.InstituicaoId, x.RealizadoEm });
+            });
+
+            // NOVO: trilha de auditoria (somente inserção; veja também o gatilho criado na migration).
+            modelBuilder.Entity<RegistroAuditoriaModel>(e =>
+            {
+                e.Property(x => x.Acao).HasConversion<string>().HasMaxLength(30);
+                e.Property(x => x.Categoria).HasConversion<string>().HasMaxLength(20);
+                e.Property(x => x.Entidade).HasMaxLength(60);
+                e.Property(x => x.EntidadeId).HasMaxLength(100);
+                e.Property(x => x.EntidadeRotulo).HasMaxLength(200);
+                e.Property(x => x.Detalhes).HasMaxLength(800);
+                e.Property(x => x.AtorNome).HasMaxLength(150);
+                e.Property(x => x.AtorPerfil).HasMaxLength(40);
+                e.Property(x => x.Ip).HasMaxLength(64);
+                e.HasIndex(x => new { x.InstituicaoId, x.OcorridoEm });
+                e.HasIndex(x => new { x.ProfessorResponsavelId, x.OcorridoEm });
+                e.HasIndex(x => x.AtorId);
+                e.HasIndex(x => new { x.Categoria, x.OcorridoEm });
             });
 
             var dateOnlyConverter = new ValueConverter<DateOnly, DateTime>(

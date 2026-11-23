@@ -1,4 +1,6 @@
+using EduAssess.Application.DTOs.Selo;
 using EduAssess.Application.Interfaces;
+using EduAssess.Application.Services;
 using EduAssess.Data;
 using EduAssess.Models;
 using EduAssess.Models.Global;
@@ -30,12 +32,21 @@ public sealed class QuestaoWebService(
     private static bool IsStaff(UserSummary me) => me.Role is UserRole.Admin or UserRole.Gestor;
 
     /// <summary>Monta a linha de exibição de uma questão (alternativas em lista + índice da correta).</summary>
-    public static QuestionRow ToRow(QuestaoModel q, string disciplineName)
+    public static QuestionRow ToRow(QuestaoModel q, string disciplineName, List<SeloDto>? seals = null, int examCount = 0, int appliedExamCount = 0)
     {
         var alternatives = new List<string> { q.Alternativa1, q.Alternativa2, q.Alternativa3, q.Alternativa4, q.Alternativa5 };
         return new QuestionRow(
             q.Id, q.DisciplinaId, disciplineName, q.Assunto, q.Enunciado,
-            alternatives, IndexOfCorrect(alternatives, q.AlternativaCorreta), q.Explicacao, q.Dificuldade);
+            alternatives, IndexOfCorrect(alternatives, q.AlternativaCorreta), q.Explicacao, q.Dificuldade,
+            seals ?? new(), q.ProfessorId, examCount, appliedExamCount);
+    }
+
+    /// <summary>NOVO: catálogo de tipos de selo (o formulário se monta a partir dele).</summary>
+    public async Task<List<SeloTipoDto>> GetSealTypesAsync()
+    {
+        await session.RequireAsync(Teaching);
+        await using var db = await dbFactory.CreateDbContextAsync();
+        return await QuestaoSeloService.ListarTiposAsync(db);
     }
 
     /// <summary>Disciplinas em que a pessoa pode criar questões: as dela (professor) ou todas (gestão).</summary>
@@ -52,7 +63,7 @@ public sealed class QuestaoWebService(
         return await query.OrderBy(d => d.Nome).Select(d => new DisciplineOption(d.Id, d.Nome)).ToListAsync();
     }
 
-    public async Task<List<QuestionRow>> GetMyQuestionsAsync(Guid? disciplineId, string? topic, DificuldadeQuestao? difficulty)
+    public async Task<List<QuestionRow>> GetMyQuestionsAsync(Guid? disciplineId, string? topic, DificuldadeQuestao? difficulty, string? sealCode = null)
     {
         var me = await session.RequireAsync(Teaching);
         var institutionId = session.InstitutionId ?? throw new UnauthorizedAccessException("Selecione uma instituição.");
@@ -71,14 +82,78 @@ public sealed class QuestaoWebService(
         }
         if (difficulty.HasValue)
             query = query.Where(q => q.Dificuldade == difficulty.Value);
+        // NOVO: filtro por selo (ex.: só questões ENEM)
+        if (!string.IsNullOrWhiteSpace(sealCode))
+        {
+            var code = sealCode.Trim().ToUpperInvariant();
+            query = query.Where(q => q.Selos.Any(s => s.SeloTipo.Codigo == code));
+        }
 
         var rows = await query.OrderBy(q => q.Assunto).Take(300).ToListAsync();
 
         var names = (await db.Disciplinas.AsNoTracking().Where(d => d.InstituicaoId == institutionId).Select(d => new { d.Id, d.Nome }).ToListAsync())
             .ToDictionary(d => d.Id, d => d.Nome);
 
-        return rows.Select(q => ToRow(q, names.TryGetValue(q.DisciplinaId, out var n) ? n : "—")).ToList();
+        return await ToRowsAsync(db, rows, names);
     }
+
+    /// <summary>Monta as linhas com os selos (todos, inclusive os ocultos, que o professor enxerga esmaecidos) e o uso em avaliações.</summary>
+    private static async Task<List<QuestionRow>> ToRowsAsync(AppDbContext db, List<QuestaoModel> rows, Dictionary<Guid, string> names)
+    {
+        var ids = rows.Select(r => r.Id).ToList();
+        var seals = await QuestaoSeloService.CarregarAsync(db, ids, onlyVisible: false);
+        var usage = await db.AvaliacoesQuestoes.AsNoTracking()
+            .Where(l => ids.Contains(l.QuestaoId) && l.Avaliacao.Ativa)
+            .Select(l => new { l.QuestaoId, Applied = l.Avaliacao.Status == StatusAvaliacao.Aplicada }).ToListAsync();
+        return rows.Select(q => ToRow(q, names.TryGetValue(q.DisciplinaId, out var n) ? n : "—",
+            seals.TryGetValue(q.Id, out var s) ? s : new(),
+            usage.Count(u => u.QuestaoId == q.Id), usage.Count(u => u.QuestaoId == q.Id && u.Applied))).ToList();
+    }
+
+    /// <summary>NOVO: uma questão para edição (com todos os selos). Respeita a posse: professor só as próprias.</summary>
+    public async Task<QuestionRow> GetQuestionAsync(Guid id)
+    {
+        var me = await session.RequireAsync(Teaching);
+        var institutionId = session.InstitutionId ?? throw new UnauthorizedAccessException("Selecione uma instituição.");
+        await using var db = await dbFactory.CreateDbContextAsync();
+        var myId = me.Id; var staff = IsStaff(me);
+        var q = await db.Questoes.AsNoTracking().FirstOrDefaultAsync(x => x.Id == id && x.InstituicaoId == institutionId && x.Ativa && (staff || x.ProfessorId == myId))
+            ?? throw new InvalidOperationException("A questão não foi encontrada ou você não pode editá-la.");
+        var names = (await db.Disciplinas.AsNoTracking().Where(d => d.InstituicaoId == institutionId).Select(d => new { d.Id, d.Nome }).ToListAsync())
+            .ToDictionary(d => d.Id, d => d.Nome);
+        return (await ToRowsAsync(db, [q], names)).First();
+    }
+
+    /// <summary>
+    /// NOVO: edição COMPLETA de uma questão já cadastrada: enunciado, alternativas, gabarito, justificativa,
+    /// assunto, dificuldade, disciplina e selos. Mesmas regras de posse e de validação do cadastro.
+    /// Resultados de simulados já gravados não mudam (guardam só a nota do aluno).
+    /// </summary>
+    public async Task UpdateQuestionAsync(Guid id, QuestionEditForm form)
+    {
+        var me = await session.RequireAsync(Teaching);
+        var institutionId = session.InstitutionId ?? throw new UnauthorizedAccessException("Selecione uma instituição.");
+        var topic = (form.Topic ?? "").Trim();
+        if (topic.Length is < 2 or > 100)
+            throw new ArgumentException("Informe um assunto entre 2 e 100 caracteres.");
+        Validate(form.Content);
+
+        await using var db = await dbFactory.CreateDbContextAsync();
+        var myId = me.Id; var staff = IsStaff(me);
+        var question = await db.Questoes.FirstOrDefaultAsync(q => q.Id == id && q.InstituicaoId == institutionId && q.Ativa && (staff || q.ProfessorId == myId))
+            ?? throw new InvalidOperationException("A questão não foi encontrada ou você não pode editá-la.");
+        if (!await db.Disciplinas.AnyAsync(d => d.Id == form.DisciplineId && d.InstituicaoId == institutionId && d.Ativa && (staff || d.ProfessorId == myId)))
+            throw new InvalidOperationException("Disciplina não encontrada.");
+
+        var a = form.Content.Alternatives.Select(x => x.Trim()).ToList();
+        question.UpdateQuestion(form.DisciplineId, form.Content.Statement.Trim(), a[form.Content.CorrectIndex],
+            a[0], a[1], a[2], a[3], a[4], topic, form.Content.Explanation.Trim(), form.Difficulty);
+        await QuestaoSeloService.SincronizarAsync(db, id, ToInputs(form.Seals));
+        await db.SaveChangesAsync();
+    }
+
+    public static List<SeloInput> ToInputs(IEnumerable<SealChoice>? choices) =>
+        (choices ?? []).Where(c => c.Selected).Select(c => new SeloInput(c.Code, c.Year, c.Detail, c.Show)).ToList();
 
     /// <summary>
     /// Pede questões à IA e devolve RASCUNHOS (nada é salvo). A pessoa revisa e escolhe quais salvar.
@@ -125,7 +200,7 @@ public sealed class QuestaoWebService(
     }
 
     /// <summary>Salva rascunhos (da IA ou digitados à mão) como questões ativas e devolve os IDs criados.</summary>
-    public async Task<List<Guid>> SaveDraftsAsync(Guid disciplineId, string topic, DificuldadeQuestao difficulty, IEnumerable<DraftQuestion> drafts)
+    public async Task<List<Guid>> SaveDraftsAsync(Guid disciplineId, string topic, DificuldadeQuestao difficulty, IEnumerable<DraftQuestion> drafts, IEnumerable<SeloInput>? seals = null)
     {
         var me = await session.RequireAsync(Teaching);
         var institutionId = session.InstitutionId ?? throw new UnauthorizedAccessException("Selecione uma instituição.");
@@ -145,6 +220,9 @@ public sealed class QuestaoWebService(
         if (!await db.Disciplinas.AnyAsync(d => d.Id == disciplineId && d.InstituicaoId == institutionId && d.Ativa && (staff || d.ProfessorId == myId)))
             throw new InvalidOperationException("Disciplina não encontrada.");
 
+        var sealList = seals?.ToList() ?? new();
+        await QuestaoSeloService.ValidarAsync(db, sealList);   // falha cedo, antes de salvar qualquer questão
+
         var created = new List<Guid>();
         foreach (var d in list)
         {
@@ -156,6 +234,7 @@ public sealed class QuestaoWebService(
                 topic, d.Explanation.Trim(), difficulty, institutionId);
             db.Questoes.Add(model);
             created.Add(model.Id);
+            await QuestaoSeloService.SincronizarAsync(db, model.Id, sealList);
         }
 
         await db.SaveChangesAsync();
@@ -231,6 +310,8 @@ public sealed class QuestaoWebService(
 
         var rows = await query.ToListAsync();
         var picked = rows.OrderBy(_ => Random.Shared.Next()).Take(count).ToList();
+        // NOVO: o aluno só recebe os selos que o professor escolheu exibir (filtrado aqui, no servidor).
+        var visibleSeals = await QuestaoSeloService.CarregarAsync(db, picked.Select(p => p.Id), onlyVisible: true);
 
         var result = new List<PracticeQuestion>();
         foreach (var q in picked)
@@ -243,7 +324,7 @@ public sealed class QuestaoWebService(
             var shuffled = original.OrderBy(_ => Random.Shared.Next()).ToList();
             result.Add(new PracticeQuestion(
                 q.Id, q.Assunto, q.Enunciado, shuffled, shuffled.IndexOf(correctText),
-                q.Explicacao, q.Dificuldade));
+                q.Explicacao, q.Dificuldade, visibleSeals.TryGetValue(q.Id, out var sl) ? sl : new()));
         }
 
         return result;

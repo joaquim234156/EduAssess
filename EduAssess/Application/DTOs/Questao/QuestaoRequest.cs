@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using EduAssess.Application.DTOs.Selo;
 using EduAssess.Models.Local;
 
 namespace EduAssess.Application.DTOs.Questao
@@ -46,6 +47,10 @@ namespace EduAssess.Application.DTOs.Questao
         [Required(ErrorMessage ="É obrigatórito informar a dificuldade da questão apra que ela possa ser registrada")]
         [EnumDataType(typeof(DificuldadeQuestao),
             ErrorMessage = "A dificuldade informada é inválida!")]
-        DificuldadeQuestao? dificuldade
+        DificuldadeQuestao? dificuldade,
+
+        // NOVO e opcional: selos (IA, ENADE, ENAMED, ENEM com ano, VESTIBULAR com instituição/ano).
+        // Em PUT, null = manter os selos atuais; lista vazia = remover todos.
+        List<SeloInput>? selos = null
     );
 }

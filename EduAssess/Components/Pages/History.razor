@@ -1,0 +1,230 @@
+@page "/historico"
+@layout AppLayout
+@attribute [Authorize(Policy = "Docencia")]
+@using global::EduAssess.Application.DTOs.Auditoria
+@using global::EduAssess.Application.Services
+@using global::EduAssess.Models.Global
+@using global::EduAssess.Models.Local
+@inject AuditoriaWebService Audit
+@inject UiSession Session
+
+@* NOVA TELA: histórico de atividades (auditoria). SOMENTE LEITURA: não há botão nem método para editar ou excluir registros.
+   O que cada perfil vê é decidido no servidor (AuditoriaService):
+   Admin = tudo; Gestor = gestão acadêmica da instituição; Professor = suas turmas e conteúdos, incluindo a atividade dos alunos. *@
+
+<PageTitle>Histórico de atividades | EduAssess</PageTitle>
+
+<PageHeader Eyebrow="@Eyebrow" Title="Histórico de atividades" Subtitle="@Subtitle">
+    <span class="badge badge-gray" title="Os registros não podem ser alterados nem excluídos por ninguém, nem pelo administrador."><Icon Name="lock" Size="14" /> Somente leitura</span>
+</PageHeader>
+
+<Feedback Message="@message" IsError="true" />
+
+@if (Session.User is null)
+{
+    <div class="loading"><span class="spinner"></span> Carregando…</div>
+}
+else
+{
+    @if (CanSeeStudents)
+    {
+        <div class="tabs" role="tablist">
+            <button type="button" role="tab" class="tab @(tab == "registros" ? "on" : "")" aria-selected="@(tab == "registros")" @onclick='() => SetTabAsync("registros")'><Icon Name="clock" Size="16" /> Registros</button>
+            <button type="button" role="tab" class="tab @(tab == "alunos" ? "on" : "")" aria-selected="@(tab == "alunos")" @onclick='() => SetTabAsync("alunos")'><Icon Name="cap" Size="16" /> Atividade dos alunos</button>
+        </div>
+    }
+
+    @if (tab == "alunos" && summary is not null)
+    {
+        <div class="stu-tiles">
+            <div class="tile"><span class="tile-ico"><Icon Name="users" Size="22" /></span><strong>@summary.Alunos</strong><small>@(summary.Alunos == 1 ? "aluno ativo" : "alunos ativos")</small></div>
+            <div class="tile"><span class="tile-ico"><Icon Name="pen" Size="22" /></span><strong>@summary.Respostas</strong><small>questões respondidas</small></div>
+            <div class="tile"><span class="tile-ico"><Icon Name="check-circle" Size="22" /></span><strong>@(summary.Respostas == 0 ? "—" : Math.Round(summary.Acertos * 100d / summary.Respostas) + "%")</strong><small>de acertos</small></div>
+            <div class="tile"><span class="tile-ico"><Icon Name="clipboard" Size="22" /></span><strong>@summary.Testes</strong><small>testes concluídos</small></div>
+        </div>
+
+        @if (summary.Questoes.Count > 0)
+        {
+            <section class="card" style="margin-bottom:20px">
+                <div class="card-head"><div><h2>Questões mais acessadas</h2><p>Quantos alunos responderam cada questão sua no período.</p></div></div>
+                <div class="table-wrap">
+                    <table>
+                        <thead><tr><th>Questão</th><th>Alunos</th><th>Respostas</th><th>Acertos</th><th>Último acesso</th></tr></thead>
+                        <tbody>
+                            @foreach (var q in summary.Questoes)
+                            {
+                                <tr>
+                                    <td>@q.Rotulo</td>
+                                    <td>@q.Alunos</td>
+                                    <td>@q.Respostas</td>
+                                    <td>@Math.Round(q.Acertos * 100d / Math.Max(1, q.Respostas))%</td>
+                                    <td>@UiFormat.DateTimeShort(q.UltimoAcesso)</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        }
+    }
+
+    <section class="card">
+        <div class="card-head">
+            <div><h2>@(tab == "alunos" ? "O que os alunos fizeram" : "Registros")</h2><p>Do mais recente para o mais antigo.</p></div>
+            <span class="count-pill">@(result?.Total ?? 0)</span>
+        </div>
+
+        <div class="history-filters">
+            <label class="toolbar-search">
+                <Icon Name="search" Size="16" />
+                <input type="search" placeholder="Buscar por pessoa, item ou detalhe" value="@search" @onchange="OnSearch" aria-label="Buscar no histórico" />
+            </label>
+            @if (tab == "registros" && Categories.Length > 1)
+            {
+                <select class="select" aria-label="Filtrar por categoria" @onchange="OnCategory">
+                    <option value="">Todas as categorias</option>
+                    @foreach (var c in Categories) { <option value="@c" selected="@(category == c)">@AuditoriaLabels.Categoria(c)</option> }
+                </select>
+            }
+            <select class="select" aria-label="Filtrar por ação" @onchange="OnAction">
+                <option value="">Todas as ações</option>
+                @foreach (var a in ActionsForTab) { <option value="@a" selected="@(action == a)">@AuditoriaLabels.Acao(a)</option> }
+            </select>
+            <input type="date" class="input" aria-label="De" value="@(from?.ToString("yyyy-MM-dd"))" @onchange="OnFrom" />
+            <input type="date" class="input" aria-label="Até" value="@(to?.ToString("yyyy-MM-dd"))" @onchange="OnTo" />
+            @if (Session.User.Role == UserRole.Admin && Session.AvailableInstitutions.Count > 1)
+            {
+                <select class="select" aria-label="Filtrar por instituição" @onchange="OnInstitution">
+                    <option value="">Todas as instituições</option>
+                    @foreach (var i in Session.AvailableInstitutions) { <option value="@i.Id" selected="@(institution == i.Id)">@i.Name</option> }
+                </select>
+            }
+        </div>
+
+        @if (result is null)
+        {
+            <div class="loading"><span class="spinner"></span> Carregando…</div>
+        }
+        else if (result.Itens.Count == 0)
+        {
+            <EmptyState IconName="clock" Title="Nenhum registro" Text="Nada encontrado com esses filtros." />
+        }
+        else
+        {
+            <div class="table-wrap">
+                <table class="history-table">
+                    <thead><tr><th>Quando</th><th>Quem</th><th>Ação</th><th>O quê</th><th>Detalhes</th></tr></thead>
+                    <tbody>
+                        @foreach (var r in result.Itens)
+                        {
+                            <tr>
+                                <td class="nowrap">@UiFormat.DateTimeShort(r.OcorridoEm)</td>
+                                <td><strong>@(tab == "alunos" && r.AlunoNome is not null ? r.AlunoNome : r.AtorNome)</strong><span class="cell-sub">@r.AtorPerfil@(r.Ip is null ? "" : " · " + r.Ip)</span></td>
+                                <td><span class="badge @ActionBadge(r.Acao)">@r.Acao</span></td>
+                                <td>@r.Entidade<span class="cell-sub">@r.EntidadeRotulo</span></td>
+                                <td>@(string.IsNullOrWhiteSpace(r.Detalhes) ? "—" : r.Detalhes)</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="pager">
+                <button type="button" class="btn btn-ghost btn-sm" disabled="@(result.Pagina <= 1)" @onclick="() => GoToAsync(result.Pagina - 1)"><Icon Name="arrow-left" Size="16" /> Anteriores</button>
+                <span>Página @result.Pagina de @TotalPages</span>
+                <button type="button" class="btn btn-ghost btn-sm" disabled="@(result.Pagina >= TotalPages)" @onclick="() => GoToAsync(result.Pagina + 1)">Próximos <Icon Name="arrow-right" Size="16" /></button>
+            </div>
+        }
+    </section>
+}
+
+@code {
+    private string tab = "registros";
+    private AuditPageDto? result;
+    private StudentActivitySummary? summary;
+    private string? message;
+
+    private string search = "";
+    private CategoriaAuditoria? category;
+    private AcaoAuditoria? action;
+    private DateTime? from, to;
+    private Guid? institution;
+    private int page = 1;
+
+    private bool CanSeeStudents => Session.User?.Role is UserRole.Admin or UserRole.Professor;
+    private int TotalPages => result is null ? 1 : Math.Max(1, (int)Math.Ceiling(result.Total / (double)result.TamanhoPagina));
+
+    private string Eyebrow => Session.User?.Role switch
+    {
+        UserRole.Admin => "Administração", UserRole.Gestor => "Gestão", _ => "Docência"
+    };
+
+    private string Subtitle => Session.User?.Role switch
+    {
+        UserRole.Admin => "Tudo o que acontece no sistema: criações, edições, exclusões, mudanças de status e acessos.",
+        UserRole.Gestor => "Cadastros, professores, turmas, matrículas, notas e dados administrativos da sua instituição.",
+        _ => "O que envolve as suas turmas e os seus conteúdos, e quais alunos acessaram questões e fizeram testes."
+    };
+
+    // Só oferece filtros de categoria que o perfil realmente enxerga (o servidor também limita).
+    private CategoriaAuditoria[] Categories => Session.User?.Role switch
+    {
+        UserRole.Admin => [CategoriaAuditoria.Gestao, CategoriaAuditoria.Conteudo, CategoriaAuditoria.Acesso, CategoriaAuditoria.Atividade, CategoriaAuditoria.Desempenho, CategoriaAuditoria.Sistema],
+        UserRole.Professor => [CategoriaAuditoria.Gestao, CategoriaAuditoria.Conteudo, CategoriaAuditoria.Atividade],
+        _ => [CategoriaAuditoria.Gestao]
+    };
+
+    private AcaoAuditoria[] ActionsForTab => tab == "alunos"
+        ? [AcaoAuditoria.TesteIniciado, AcaoAuditoria.QuestaoRespondida, AcaoAuditoria.TesteConcluido]
+        : Session.User?.Role switch
+        {
+            UserRole.Admin => Enum.GetValues<AcaoAuditoria>(),
+            UserRole.Professor => [AcaoAuditoria.Criacao, AcaoAuditoria.Edicao, AcaoAuditoria.Exclusao, AcaoAuditoria.StatusAlterado, AcaoAuditoria.TesteIniciado, AcaoAuditoria.QuestaoRespondida, AcaoAuditoria.TesteConcluido],
+            _ => [AcaoAuditoria.Criacao, AcaoAuditoria.Edicao, AcaoAuditoria.Exclusao, AcaoAuditoria.StatusAlterado]
+        };
+
+    protected override async Task OnInitializedAsync()
+    {
+        await Session.InitializeAsync();
+        await LoadAsync();
+    }
+
+    private AuditFilter BuildFilter() => new()
+    {
+        Search = search, Categoria = tab == "alunos" ? null : category, Acao = action, InstituicaoId = institution,
+        From = from is null ? null : LocalDayStartUtc(from.Value), To = to is null ? null : LocalDayStartUtc(to.Value).AddDays(1),
+        OnlyStudentActivity = tab == "alunos", Page = page, PageSize = 25
+    };
+
+    private static DateTime LocalDayStartUtc(DateTime d) => new DateTime(d.Year, d.Month, d.Day, 0, 0, 0, DateTimeKind.Local).ToUniversalTime();
+
+    private async Task LoadAsync()
+    {
+        message = null;
+        try
+        {
+            var filter = BuildFilter();
+            result = await Audit.ListAsync(filter);
+            summary = tab == "alunos" ? await Audit.StudentActivityAsync(filter.From, filter.To) : null;
+        }
+        catch (UnauthorizedAccessException ex) { message = ex.Message; result ??= new AuditPageDto(new(), 0, 1, 25); }
+    }
+
+    private async Task SetTabAsync(string value) { tab = value; page = 1; action = null; await LoadAsync(); }
+    private async Task GoToAsync(int target) { page = Math.Max(1, target); await LoadAsync(); }
+    private async Task OnSearch(ChangeEventArgs e) { search = e.Value?.ToString() ?? ""; page = 1; await LoadAsync(); }
+    private async Task OnCategory(ChangeEventArgs e) { category = Enum.TryParse<CategoriaAuditoria>(e.Value?.ToString(), out var c) ? c : null; page = 1; await LoadAsync(); }
+    private async Task OnAction(ChangeEventArgs e) { action = Enum.TryParse<AcaoAuditoria>(e.Value?.ToString(), out var a) ? a : null; page = 1; await LoadAsync(); }
+    private async Task OnFrom(ChangeEventArgs e) { from = DateTime.TryParse(e.Value?.ToString(), out var d) ? d : null; page = 1; await LoadAsync(); }
+    private async Task OnTo(ChangeEventArgs e) { to = DateTime.TryParse(e.Value?.ToString(), out var d) ? d : null; page = 1; await LoadAsync(); }
+    private async Task OnInstitution(ChangeEventArgs e) { institution = Guid.TryParse(e.Value?.ToString(), out var g) ? g : null; page = 1; await LoadAsync(); }
+
+    private static string ActionBadge(string label) => label switch
+    {
+        "Criação" => "badge-green",
+        "Exclusão" or "Acesso recusado" => "badge-red",
+        "Edição" or "Mudança de status" => "badge-amber",
+        "Acesso" or "Saída" => "badge-gray",
+        _ => "badge-violet"
+    };
+}
