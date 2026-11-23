@@ -248,3 +248,33 @@
   .disc-grid, .class-grid, .course-grid, .pick-grid { grid-template-columns: minmax(0, 1fr); }
   .setup .btn { margin-left: 0; width: 100%; }
 }
+
+/* ───────── NOVO: simulados e treinos do aluno (resultados próprios, NÃO oficiais) ───────── */
+.switch { display: inline-flex; align-items: center; gap: 10px; cursor: pointer; font-weight: 700; font-size: .86rem; color: var(--text); user-select: none; }
+.switch input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.switch-ui { position: relative; flex: none; width: 44px; height: 26px; border-radius: 999px; background: var(--line-cool); transition: background .2s; }
+.switch-ui::after { content: ""; position: absolute; top: 3px; left: 3px; width: 20px; height: 20px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(7,20,46,.3); transition: transform .2s; }
+.switch input:checked + .switch-ui { background: var(--ok); }
+.switch input:checked + .switch-ui::after { transform: translateX(18px); }
+.switch input:focus-visible + .switch-ui { outline: 3px solid var(--forest-400); outline-offset: 2px; }
+.switch.busy { opacity: .6; pointer-events: none; }
+.switch-text { min-width: 118px; }
+
+.count-card { display: flex; align-items: center; justify-content: space-between; gap: 18px; flex-wrap: wrap; margin: 18px 0; }
+.count-card p { margin: 4px 0 0; color: var(--muted); max-width: 640px; }
+
+.practice-sum { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 14px; margin-bottom: 8px; }
+.practice-sum .tile { background: var(--surface); }
+.practice-sum .tile .of { font-family: inherit; font-size: .9rem; font-weight: 700; color: var(--muted); }
+.practice-list { display: grid; gap: 10px; margin: 6px 0 10px; }
+.practice-row { display: grid; grid-template-columns: 1fr auto auto; align-items: center; gap: 16px; padding: 14px 18px; border-radius: 16px; background: var(--surface); border: 1px dashed var(--line-cool); }
+.practice-row.counted { border-style: solid; border-color: var(--ok); box-shadow: inset 4px 0 0 var(--ok); }
+.pr-main { display: grid; gap: 3px; min-width: 0; }
+.pr-main strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pr-main small { color: var(--muted); }
+.pr-tags { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 4px; }
+@media (max-width: 720px) { .practice-row { grid-template-columns: 1fr auto; } .practice-row .switch { grid-column: 1 / -1; } }
+
+/* barra de simulado/treino no gráfico de evolução: tracejada e translúcida, nunca igual a uma nota oficial */
+.evo-bar.self { background-image: repeating-linear-gradient(135deg, rgba(255,255,255,.28) 0 6px, transparent 6px 12px), linear-gradient(to top, var(--forest-700), var(--forest-400)); outline: 2px dashed var(--forest-700); outline-offset: -2px; }
+.d-self { background: repeating-linear-gradient(135deg, var(--forest-400) 0 4px, var(--forest-700) 4px 8px); }

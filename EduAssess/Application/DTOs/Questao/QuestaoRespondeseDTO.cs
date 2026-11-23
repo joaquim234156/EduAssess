@@ -1,3 +1,4 @@
+using EduAssess.Application.DTOs.Selo;
 using EduAssess.Models.Local;
 
 namespace EduAssess.Application.DTOs.Questao
@@ -16,6 +17,7 @@ namespace EduAssess.Application.DTOs.Questao
         string Assunto,
         string Explicacao,
         DificuldadeQuestao Dificuldade,
-        bool Ativa
+        bool Ativa,
+        List<SeloDto>? Selos = null   // NOVO
     );
 }

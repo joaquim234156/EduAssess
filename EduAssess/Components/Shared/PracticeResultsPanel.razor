@@ -1,0 +1,69 @@
+@using System.Globalization
+
+@* Seção "Simulados e treinos" do aluno. Mostra resultados PRÓPRIOS (não oficiais) separados das notas lançadas pelos
+   professores, e deixa o aluno escolher quais entram no desempenho. Usada no painel e em Minhas notas. *@
+<div class="sec-head">
+    <h2>Simulados e treinos</h2>
+    <small>Resultados seus feitos em Praticar. Não são notas oficiais: você escolhe quais entram no seu desempenho.</small>
+</div>
+
+@if (Summary.TotalCount == 0)
+{
+    <div class="card"><EmptyState IconName="zap" Title="Nenhum simulado ou treino ainda" Text="Faça um treino ou simulado em Praticar. Ao terminar, você decide se o resultado conta no seu desempenho." /></div>
+}
+else
+{
+    <div class="practice-sum">
+        <div class="tile"><span class="tile-ico"><Icon Name="check-circle" Size="22" /></span><strong>@Summary.CountedCount<small class="of"> de @Summary.TotalCount</small></strong><small>contabilizados no desempenho</small></div>
+        <div class="tile"><span class="tile-ico"><Icon Name="zap" Size="22" /></span><strong>@UiFormat.Grade(Summary.CountedAverage)</strong><small>média dos simulados contabilizados</small></div>
+        @if (Combined is decimal combined)
+        {
+            <div class="tile"><span class="tile-ico"><Icon Name="trend" Size="22" /></span><strong>@UiFormat.Grade(combined)</strong><small>oficial + simulados contabilizados</small></div>
+        }
+    </div>
+    <p class="hint-line"><Icon Name="shield" Size="16" /> A média oficial acima continua sendo calculada só com as notas lançadas pelos professores. Aqui nada altera notas ou registros acadêmicos.</p>
+
+    <Feedback Message="@error" IsError="true" />
+    <div class="practice-list">
+        @foreach (var r in Summary.Results)
+        {
+            var row = r;
+            <article class="practice-row @(row.Counted ? "counted" : "")">
+                <div class="pr-main">
+                    <strong>@row.Title</strong>
+                    <small>@row.DisciplineName · @row.Hits/@row.Total acertos · @UiFormat.Date(row.At)</small>
+                    <span class="pr-tags">
+                        <span class="badge badge-violet">@PracticeResultService.OriginLabel(row.Origin)</span>
+                        <span class="badge badge-gray">Não oficial</span>
+                    </span>
+                </div>
+                <span class="pr-grade"><GradeBadge Value="row.Score" /></span>
+                <PracticeCountToggle ResultId="row.Id" Counted="row.Counted" CountedChanged="_ => OnChanged.InvokeAsync()" OnError="e => error = e" />
+            </article>
+        }
+    </div>
+    @if (!Full && Summary.TotalCount > Summary.Results.Count)
+    {
+        <a class="btn-text" href="/aluno/notas#simulados">Ver todos os @Summary.TotalCount resultados <Icon Name="arrow-right" Size="16" /></a>
+    }
+}
+
+@code {
+    [Parameter, EditorRequired] public PracticeSummary Summary { get; set; } = new(new(), 0, null);
+    /// <summary>Notas OFICIAIS do aluno (só para calcular o número combinado; nunca são alteradas aqui).</summary>
+    [Parameter] public IReadOnlyCollection<decimal> OfficialValues { get; set; } = Array.Empty<decimal>();
+    [Parameter] public bool Full { get; set; }
+    [Parameter] public EventCallback OnChanged { get; set; }
+
+    private string? error;
+
+    private decimal? Combined
+    {
+        get
+        {
+            var n = OfficialValues.Count + Summary.CountedCount;
+            if (Summary.CountedCount == 0 || OfficialValues.Count == 0) return null;
+            return decimal.Round((OfficialValues.Sum() + Summary.CountedSum) / n, 2);
+        }
+    }
+}

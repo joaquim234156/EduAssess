@@ -1,3 +1,4 @@
+using EduAssess.Application.Services;
 using EduAssess.Data;
 using EduAssess.Models;
 using EduAssess.Models.Global;
@@ -160,7 +161,8 @@ public sealed class AvaliacaoWebService(IDbContextFactory<AppDbContext> dbFactor
             .Where(q => q.InstituicaoId == institutionId && q.Ativa && q.DisciplinaId == exam.DisciplinaId && !already.Contains(q.Id))
             .OrderBy(q => q.Assunto).Take(200).ToListAsync();
 
-        return rows.Select(q => QuestaoWebService.ToRow(q, discipline.Nome))
+        var seals = await QuestaoSeloService.CarregarAsync(db, rows.Select(r => r.Id), onlyVisible: false);
+        return rows.Select(q => QuestaoWebService.ToRow(q, discipline.Nome, seals.TryGetValue(q.Id, out var sl) ? sl : new()))
             .Where(r => string.IsNullOrWhiteSpace(search) || Contains(r.Statement, search) || Contains(r.Topic, search))
             .ToList();
     }
@@ -274,7 +276,8 @@ public sealed class AvaliacaoWebService(IDbContextFactory<AppDbContext> dbFactor
                 continue;
             var correctText = q.Alternatives[q.CorrectIndex];
             var shuffled = q.Alternatives.OrderBy(_ => Random.Shared.Next()).ToList();
-            result.Add(new PracticeQuestion(q.Id, q.Topic, q.Statement, shuffled, shuffled.IndexOf(correctText), q.Explanation, q.Difficulty));
+            result.Add(new PracticeQuestion(q.Id, q.Topic, q.Statement, shuffled, shuffled.IndexOf(correctText), q.Explanation, q.Difficulty,
+                q.Seals?.Where(x => x.Exibir).ToList()));   // aluno: só selos marcados para exibir
         }
 
         return result;
@@ -342,8 +345,10 @@ public sealed class AvaliacaoWebService(IDbContextFactory<AppDbContext> dbFactor
         var questions = (await db.Questoes.AsNoTracking().Where(q => q.InstituicaoId == institutionId && q.Ativa && ids.Contains(q.Id)).ToListAsync())
             .ToDictionary(q => q.Id);
 
+        var seals = await QuestaoSeloService.CarregarAsync(db, questions.Keys, onlyVisible: false);
         return links.Where(l => questions.ContainsKey(l.QuestaoId))
-            .Select(l => new ExamQuestion(l.Ordem, QuestaoWebService.ToRow(questions[l.QuestaoId], disciplineName)))
+            .Select(l => new ExamQuestion(l.Ordem, QuestaoWebService.ToRow(questions[l.QuestaoId], disciplineName,
+                seals.TryGetValue(l.QuestaoId, out var sl) ? sl : new())))
             .ToList();
     }
 

@@ -1,0 +1,64 @@
+@using global::EduAssess.Application.DTOs.Selo
+
+@* Escolha dos selos de uma questão. Os campos (ano, instituição) vêm do catálogo: um tipo novo de selo aparece aqui
+   sozinho. "Exibir" decide se o selo aparece no banco, nas provas e para o aluno. *@
+<div class="seal-picker">
+    @foreach (var t in Types)
+    {
+        var type = t;
+        var choice = Choices.FirstOrDefault(c => c.Code == type.Codigo);
+        if (choice is null) { continue; }
+        <div class="seal-opt @(choice.Selected ? "on" : "")">
+            <label class="check">
+                <input type="checkbox" checked="@choice.Selected" @onchange="e => choice.Selected = e.Value is true" />
+                <span class="badge badge-@type.Cor">@type.Nome</span>
+                @if (!string.IsNullOrWhiteSpace(type.Descricao)) { <small>@type.Descricao</small> }
+            </label>
+            @if (choice.Selected)
+            {
+                <div class="seal-fields">
+                    @if (type.PermiteDetalhe)
+                    {
+                        <input class="input" list="vest-list-@type.Codigo" maxlength="80" value="@choice.Detail"
+                               placeholder="@DetailPlaceholder(type)"
+                               aria-label="@type.RotuloDetalhe" @onchange="e => choice.Detail = e.Value?.ToString() ?? string.Empty" />
+                        @if (type.Codigo == "VESTIBULAR")
+                        {
+                            <datalist id="vest-list-@type.Codigo">
+                                @foreach (var v in Vestibulares) { <option value="@v"></option> }
+                            </datalist>
+                        }
+                    }
+                    @if (type.PermiteAno)
+                    {
+                        <input class="input seal-year" type="number" min="1980" max="@(DateTime.UtcNow.Year + 1)" value="@choice.Year"
+                               placeholder="@YearPlaceholder(type)" aria-label="Ano da prova de origem"
+                               @onchange="e => choice.Year = int.TryParse(e.Value?.ToString(), out var y) ? y : null" />
+                    }
+                    <label class="check seal-show"><input type="checkbox" checked="@choice.Show" @onchange="e => choice.Show = e.Value is true" /> Exibir selo</label>
+                </div>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    // Sugestões de vestibulares tradicionais (o campo aceita qualquer texto).
+    private static readonly string[] Vestibulares =
+        ["FUVEST", "UNICAMP", "UNESP", "UERJ", "UFRJ", "UFMG", "UnB", "UFRGS", "UFPR", "UFC", "UECE", "UVA", "URCA", "UFPE", "UFBA", "ITA", "IME", "PUC", "Unifesp"];
+
+    private static string DetailPlaceholder(SeloTipoDto t) => (t.RotuloDetalhe ?? "Detalhe") + (t.ExigeDetalhe ? "" : " (opcional)");
+    private static string YearPlaceholder(SeloTipoDto t) => "Ano" + (t.ExigeAno ? "" : " (opcional)");
+
+    [Parameter, EditorRequired] public List<SeloTipoDto> Types { get; set; } = new();
+    [Parameter, EditorRequired] public List<SealChoice> Choices { get; set; } = new();
+
+    /// <summary>Cria a lista de escolhas (uma por tipo do catálogo), pré-marcando a partir dos selos já existentes.</summary>
+    public static List<SealChoice> Build(IEnumerable<SeloTipoDto> types, IEnumerable<SeloDto>? existing = null, params string[] preselect)
+    {
+        var current = (existing ?? []).ToDictionary(s => s.Codigo);
+        return types.Select(t => current.TryGetValue(t.Codigo, out var s)
+            ? new SealChoice { Code = t.Codigo, Selected = true, Year = s.Ano, Detail = s.Detalhe ?? "", Show = s.Exibir }
+            : new SealChoice { Code = t.Codigo, Selected = preselect.Contains(t.Codigo), Show = true }).ToList();
+    }
+}

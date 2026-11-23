@@ -2,6 +2,8 @@ using System;
 using System.Linq;
 using System.Security.Claims;
 using EduAssess.Application.DTOs.Questao;
+using EduAssess.Application.DTOs.Selo;
+using EduAssess.Application.Services;
 using EduAssess.Application.Interfaces;
 using EduAssess.Application.Services;
 using EduAssess.Data;
@@ -16,7 +18,7 @@ namespace EduAssess.Application.Routes
         // ALTERADO: criei este método para montar a resposta em um só lugar.
         // Antes o mesmo bloco "new QuestaoResponseDTO(...)" estava copiado 4 vezes
         // e uma das cópias tinha Assunto e Explicacao trocados (bug em GET get{id}).
-        private static QuestaoResponseDTO ToResponse(QuestaoModel q) => new(
+        private static QuestaoResponseDTO ToResponse(QuestaoModel q, List<SeloDto>? selos = null) => new(
             q.Id,
             q.DisciplinaId,
             q.ProfessorId,
@@ -30,7 +32,8 @@ namespace EduAssess.Application.Routes
             q.Assunto,
             q.Explicacao,
             q.Dificuldade,
-            q.Ativa);
+            q.Ativa,
+            selos);
 
         // NOVO: gestor e administrador podem trabalhar em QUALQUER disciplina e mexer em questões
         // de qualquer autor; o professor só nas dele. Centralizei a regra aqui.
@@ -115,7 +118,12 @@ namespace EduAssess.Application.Routes
                         professorId, disciplinaId, req.enunciado, req.alternativaCorreta,
                         req.alternativa1, req.alternativa2, req.alternativa3,
                         req.alternativa4, req.alternativa5,
-                        req.assunto, req.explicacao, req.dificuldade!.Value);
+                        req.assunto, req.explicacao, req.dificuldade!.Value,
+                        disciplina.InstituicaoId);   // NOVO: a questão herda a instituição da disciplina (antes ficava sem instituição)
+
+                    // NOVO: selos opcionais (validados contra o catálogo antes de salvar).
+                    try { await QuestaoSeloService.SincronizarAsync(context, questao.Id, req.selos); }
+                    catch (ArgumentException ex) { return Results.BadRequest(new { message = ex.Message }); }
 
                     await context.Questoes.AddAsync(questao);
                     await context.SaveChangesAsync();
@@ -123,7 +131,7 @@ namespace EduAssess.Application.Routes
                     return Results.Ok(new
                     {
                         message = "Questão cadastrada com sucesso!",
-                        resposta = ToResponse(questao)
+                        resposta = ToResponse(questao, (await QuestaoSeloService.CarregarAsync(context, [questao.Id], false)).GetValueOrDefault(questao.Id) ?? new())
                     });
                 })
                 .RequireAuthorization("Docencia");
@@ -210,7 +218,7 @@ namespace EduAssess.Application.Routes
                     {
                         message = $"{modelos.Count} questão(ões) gerada(s) e salva(s)!",
                         salvas = true,
-                        questoes = modelos.Select(ToResponse).ToList()
+                        questoes = modelos.Select(q => ToResponse(q)).ToList()
                     });
                 })
                 .RequireAuthorization("Docencia");
@@ -232,7 +240,7 @@ namespace EduAssess.Application.Routes
                     return Results.Ok(new
                     {
                         message = "Questão encontrada!",   // antes dizia "Curso encontrado!!"
-                        resposta = ToResponse(questao)
+                        resposta = ToResponse(questao, (await QuestaoSeloService.CarregarAsync(context, [questao.Id], false)).GetValueOrDefault(questao.Id) ?? new())
                     });
                 })
                 .RequireAuthorization("Docencia");
@@ -295,16 +303,51 @@ namespace EduAssess.Application.Routes
                         req.alternativa4, req.alternativa5,
                         req.assunto, req.explicacao, req.dificuldade!.Value);
 
+                    // NOVO: selos só mudam se vierem no corpo (null = manter).
+                    if (req.selos is not null)
+                    {
+                        try { await QuestaoSeloService.SincronizarAsync(context, questao.Id, req.selos); }
+                        catch (ArgumentException ex) { return Results.BadRequest(new { message = ex.Message }); }
+                    }
+
                     // ALTERADO: salvamos ANTES de montar a resposta (antes era depois).
                     await context.SaveChangesAsync();
 
                     return Results.Ok(new
                     {
                         message = "Questão atualizada com sucesso!!!",
-                        resposta = ToResponse(questao)
+                        resposta = ToResponse(questao, (await QuestaoSeloService.CarregarAsync(context, [questao.Id], false)).GetValueOrDefault(questao.Id) ?? new())
                     });
                 })
                 .RequireAuthorization("Docencia");
+
+            // ───────────── NOVO: catálogo de selos ─────────────
+            route.MapGet("selos/tipos", async (AppDbContext context, CancellationToken ct) =>
+                Results.Ok(await QuestaoSeloService.ListarTiposAsync(context, ct)))
+                .RequireAuthorization("Docencia");
+
+            // Novo tipo de selo no futuro = uma linha no catálogo (só Admin). Os formulários se adaptam sozinhos.
+            route.MapPost("selos/tipos", async (SeloTipoRequest req, AppDbContext context) =>
+            {
+                var codigo = (req.Codigo ?? "").Trim().ToUpperInvariant();
+                var nome = (req.Nome ?? "").Trim();
+                if (codigo.Length is < 2 or > 30 || !codigo.All(c => char.IsLetterOrDigit(c) || c == '_'))
+                    return Results.BadRequest(new { message = "Código inválido: use de 2 a 30 letras, números ou _." });
+                if (nome.Length is < 2 or > 60)
+                    return Results.BadRequest(new { message = "O nome deve ter de 2 a 60 caracteres." });
+                var cor = (req.Cor ?? "gray").Trim().ToLowerInvariant();
+                if (!QuestaoSeloService.Cores.Contains(cor))
+                    return Results.BadRequest(new { message = "Cor inválida. Use: " + string.Join(", ", QuestaoSeloService.Cores) });
+                if (await context.SelosTipos.AnyAsync(t => t.Codigo == codigo))
+                    return Results.Conflict(new { message = "Já existe um selo com esse código." });
+
+                var ordem = (await context.SelosTipos.MaxAsync(t => (int?)t.Ordem) ?? 0) + 1;
+                var tipo = new SeloTipoModel(codigo, nome, cor, ordem, req.Descricao, req.PermiteAno, req.ExigeAno, req.PermiteDetalhe, req.ExigeDetalhe, req.RotuloDetalhe);
+                context.SelosTipos.Add(tipo);
+                await context.SaveChangesAsync();
+                return Results.Ok(new { message = "Tipo de selo criado.", id = tipo.Id });
+            })
+            .RequireAuthorization("Admin");
 
             // ───────────── Apagar (desativar) uma questão ─────────────
             route.MapDelete("delete{id:guid}",
@@ -356,7 +399,7 @@ namespace EduAssess.Application.Routes
                     }
 
                     var questoes = await consulta.OrderBy(q => q.Assunto).ToListAsync();
-                    return Results.Ok(questoes.Select(ToResponse).ToList());
+                    return Results.Ok(questoes.Select(q => ToResponse(q)).ToList());
                 })
                 .RequireAuthorization("Docencia");
         }

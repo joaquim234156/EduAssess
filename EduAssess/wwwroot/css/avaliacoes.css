@@ -195,3 +195,27 @@
   .modal-head, .modal-body, .modal-foot { padding-left: 18px; padding-right: 18px; }
   .toolbar-search { min-width: 0; width: 100%; }
 }
+
+/* ───────── NOVO: selos das questões (Gerada com IA, ENADE, ENAMED, ENEM, vestibulares) ─────────
+   Usam os badges já existentes (badge-violet/blue/green/amber/red). Selo oculto aparece esmaecido e tracejado no banco do professor. */
+.seals { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 4px; }
+.seal { font-size: .72rem; padding: 3px 10px; }
+.seal-off { opacity: .55; background: transparent !important; border: 1px dashed currentColor; }
+.bank-main .seals { margin-top: 6px; }
+.q-meta .seals, .exam-q header .seals { margin-top: 0; }
+.seal-filter { margin: 0 0 14px; }
+.seal-picker { display: grid; gap: 8px; }
+.seal-opt { border: 1px solid var(--line); border-radius: 14px; padding: 10px 14px; background: var(--surface); transition: border-color .2s, background .2s; }
+.seal-opt.on { border-color: var(--forest-400); background: var(--mint-50); }
+.seal-opt .check { flex-wrap: wrap; color: var(--text); }
+.seal-opt .check small { color: var(--muted); flex-basis: 100%; margin-left: 28px; }
+.seal-fields { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin: 10px 0 2px 28px; }
+.seal-fields .input { flex: 1 1 200px; min-width: 0; }
+.seal-fields .seal-year { flex: 0 0 150px; }
+.seal-show { white-space: nowrap; }
+.seal-batch { margin: 14px 0 6px; }
+.seal-batch .muted { display: block; color: var(--muted); margin-bottom: 8px; }
+.hint-line.warn { background: var(--warn-100); color: #835a00; }
+.hint-line.warn .icon { color: var(--warn); }
+.question-editor .field { margin-bottom: 14px; }
+.draft-card .question-editor { margin-top: 10px; }

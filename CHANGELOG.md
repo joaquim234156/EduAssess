@@ -3,6 +3,24 @@
 Todas as mudanças relevantes do projeto. Formato inspirado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 Os mesmos comentários estão no código, junto de cada alteração (procure por `NOVO`, `ALTERADO` e `CORREÇÃO`).
 
+## [Não publicado] — Identidade das instituições, CLF, selos de questões, simulados do aluno e auditoria
+
+### Adicionado
+- **Instituições:** categoria (`Faculdade` ou `Colegio`), sigla, logotipo (upload com validação por conteúdo, WebP até 512 px, transparência mantida), cor primária e secundária (`#RRGGBB`) e mantenedor editáveis na tela `/instituicao` e na API (`PUT /instituicoes/{id}/identidade`, `POST|DELETE|GET /instituicoes/{id}/logo`, `GET /instituicoes/mantenedores`).
+- **CLF (Colégio Luciano Feijão):** é uma instituição própria (`Tipo = Colegio`), gerenciada à parte, ligada ao **mesmo mantenedor** da faculdade (o colégio exige mantenedor). Cadastro pelo Admin em "Nova instituição" (o botão "Colégio (CLF)" já preenche nome, sigla e mantenedor). Card "Rede do mantenedor" para alternar entre as instituições.
+- **Seletor de instituição** no topo (quando a pessoa atua em mais de uma), gravado no cookie (`POST /ui/instituicao/selecionar`). Login passa a gravar a instituição padrão.
+- **Questões:** edição completa na UI (enunciado, alternativas, gabarito, justificativa, assunto, dificuldade, disciplina e selos), inclusive dos rascunhos da IA antes de salvar.
+- **Selos:** catálogo `SelosTipos` (IA, ENADE, ENAMED, ENEM com ano, Vestibular com instituição e ano) + `QuestoesSelos` (sem duplicidade; o professor escolhe quais exibir). Aparecem no banco, nas provas e na prática do aluno. Novo tipo de selo = uma linha no catálogo (`POST /questoes/selos/tipos`, Admin).
+- **Simulados do aluno:** tabela `ResultadosPratica`, separada das notas oficiais; o aluno escolhe contabilizar ou não, na hora e depois. Seção "Simulados e treinos" no painel e em Minhas notas, com visual distinto e rótulo "Não oficial".
+- **Histórico de atividades (auditoria):** tela `/historico` e `GET /auditoria/list`. Admin vê tudo; Gestor, a gestão acadêmica da instituição; Professor, suas turmas e conteúdos e a atividade dos alunos. Somente leitura (interceptor do EF + gatilhos do PostgreSQL). Registra criação, edição, exclusão, mudança de status, login/logout/acesso recusado e a atividade do aluno.
+- Migration `AddInstitutionTypesSealsPracticeResultsAndAudit` e `AppDbContextModelSnapshot` (gerado do modelo real; sem diferenças pendentes). A partir daqui `dotnet ef migrations add` gera só o que for novo.
+
+### Alterado
+- `AddDbContextFactory` passou de Singleton para Scoped (o interceptor precisa saber quem está salvando).
+- `GetOverview` e a lotação de pessoas agora trabalham na instituição **em uso** (antes: "a primeira ativa").
+- Criar instituição pela API ficou só com o Admin.
+- Questões criadas pela API passam a herdar a instituição da disciplina.
+
 ## [Não publicado] — Instituição, prédios e visual por perfil
 
 ### Adicionado

@@ -1,5 +1,6 @@
 @using global::EduAssess.Application.Services
 @using global::EduAssess.Models.Local
+@using global::EduAssess.Application.DTOs.Selo
 @inject QuestaoWebService Questions
 
 @* Criador de questões reutilizável: aba "Pedir à IA" (gera, revisa, salva) e aba "Escrever à mão".
@@ -88,6 +89,12 @@
                 </div>
             </div>
 
+            <div class="field seal-batch">
+                <label>Selos das questões que você salvar</label>
+                <small class="muted">Valem para todas as selecionadas. Depois você pode ajustar uma a uma em Editar questão.</small>
+                <SealPicker Types="sealTypes" Choices="batchSeals" />
+            </div>
+
             <div class="draft-list">
                 @{ var n = 0; }
                 @foreach (var draft in drafts)
@@ -99,14 +106,23 @@
                             <input type="checkbox" checked="@draft.Selected" @onchange="e => current.Selected = e.Value is true" />
                             <span>Questão @n</span>
                         </label>
-                        <p class="draft-statement">@draft.Statement</p>
-                        <ol class="alts" type="A">
-                            @for (var k = 0; k < draft.Alternatives.Count; k++)
-                            {
-                                <li class="@(k == draft.CorrectIndex ? "correct" : "")">@draft.Alternatives[k]</li>
-                            }
-                        </ol>
-                        <p class="draft-explain"><Icon Name="check-circle" Size="16" /> @draft.Explanation</p>
+                        @if (editingDraft == current)
+                        {
+                            <QuestionEditor Draft="current" Id="@($"draft{n}")" />
+                            <div class="bank-actions"><button type="button" class="btn btn-ghost btn-sm" @onclick="() => editingDraft = null"><Icon Name="check" Size="16" /> Concluir edição</button></div>
+                        }
+                        else
+                        {
+                            <p class="draft-statement">@draft.Statement</p>
+                            <ol class="alts" type="A">
+                                @for (var k = 0; k < draft.Alternatives.Count; k++)
+                                {
+                                    <li class="@(k == draft.CorrectIndex ? "correct" : "")">@draft.Alternatives[k]</li>
+                                }
+                            </ol>
+                            <p class="draft-explain"><Icon Name="check-circle" Size="16" /> @draft.Explanation</p>
+                            <div class="bank-actions"><button type="button" class="btn-text" @onclick="() => editingDraft = current"><Icon Name="pen" Size="16" /> Editar antes de salvar</button></div>
+                        }
                     </article>
                 }
             </div>
@@ -140,6 +156,10 @@
                 }
             </div>
             <div class="field"><label for="m-ex">Explicação da resposta</label><textarea id="m-ex" class="textarea" @bind="manual.Explanation" maxlength="1000"></textarea></div>
+            <div class="field">
+                <label>Selos e classificação <small>(opcional)</small></label>
+                <SealPicker Types="sealTypes" Choices="manualSeals" />
+            </div>
             <div class="form-row">
                 <div class="field">
                     <label>Dificuldade</label>
@@ -184,6 +204,23 @@
     private bool generating, saving, isError;
     private string? message;
 
+    // NOVO: selos (o "Gerada com IA" já vem marcado nas questões da IA, mas o professor pode desmarcar) e edição de rascunhos
+    private List<SeloTipoDto> sealTypes = new();
+    private List<SealChoice> batchSeals = new();
+    private List<SealChoice> manualSeals = new();
+    private DraftQuestion? editingDraft;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            sealTypes = await Questions.GetSealTypesAsync();
+            batchSeals = SealPicker.Build(sealTypes, null, "IA");
+            manualSeals = SealPicker.Build(sealTypes);
+        }
+        catch (UnauthorizedAccessException ex) { Fail(ex.Message); }
+    }
+
     protected override void OnParametersSet()
     {
         var first = FixedDiscipline ?? Disciplines.FirstOrDefault()?.Id ?? Guid.Empty;
@@ -224,8 +261,10 @@
         try
         {
             var chosen = drafts.Where(x => x.Selected).ToList();
-            var ids = await Questions.SaveDraftsAsync(genDiscipline, genTopic, genDifficulty, chosen);
+            var ids = await Questions.SaveDraftsAsync(genDiscipline, genTopic, genDifficulty, chosen, QuestaoWebService.ToInputs(batchSeals));
             drafts = new();
+            editingDraft = null;
+            batchSeals = SealPicker.Build(sealTypes, null, "IA");
             Ok($"{ids.Count} questão(ões) salva(s) no banco.");
             await OnSaved.InvokeAsync(ids);
         }
@@ -233,15 +272,16 @@
         finally { saving = false; }
     }
 
-    private void Discard() { drafts = new(); message = null; }
+    private void Discard() { drafts = new(); editingDraft = null; message = null; }
 
     private async Task SaveManualAsync()
     {
         saving = true;
         try
         {
-            var ids = await Questions.SaveDraftsAsync(manualDiscipline, manualTopic, manualDifficulty, new[] { manual });
+            var ids = await Questions.SaveDraftsAsync(manualDiscipline, manualTopic, manualDifficulty, new[] { manual }, QuestaoWebService.ToInputs(manualSeals));
             manual = new();
+            manualSeals = SealPicker.Build(sealTypes);
             Ok("Questão salva no banco.");
             await OnSaved.InvokeAsync(ids);
         }

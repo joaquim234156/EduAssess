@@ -44,6 +44,8 @@ namespace EduAssess.Models.Local
         public string Explicacao { get; private set; } = string.Empty;
         public DificuldadeQuestao Dificuldade {get; private set;}
         public bool Ativa {get; private set;}
+        /// <summary>NOVO: selos/classificações (IA, ENADE, ENAMED, ENEM, vestibulares...).</summary>
+        public ICollection<QuestaoSeloModel> Selos { get; private set; } = new List<QuestaoSeloModel>();
 
         public void UpdateQuestion(Guid disciplinaId, string enunciado, string alternativaCorreta,string alternativa1, string alternativa2, string alternativa3, string alternativa4, string alternativa5,string assunto,string explicacao,DificuldadeQuestao dificuldade )
         {

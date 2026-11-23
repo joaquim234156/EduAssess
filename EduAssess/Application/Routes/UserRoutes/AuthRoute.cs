@@ -1,4 +1,6 @@
 using EduAssess.Data;
+using EduAssess.Data.Audit;
+using EduAssess.Models.Global;
 using EduAssess.Application.DTOs.User;
 using EduAssess.Application.Services;
 using EduAssess.Models.Local;
@@ -150,7 +152,7 @@ namespace EduAssess.Application.Routes
                 .Produces(StatusCodes.Status409Conflict);
 
             route.MapPost("login",
-                async Task<IResult> (LoginRequest req, AppDbContext context, IConfiguration config, CancellationToken cancellationToken) =>
+                async Task<IResult> (LoginRequest req, AppDbContext context, IConfiguration config, AuditoriaService audit, HttpContext http, CancellationToken cancellationToken) =>
                 {
                     if (!MiniValidation.MiniValidator.TryValidate(req, out var errors))
                         return Results.BadRequest(errors);
@@ -159,8 +161,17 @@ namespace EduAssess.Application.Routes
                     var user = await context.Users.FirstOrDefaultAsync(
                         u => u.Email.ToLower() == normalizedEmail && u.Ativa,
                         cancellationToken);
+                    var ip = http.Connection.RemoteIpAddress?.ToString();
                     if (user == null || !user.VerifyPassword(req.password))
+                    {
+                        // NOVO: tentativa recusada também entra no histórico (só guarda o texto se parecer e-mail).
+                        var shown = normalizedEmail.Length <= 150 && normalizedEmail.Contains('@') ? normalizedEmail : "(e-mail inválido)";
+                        await audit.RegistrarAsync(AcaoAuditoria.FalhaAcesso, CategoriaAuditoria.Acesso, "Sessao",
+                            new AuditActor(user?.Id, user?.Name ?? shown, user is null ? "" : UiFormat.RoleLabel(user.Role), null, ip), detalhes: "Login pela API recusado");
                         return Results.Unauthorized();
+                    }
+                    await audit.RegistrarAsync(AcaoAuditoria.Acesso, CategoriaAuditoria.Acesso, "Sessao",
+                        new AuditActor(user.Id, user.Name, UiFormat.RoleLabel(user.Role), null, ip), user.Id.ToString(), user.Name, "Login pela API (JWT)");
 
                     var secret = config["JwtSettings:Secret"]!;
                     var token = TokenService.GenerateToken(user, secret);
