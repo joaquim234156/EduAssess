@@ -1,6 +1,6 @@
 namespace EduAssess.Application.DTOs.Instituicao
 {
-    /// <summary>Campos depois de Email são opcionais: nulo = manter o valor atual.</summary>
+    /// <summary>Campos depois de Email são opcionais: nulo = manter o valor atual. LimparMantenedor permite ao Admin remover o vínculo, exceto quando a categoria exigir mantenedor.</summary>
     public record InstituicaoRequestPut
         (
         string Nome,
@@ -13,7 +13,8 @@ namespace EduAssess.Application.DTOs.Instituicao
         Guid? MantenedorId = null,
         string? MantenedorNome = null,
         string? CorPrimaria = null,
-        string? CorSecundaria = null
+        string? CorSecundaria = null,
+        bool LimparMantenedor = false
         );
 
     /// <summary>NOVO: só a identidade visual (PUT /instituicoes/{id}/identidade).</summary>

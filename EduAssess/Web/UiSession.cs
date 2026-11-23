@@ -48,8 +48,38 @@ public sealed class UiSession(AuthenticationStateProvider authenticationStatePro
     /// <summary>NOVO: logo e cores da instituição em uso (nulo se ainda não carregou/selecionou).</summary>
     public InstitutionBrand? Brand { get; private set; }
 
-    /// <summary>NOVO: estilo inline do painel = variáveis do tema por prédio + variáveis de marca da instituição.</summary>
-    public string? ShellStyle => string.Join(";", new[] { ThemeStyle, Brand?.Style }.Where(x => !string.IsNullOrEmpty(x)));
+    /// <summary>
+    /// Marca efetiva do painel. Cada cor da unidade substitui somente a correspondente da instituição;
+    /// o logotipo próprio da unidade também prevalece, e qualquer campo vazio herda da instituição.
+    /// O preview de unidade do Admin usa a mesma regra.
+    /// </summary>
+    public InstitutionBrand? EffectiveBrand
+    {
+        get
+        {
+            if (Brand is null) return null;
+            var unit = ThemeUnit;
+            if (unit is null) return Brand;
+
+            var hasUnitLogo = !string.IsNullOrWhiteSpace(unit.LogoPath) && images.HasUnitLogo(unit.Id);
+            var logoVersion = hasUnitLogo ? images.UnitLogoVersion(unit.Id) : Brand.LogoVersion;
+            var logoUrl = hasUnitLogo
+                ? $"/ui/unidade-logo/{unit.Id}?v={logoVersion}"
+                : Brand.ImageUrl;
+
+            return Brand with
+            {
+                HasLogo = hasUnitLogo || Brand.HasLogo,
+                LogoVersion = logoVersion,
+                Primary = unit.Primary ?? Brand.Primary,
+                Secondary = unit.Secondary ?? Brand.Secondary,
+                CustomLogoUrl = logoUrl
+            };
+        }
+    }
+
+    /// <summary>Estilo inline do painel: tema estrutural + cores efetivas da unidade/instituição.</summary>
+    public string? ShellStyle => string.Join(";", new[] { ThemeStyle, EffectiveBrand?.Style }.Where(x => !string.IsNullOrEmpty(x)));
 
     /// <summary>NOVO: informa ao interceptor de auditoria quem está operando neste circuito.</summary>
     private void SyncActor() =>
@@ -174,7 +204,12 @@ public sealed class UiSession(AuthenticationStateProvider authenticationStatePro
                     Criada = ui.Instituicao!.CriadaEm,
                     InstAtiva = ui.Instituicao!.Ativa,
                     Role = ui.Papel,
-                    Unit = ui.Unidade == null ? null : new { ui.Unidade.Id, ui.Unidade.Nome, ui.Unidade.Slug, ui.Unidade.Sigla, ui.Unidade.Tipo, ui.Unidade.Ativa }
+                    Unit = ui.Unidade == null ? null : new
+                    {
+                        ui.Unidade.Id, ui.Unidade.Nome, ui.Unidade.Slug, ui.Unidade.Sigla,
+                        ui.Unidade.Tipo, ui.Unidade.Ativa, ui.Unidade.LogoPath,
+                        ui.Unidade.CorPrimaria, ui.Unidade.CorSecundaria
+                    }
                 });
 
             // Só instituições ativas, da mais antiga para a mais nova (a mais antiga é a padrão).
@@ -206,7 +241,8 @@ public sealed class UiSession(AuthenticationStateProvider authenticationStatePro
                 User = User with { Role = link is null ? UserRole.User : ToUserRole(link.Role) };
 
             Unit = link?.Unit is { Ativa: true } u
-                ? new UnitInfo(u.Id, u.Nome, u.Slug, u.Sigla ?? "", u.Tipo, link.InstituicaoId, link.Institution)
+                ? new UnitInfo(u.Id, u.Nome, u.Slug, u.Sigla ?? "", u.Tipo, link.InstituicaoId, link.Institution,
+                    u.LogoPath, u.CorPrimaria, u.CorSecundaria)
                 : null;
             InstitutionName = institutions.FirstOrDefault(x => x.Id == selectedInstitutionId)?.Name ?? "Selecione uma instituição";
 
@@ -221,7 +257,8 @@ public sealed class UiSession(AuthenticationStateProvider authenticationStatePro
                 AllUnits = await db.Unidades.AsNoTracking()
                     .Where(x => x.Ativa && (selectedInstitutionId == null || x.InstituicaoId == selectedInstitutionId))
                     .OrderBy(x => x.Nome)
-                    .Select(x => new UnitInfo(x.Id, x.Nome, x.Slug, x.Sigla ?? "", x.Tipo, x.InstituicaoId, x.Instituicao!.Nome))
+                    .Select(x => new UnitInfo(x.Id, x.Nome, x.Slug, x.Sigla ?? "", x.Tipo,
+                        x.InstituicaoId, x.Instituicao!.Nome, x.LogoPath, x.CorPrimaria, x.CorSecundaria))
                     .ToListAsync();
             }
         }

@@ -7,7 +7,7 @@ namespace EduAssess.Models.Global
     /// institucional próprio (<see cref="Colegio"/>), gerenciado separadamente, mas ligado ao mesmo
     /// <see cref="MantenedorModel"/> (dono/mantenedor) da Faculdade Luciano Feijão.
     /// </summary>
-    public enum TipoInstituicao { Faculdade = 1, Colegio = 2 }
+    public enum TipoInstituicao { Faculdade = 1, Colegio = 2, Escola = 3, Instituto = 4, CentroTecnico = 5 }
 
     public class InstituicaoModel
     {

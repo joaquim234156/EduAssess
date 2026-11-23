@@ -99,8 +99,12 @@ namespace EduAssess.Data
                 .WithMany().HasForeignKey(x => x.InstituicaoId).OnDelete(DeleteBehavior.Restrict);
             modelBuilder.Entity<AvaliacaoModel>().HasIndex(x => x.InstituicaoId);
 
-            modelBuilder.Entity<UnidadeModel>()
-                .HasIndex(x => new { x.InstituicaoId, x.Sigla, x.Slug }).IsUnique();
+            modelBuilder.Entity<UnidadeModel>(e =>
+            {
+                e.HasIndex(x => new { x.InstituicaoId, x.Sigla, x.Slug }).IsUnique();
+                e.Property(x => x.CorPrimaria).HasMaxLength(7);
+                e.Property(x => x.CorSecundaria).HasMaxLength(7);
+            });
 
             // NOVO: avaliações (provas/simulados). O código (ex.: PSI-26-10-9GN) não pode se repetir.
             modelBuilder.Entity<AvaliacaoModel>(e =>

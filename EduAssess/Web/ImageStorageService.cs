@@ -32,7 +32,8 @@ public sealed class ImageStorageService
     private static readonly string[] AllowedFormats = ["JPEG", "PNG", "WEBP", "GIF"];
 
     private readonly string _root;
-    private readonly string _logoRoot;   // NOVO: logotipos das instituições
+    private readonly string _logoRoot;   // logotipos das instituições
+    private readonly string _unitLogoRoot; // logotipos individuais das unidades
     private const int MaxLogoSide = 512;
 
     public ImageStorageService(IWebHostEnvironment env)
@@ -46,6 +47,8 @@ public sealed class ImageStorageService
         Directory.CreateDirectory(_root);
         _logoRoot = Path.Combine(localDataPath, "EduAssess", "uploads", "logos");
         Directory.CreateDirectory(_logoRoot);
+        _unitLogoRoot = Path.Combine(localDataPath, "EduAssess", "uploads", "unit-logos");
+        Directory.CreateDirectory(_unitLogoRoot);
 
         var legacyRoot = Path.Combine(env.ContentRootPath, "App_Data", "uploads", "avatars");
         if (Directory.Exists(legacyRoot))
@@ -150,17 +153,27 @@ public sealed class ImageStorageService
         return new AvatarResult(originalBytes, fullBytes.Length, thumbBytes.Length);
     }
 
-    // ───────────────────────── NOVO: logotipo da instituição ─────────────────────────
+    // ───────────────────────── Logotipos de instituições e unidades ─────────────────────────
 
     public string LogoPath(Guid institutionId) => Path.Combine(_logoRoot, $"{institutionId:N}.webp");
     public bool HasLogo(Guid institutionId) => File.Exists(LogoPath(institutionId));
     public long LogoVersion(Guid institutionId) => HasLogo(institutionId) ? File.GetLastWriteTimeUtc(LogoPath(institutionId)).Ticks : 0;
 
+    public string UnitLogoPath(Guid unitId) => Path.Combine(_unitLogoRoot, $"{unitId:N}.webp");
+    public bool HasUnitLogo(Guid unitId) => File.Exists(UnitLogoPath(unitId));
+    public long UnitLogoVersion(Guid unitId) => HasUnitLogo(unitId) ? File.GetLastWriteTimeUtc(UnitLogoPath(unitId)).Ticks : 0;
+
     /// <summary>
-    /// Valida pelo CONTEÚDO (não pela extensão), limita pixels, remove metadados e salva um WebP de até 512 px
-    /// no maior lado. Diferente da foto de perfil, não recorta (o logo não pode perder bordas) e mantém a transparência.
+    /// Valida o conteúdo real, limita pixels, remove metadados e salva em WebP até 512 px.
+    /// Preserva transparência e proporção. O mesmo processador é usado para instituições e unidades.
     /// </summary>
-    public async Task<AvatarResult> SaveLogoAsync(Guid institutionId, Stream input, CancellationToken ct = default)
+    public Task<AvatarResult> SaveLogoAsync(Guid institutionId, Stream input, CancellationToken ct = default) =>
+        SaveLogoFileAsync(input, LogoPath(institutionId), ct);
+
+    public Task<AvatarResult> SaveUnitLogoAsync(Guid unitId, Stream input, CancellationToken ct = default) =>
+        SaveLogoFileAsync(input, UnitLogoPath(unitId), ct);
+
+    private static async Task<AvatarResult> SaveLogoFileAsync(Stream input, string destinationPath, CancellationToken ct)
     {
         using var buffer = new MemoryStream();
         await input.CopyToAsync(buffer, ct);
@@ -202,13 +215,15 @@ public sealed class ImageStorageService
         catch (Exception ex) when (ex is InvalidImageContentException or NotSupportedException)
         { throw new ArgumentException("Não foi possível ler essa imagem. Tente outro arquivo."); }
 
-        await WriteAtomicAsync(LogoPath(institutionId), bytes, ct);
+        await WriteAtomicAsync(destinationPath, bytes, ct);
         return new AvatarResult(originalBytes, bytes.Length, bytes.Length);
     }
 
-    public void DeleteLogo(Guid institutionId)
+    public void DeleteLogo(Guid institutionId) => DeleteFile(LogoPath(institutionId));
+    public void DeleteUnitLogo(Guid unitId) => DeleteFile(UnitLogoPath(unitId));
+
+    private static void DeleteFile(string path)
     {
-        var path = LogoPath(institutionId);
         if (File.Exists(path)) File.Delete(path);
     }
 

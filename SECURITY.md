@@ -48,8 +48,8 @@ Mantemos você informado do andamento e, se desejar, damos o **crédito** pela d
 **Dentro do escopo**
 
 - Autenticação e sessão (login, cookie, JWT) e controle de acesso: acesso a dados de outros usuários ou instituições, elevação de privilégio entre perfis (`Admin`, `Gestor`, `Professor`, `Aluno`, `User`).
-- Rotas da API (`/auth`, `/cursos`, `/turmas`, `/disciplina`, `/matricula`, `/notas`, `/questoes`) e telas do painel.
-- Upload e entrega de fotos de perfil.
+- Rotas da API (`/auth`, `/cursos`, `/turmas`, `/disciplina`, `/matricula`, `/notas`, `/questoes`, `/instituicoes`, `/unidades`, `/usuario-instituicao`) e telas do painel; inclui tentativas de acessar instituições ou unidades sem vínculo e operações cruzadas entre mantenedores.
+- Upload e entrega de fotos de perfil, logotipos institucionais e logotipos próprios de unidades.
 - Injeção de comandos ou consultas, XSS, CSRF, exposição de segredos, vazamento de dados pessoais.
 - Geração de questões por IA: injeção de instruções (*prompt injection*) que vaze dados ou mude o comportamento do sistema.
 
@@ -78,6 +78,7 @@ Se a falha tiver exposto **dados pessoais reais**, o fato deve ser comunicado im
 - Defina `JwtSettings:Secret` (mínimo de 32 bytes) por variável de ambiente ou cofre de segredos e **gire-o** periodicamente.
 - Nunca versione `appsettings` com segredos, `*.db` ou `App_Data/` (o CI bloqueia isso).
 - Use HTTPS em todo o tráfego e mantenha o HSTS ativo.
+- Ao administrar uma rede de instituições, mantenha o vínculo por mantenedor separado dos vínculos de acesso: gestores não devem receber acesso automático a instituições irmãs; o compartilhamento de uma conta entre instituições deve ser uma ação explícita do Admin.
 - Mantenha as dependências atualizadas (o Dependabot e o CI alertam sobre pacotes vulneráveis).
 - Faça cópias de segurança criptografadas do banco e teste a restauração.
 - Em produção, prefira banco gerenciado com criptografia em repouso (consulte o *Roadmap* do README).

@@ -1,6 +1,7 @@
 using System.Globalization;
 using EduAssess.Models;
 using EduAssess.Models.Local;
+using EduAssess.Models.Global;
 
 namespace EduAssess.Web;
 
@@ -18,6 +19,16 @@ public static class UiFormat
 
     public static string FirstName(string? name) =>
         (name ?? "").Split(' ', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault() ?? "";
+
+    public static string InstitutionTypeLabel(TipoInstituicao type) => type switch
+    {
+        TipoInstituicao.Faculdade => "Faculdade / Ensino Superior",
+        TipoInstituicao.Colegio => "Colégio / Ensino Básico",
+        TipoInstituicao.Escola => "Escola / Ensino Básico",
+        TipoInstituicao.Instituto => "Instituto",
+        TipoInstituicao.CentroTecnico => "Centro técnico",
+        _ => "Categoria não identificada"
+    };
 
     public static string RoleLabel(UserRole role) => role switch
     {
