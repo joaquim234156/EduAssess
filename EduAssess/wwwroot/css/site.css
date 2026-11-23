@@ -406,3 +406,10 @@ h1:focus, h1:focus-visible { outline: none; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
 }
+
+
+/* Identidade visual por unidade: controles nativos seguem os tokens do formulário existente. */
+.brand-inherit { display: flex; align-items: center; gap: 8px; margin: 4px 0 8px; color: var(--muted, #64748b); font-size: .82rem; }
+.brand-inherit input { accent-color: var(--brand-primary, #1f4e79); }
+
+.unit-brand-thumb { display: block; width: 30px; height: 30px; object-fit: contain; border-radius: 6px; }

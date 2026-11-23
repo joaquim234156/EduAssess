@@ -115,7 +115,10 @@ public sealed record NetworkInstitution(Guid Id, string Name, string? Sigla, Tip
 public sealed record MantenedorOption(Guid Id, string Name);
 
 /// <summary>Cartão de uma unidade (prédio) com a contagem de pessoas por papel.</summary>
-public sealed record UnitCard(Guid Id, string Name, string Slug, string Sigla, TipoUnidade Type, bool Active, int Students, int Professors, int Managers)
+public sealed record UnitCard(
+    Guid Id, string Name, string Slug, string Sigla, TipoUnidade Type, bool Active,
+    int Students, int Professors, int Managers,
+    string? Primary = null, string? Secondary = null, bool HasLogo = false, long LogoVersion = 0)
 {
     public int People => Students + Professors + Managers;
 }
@@ -147,6 +150,11 @@ public sealed class UnitForm
     public string Name { get; set; } = "";
     public string Sigla { get; set; } = "";
     public TipoUnidade Type { get; set; } = TipoUnidade.Campus;
+    public bool InheritPrimary { get; set; } = true;
+    public bool InheritSecondary { get; set; } = true;
+    public string Primary { get; set; } = "#1F4E79";
+    public string Secondary { get; set; } = "#D6A94B";
+    public bool RemoveLogo { get; set; }
 }
 
 // ───────────── NOVO: simulados e treinos do aluno (separados das notas oficiais) ─────────────

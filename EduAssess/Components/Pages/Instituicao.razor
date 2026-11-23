@@ -43,7 +43,7 @@ else
         <div class="logo-box">
             @if (inst.HasLogo)
             {
-                <img src="ui/instituicao-logo/@inst.Id?v=@inst.LogoVersion" alt="@inst.Name" />
+                <img src="/ui/instituicao-logo/@inst.Id?v=@inst.LogoVersion" alt="@inst.Name" />
             }
             else if (inst.Tipo == TipoInstituicao.Faculdade && inst.Sigla == "FLF")
             {
@@ -56,7 +56,7 @@ else
         </div>
         <dl>
             <div><dt>Instituição</dt><dd>@inst.Name@(string.IsNullOrWhiteSpace(inst.Sigla) ? "" : " (" + inst.Sigla + ")")</dd></div>
-            <div><dt>Categoria</dt><dd>@(inst.Tipo == TipoInstituicao.Colegio ? "Colégio" : "Faculdade")</dd></div>
+            <div><dt>Categoria</dt><dd>@UiFormat.InstitutionTypeLabel(inst.Tipo)</dd></div>
             <div><dt>Mantenedor</dt><dd>@(string.IsNullOrWhiteSpace(inst.MantenedorName) ? "—" : inst.MantenedorName)</dd></div>
             <div><dt>Identidade visual</dt><dd class="swatches"><span class="swatch" style="background:@inst.Primary" title="Cor primária @inst.Primary"></span><span class="swatch" style="background:@inst.Secondary" title="Cor secundária @inst.Secondary"></span> @inst.Primary · @inst.Secondary</dd></div>
             <div><dt>CNPJ</dt><dd>@inst.Cnpj</dd></div>
@@ -71,7 +71,7 @@ else
     </section>
 
     @* ───────────── NOVO: rede do mantenedor (ex.: Faculdade + Colégio CLF, cada um gerenciado à parte) ───────────── *@
-    @if (overview.Network is { Count: > 1 })
+    @if (overview.Network is { Count: > 0 })
     {
         <section class="card network-card reveal" style="margin-top:20px">
             <div class="card-head"><div><h2>Rede de @inst.MantenedorName</h2><p>Instituições do mesmo mantenedor. Cada uma tem seus próprios cadastros, unidades e pessoas; o vínculo com o mantenedor é mantido.</p></div></div>
@@ -82,7 +82,7 @@ else
                     <div class="network-item @(n.Current ? "current" : "")">
                         <div>
                             <strong>@n.Name@(string.IsNullOrWhiteSpace(n.Sigla) ? "" : " (" + n.Sigla + ")")</strong>
-                            <small>@(n.Tipo == TipoInstituicao.Colegio ? "Colégio" : "Faculdade")@(n.Active ? "" : " · desativada")</small>
+                            <small>@UiFormat.InstitutionTypeLabel(n.Tipo)@(n.Active ? "" : " · desativada")</small>
                         </div>
                         @if (n.Current) { <span class="badge badge-green">Em uso</span> }
                         else if (canSwitch)
@@ -110,9 +110,13 @@ else
             var key = UiTheme.UnitKey(u.Slug);
             <article class="unit-card unit-@key @(u.Active ? "" : "off") reveal" style="--i:@i;@UiTheme.CustomStyle(u.Slug)">
                 <div class="uc-head">
-                    <span class="uc-ico"><Icon Name="@UiTheme.UnitIcon(u.Slug)" Size="24" /></span>
+                    <span class="uc-ico">
+                        @if (u.HasLogo) { <img class="unit-brand-thumb" src="/ui/unidade-logo/@u.Id?v=@u.LogoVersion" alt="" aria-hidden="true" /> }
+                        else { <Icon Name="@UiTheme.UnitIcon(u.Slug)" Size="24" /> }
+                    </span>
                     <h3>@u.Name</h3>
-                    <div class="uc-sub">@u.Sigla · @(u.Type == TipoUnidade.Polo ? "Polo" : "Campus")@(u.Active ? "" : " · desativada")</div>
+                    <div class="uc-sub">@u.Sigla · @TipoUnidadeLabel(u.Type)@(u.Active ? "" : " · desativada")</div>
+                    <div class="uc-sub">@(u.Primary is null && u.Secondary is null && !u.HasLogo ? "Identidade visual herdada" : "Identidade visual própria")</div>
                 </div>
                 <div class="uc-body">
                     <div class="uc-counts">
@@ -172,7 +176,7 @@ else
                 <button type="button" class="chip @(unitFilter == id && !showUnlinked ? "active" : "")" @onclick="() => FilterUnit(id)">@unit.Name <small>@unit.People</small></button>
             }
             <button type="button" class="chip @(unitFilter == Guid.Empty && !showUnlinked ? "active" : "")" @onclick="() => FilterUnit(Guid.Empty)">Sem unidade <small>@overview.PeopleWithoutUnit</small></button>
-            <button type="button" class="chip @(showUnlinked ? "active" : "")" @onclick="FilterUnlinked">Não vinculadas <small>@overview.UnlinkedPeople</small></button>
+            <button type="button" class="chip @(showUnlinked ? "active" : "")" @onclick="FilterUnlinked">@(Session.User?.Role == UserRole.Admin ? "Não vinculadas" : "Sem vínculo institucional") <small>@overview.UnlinkedPeople</small></button>
         </div>
 
         <div class="people-bar">
@@ -239,14 +243,80 @@ else
                 <input id="u-sigla" class="input" @bind="unitForm.Sigla" maxlength="10" placeholder="Ex.: DIR" />
             </div>
             <div class="field">
-                <label>Tipo</label>
+                <label>Tipo de unidade</label>
                 <div class="seg">
                     <button type="button" class="@(unitForm.Type == TipoUnidade.Campus ? "on" : "")" @onclick="() => unitForm.Type = TipoUnidade.Campus">Campus</button>
                     <button type="button" class="@(unitForm.Type == TipoUnidade.Polo ? "on" : "")" @onclick="() => unitForm.Type = TipoUnidade.Polo">Polo</button>
+                    <button type="button" class="@(unitForm.Type == TipoUnidade.Predio ? "on" : "")" @onclick="() => unitForm.Type = TipoUnidade.Predio">Prédio</button>
                 </div>
             </div>
         </div>
-        <p class="hint-line"><Icon Name="sparkles" Size="16" /> Unidades fora de Principal, Medicina e Odontologia ganham uma cor própria automática.</p>
+
+        <div class="field">
+            <label>Logotipo ou imagem da unidade</label>
+            <div class="brand-logo-edit">
+                <div class="logo-box">
+                    @if (pendingUnitLogo is not null)
+                    {
+                        <span class="brand-mono big" aria-label="Novo arquivo selecionado">IMG</span>
+                    }
+                    else if (editingUnit?.HasLogo == true && !unitForm.RemoveLogo)
+                    {
+                        <img src="/ui/unidade-logo/@editingUnit.Id?v=@editingUnit.LogoVersion" alt="Logotipo atual da unidade" />
+                    }
+                    else if (overview?.Institution?.HasLogo == true)
+                    {
+                        <img src="/ui/instituicao-logo/@overview.Institution.Id?v=@overview.Institution.LogoVersion" alt="Logotipo herdado da instituição" />
+                    }
+                    else if (overview?.Institution is { Tipo: TipoInstituicao.Faculdade, Sigla: "FLF" })
+                    {
+                        <img src="/img/logo-flf.png" alt="Logotipo padrão da Faculdade Luciano Feijão" />
+                    }
+                    else
+                    {
+                        <span class="brand-mono big" style="background:@overview?.Institution?.Primary;color:@InkFor(overview?.Institution?.Primary ?? "#1F4E79")" aria-hidden="true">@(string.IsNullOrWhiteSpace(unitForm.Sigla) ? "—" : unitForm.Sigla)</span>
+                    }
+                </div>
+                <div class="dropzone @(uploadingUnitLogo ? "busy" : "")">
+                    <InputFile OnChange="OnUnitLogoSelected" accept="image/png,image/jpeg,image/webp,image/gif" aria-label="Escolher logotipo da unidade" />
+                    @if (uploadingUnitLogo) { <span class="spinner"></span><strong>Salvando…</strong> }
+                    else if (pendingUnitLogo is not null) { <span class="dz-ico"><Icon Name="check" Size="22" /></span><strong>@pendingUnitLogo.Name</strong><small>O arquivo será enviado ao salvar a unidade.</small> }
+                    else { <span class="dz-ico"><Icon Name="upload" Size="22" /></span><strong>Clique ou arraste uma imagem</strong><small>PNG, JPG, WebP ou GIF até 8 MB. A transparência é preservada.</small> }
+                </div>
+            </div>
+            @if (editingUnit?.HasLogo == true && !unitForm.RemoveLogo)
+            {
+                <button type="button" class="btn-text danger" @onclick="RemoveUnitLogo"><Icon Name="trash" Size="16" /> Usar logotipo da instituição</button>
+            }
+            @if (unitForm.RemoveLogo)
+            {
+                <small class="muted">A unidade passará a herdar o logotipo da instituição.</small>
+            }
+        </div>
+
+        <div class="form-row">
+            <div class="field">
+                <label for="u-primary">Cor primária</label>
+                <label class="brand-inherit"><input type="checkbox" @bind="unitForm.InheritPrimary" /> Herdar da instituição</label>
+                <div class="color-field">
+                    <input id="u-primary" type="color" value="@unitForm.Primary" disabled="@unitForm.InheritPrimary" @onchange="e => unitForm.Primary = NormalizeHex(e.Value, unitForm.Primary)" />
+                    <input class="input" value="@unitForm.Primary" maxlength="7" disabled="@unitForm.InheritPrimary" aria-label="Código da cor primária da unidade" @onchange="e => unitForm.Primary = NormalizeHex(e.Value, unitForm.Primary)" />
+                </div>
+            </div>
+            <div class="field">
+                <label for="u-secondary">Cor secundária</label>
+                <label class="brand-inherit"><input type="checkbox" @bind="unitForm.InheritSecondary" /> Herdar da instituição</label>
+                <div class="color-field">
+                    <input id="u-secondary" type="color" value="@unitForm.Secondary" disabled="@unitForm.InheritSecondary" @onchange="e => unitForm.Secondary = NormalizeHex(e.Value, unitForm.Secondary)" />
+                    <input class="input" value="@unitForm.Secondary" maxlength="7" disabled="@unitForm.InheritSecondary" aria-label="Código da cor secundária da unidade" @onchange="e => unitForm.Secondary = NormalizeHex(e.Value, unitForm.Secondary)" />
+                </div>
+            </div>
+        </div>
+        <div class="brand-preview" aria-label="Pré-visualização das cores da unidade">
+            <span class="bp-chip" style="background:@(unitForm.InheritPrimary ? overview?.Institution?.Primary : unitForm.Primary);color:@InkFor(unitForm.InheritPrimary ? overview?.Institution?.Primary ?? "#1F4E79" : unitForm.Primary)">Primária</span>
+            <span class="bp-chip" style="background:@(unitForm.InheritSecondary ? overview?.Institution?.Secondary : unitForm.Secondary);color:@InkFor(unitForm.InheritSecondary ? overview?.Institution?.Secondary ?? "#D6A94B" : unitForm.Secondary)">Secundária</span>
+        </div>
+        <p class="hint-line"><Icon Name="sparkles" Size="16" /> Campos marcados para herança acompanham automaticamente a identidade visual da instituição. Uma personalização própria afeta somente esta unidade.</p>
     </ChildContent>
     <Footer>
         <button type="button" class="btn btn-ghost" @onclick="CloseUnit">Cancelar</button>
@@ -271,14 +341,17 @@ else
         @if (Session.User?.Role == UserRole.Admin)
         {
             <div class="field">
-                <label>Categoria</label>
-                <div class="seg">
-                    <button type="button" class="@(instForm.Tipo == TipoInstituicao.Faculdade ? "on" : "")" @onclick="() => SetTipo(TipoInstituicao.Faculdade)">Faculdade</button>
-                    <button type="button" class="@(instForm.Tipo == TipoInstituicao.Colegio ? "on" : "")" @onclick="() => SetTipo(TipoInstituicao.Colegio)">Colégio (CLF)</button>
-                </div>
+                <label for="i-category">Categoria institucional</label>
+                <select id="i-category" class="select" value="@instForm.Tipo" @onchange="OnInstitutionTypeChanged">
+                    @foreach (var category in Enum.GetValues<TipoInstituicao>())
+                    {
+                        <option value="@category">@UiFormat.InstitutionTypeLabel(category)</option>
+                    }
+                </select>
+                <small class="muted">Essa classificação descreve a natureza educacional da instituição; não representa Campus, Polo ou Prédio.</small>
                 @if (instForm.Tipo == TipoInstituicao.Colegio)
                 {
-                    <small class="muted">O Colégio Luciano Feijão não é uma faculdade: é uma instituição própria, gerenciada à parte, ligada ao mesmo mantenedor.</small>
+                    <small class="muted">O Colégio Luciano Feijão é uma instituição independente, vinculada ao mantenedor do grupo.</small>
                 }
             </div>
         }
@@ -324,7 +397,7 @@ else
                 <label>Logotipo ou ícone</label>
                 <div class="brand-logo-edit">
                     <div class="logo-box">
-                        @if (bi.HasLogo) { <img src="ui/instituicao-logo/@bi.Id?v=@bi.LogoVersion" alt="Logotipo atual" /> }
+                        @if (bi.HasLogo) { <img src="/ui/instituicao-logo/@bi.Id?v=@bi.LogoVersion" alt="Logotipo atual" /> }
                         else { <span class="brand-mono big" style="background:@brandPrimary;color:@InkFor(brandPrimary)" aria-hidden="true">@(string.IsNullOrWhiteSpace(bi.Sigla) ? "—" : bi.Sigla)</span> }
                     </div>
                     <div class="dropzone @(uploadingLogo ? "busy" : "")">
@@ -375,12 +448,13 @@ else
 
     private bool showUnit, showInstitution, busy;
     // NOVO: criação de instituição, identidade visual e filtro de não vinculadas
-    private bool creatingInstitution, showBrand, uploadingLogo, brandError, showUnlinked;
+    private bool creatingInstitution, showBrand, uploadingLogo, brandError, showUnlinked, uploadingUnitLogo;
     private string mantenedorChoice = "";
     private string brandPrimary = "#1F4E79", brandSecondary = "#D6A94B";
     private string? brandMessage;
     private UnitCard? editingUnit;
     private UnitCard? unitToDeactivate;
+    private IBrowserFile? pendingUnitLogo;
     private readonly UnitForm unitForm = new();
     private readonly InstitutionForm instForm = new();
     private string? formMessage, message, toast;
@@ -445,6 +519,10 @@ else
     {
         editingUnit = null;
         unitForm.Name = ""; unitForm.Sigla = ""; unitForm.Type = TipoUnidade.Campus;
+        unitForm.InheritPrimary = true; unitForm.InheritSecondary = true;
+        unitForm.Primary = overview?.Institution?.Primary ?? "#1F4E79";
+        unitForm.Secondary = overview?.Institution?.Secondary ?? "#D6A94B";
+        unitForm.RemoveLogo = false; pendingUnitLogo = null;
         formMessage = null; showUnit = true;
     }
 
@@ -452,25 +530,59 @@ else
     {
         editingUnit = unit;
         unitForm.Name = unit.Name; unitForm.Sigla = unit.Sigla; unitForm.Type = unit.Type;
+        unitForm.InheritPrimary = unit.Primary is null; unitForm.InheritSecondary = unit.Secondary is null;
+        unitForm.Primary = unit.Primary ?? overview?.Institution?.Primary ?? "#1F4E79";
+        unitForm.Secondary = unit.Secondary ?? overview?.Institution?.Secondary ?? "#D6A94B";
+        unitForm.RemoveLogo = false; pendingUnitLogo = null;
         formMessage = null; showUnit = true;
     }
 
-    private void CloseUnit() => showUnit = false;
+    private void CloseUnit() { showUnit = false; pendingUnitLogo = null; }
+
+    private void OnUnitLogoSelected(InputFileChangeEventArgs e)
+    {
+        var file = e.File;
+        if (file.Size > ImageStorageService.MaxUploadBytes)
+        {
+            formMessage = "A imagem passa de 8 MB. Escolha uma menor.";
+            return;
+        }
+        pendingUnitLogo = file;
+        unitForm.RemoveLogo = false;
+        formMessage = null;
+    }
+
+    private void RemoveUnitLogo()
+    {
+        pendingUnitLogo = null;
+        unitForm.RemoveLogo = true;
+    }
 
     private async Task SaveUnitAsync()
     {
         busy = true;
+        uploadingUnitLogo = pendingUnitLogo is not null;
         formMessage = null;
+        Stream? logoStream = null;
         try
         {
-            await Institution.SaveUnitAsync(overview!.Institution!.Id, editingUnit?.Id, unitForm);
+            if (pendingUnitLogo is not null)
+                logoStream = pendingUnitLogo.OpenReadStream(ImageStorageService.MaxUploadBytes);
+
+            await Institution.SaveUnitAsync(overview!.Institution!.Id, editingUnit?.Id, unitForm, logoStream);
             showUnit = false;
+            pendingUnitLogo = null;
             await ReloadAsync();
-            if (Session.User?.Role == UserRole.Admin) await Session.RefreshUnitAsync();   // atualiza o seletor de tema do Admin
             Toast(editingUnit is null ? "Unidade criada." : "Unidade atualizada.");
         }
-        catch (Exception ex) when (ex is ArgumentException or InvalidOperationException or UnauthorizedAccessException) { formMessage = ex.Message; }
-        finally { busy = false; }
+        catch (Exception ex) when (ex is ArgumentException or InvalidOperationException or UnauthorizedAccessException or IOException)
+        { formMessage = ex.Message; }
+        finally
+        {
+            if (logoStream is not null) await logoStream.DisposeAsync();
+            busy = false;
+            uploadingUnitLogo = false;
+        }
     }
 
     private async Task ToggleUnit(UnitCard unit)
@@ -540,6 +652,12 @@ else
         formMessage = null; showInstitution = true;
     }
 
+    private void OnInstitutionTypeChanged(ChangeEventArgs e)
+    {
+        if (Enum.TryParse<TipoInstituicao>(e.Value?.ToString(), out var tipo) && Enum.IsDefined(tipo))
+            SetTipo(tipo);
+    }
+
     private void SetTipo(TipoInstituicao tipo)
     {
         instForm.Tipo = tipo;
@@ -559,6 +677,8 @@ else
         formMessage = null;
         try
         {
+            if (mantenedorChoice == "new" && string.IsNullOrWhiteSpace(instForm.NewMantenedorName))
+                throw new ArgumentException("Informe o nome do novo mantenedor.");
             instForm.MantenedorId = Guid.TryParse(mantenedorChoice, out var mid) ? mid : null;
             if (mantenedorChoice != "new") instForm.NewMantenedorName = "";
             if (creatingInstitution)
@@ -634,6 +754,14 @@ else
         }
         catch (Exception ex) when (ex is InvalidOperationException or UnauthorizedAccessException) { brandMessage = ex.Message; brandError = true; }
     }
+
+    private static string TipoUnidadeLabel(TipoUnidade tipo) => tipo switch
+    {
+        TipoUnidade.Campus => "Campus",
+        TipoUnidade.Polo => "Polo",
+        TipoUnidade.Predio => "Prédio",
+        _ => "Tipo não identificado"
+    };
 
     // Aceita só #RRGGBB (o seletor de cor do navegador já entrega nesse formato); se digitarem algo inválido, mantém a cor anterior.
     private static string NormalizeHex(object? value, string fallback)

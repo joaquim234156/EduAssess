@@ -8,7 +8,7 @@
    Todo o visual exclusivo está em temas.css. O fundo fixo em linha foi para o CSS (.shell { background: var(--paper) }). *@
 <div class="shell @Session.ThemeClass @(menuOpen ? "menu-open" : string.Empty) @(sidebarCollapsed ? "sidebar-collapsed" : string.Empty)" style="@Session.ShellStyle">
     <aside class="sidebar" id="primary-navigation">
-        <Logo Light="@(!UiTheme.LightSidebar(Session.User?.Role))" Compactable="true" Href="@homePath" Brand="Session.Brand" />
+        <Logo Light="@(!UiTheme.LightSidebar(Session.User?.Role))" Compactable="true" Href="@homePath" Brand="Session.EffectiveBrand" />
 
         @* NOVO: selo do prédio (Principal, Medicina, Odontologia) na barra lateral. *@
         @if (Session.IsSignedIn)
@@ -131,7 +131,7 @@
                             <select name="id" class="unit-switch inst-switch" aria-label="Instituição em uso" onchange="this.form.submit()">
                                 @foreach (var inst in Session.AvailableInstitutions)
                                 {
-                                    <option value="@inst.Id" selected="@(Session.InstitutionId == inst.Id)">@(string.IsNullOrEmpty(inst.Sigla) ? inst.Name : inst.Sigla + " · " + inst.Name)</option>
+                                    <option value="@inst.Id" selected="@(Session.InstitutionId == inst.Id)">@(string.IsNullOrEmpty(inst.Sigla) ? inst.Name : inst.Sigla + " · " + inst.Name) — @UiFormat.InstitutionTypeLabel(inst.Tipo)</option>
                                 }
                             </select>
                             <noscript><button type="submit" class="btn btn-ghost btn-sm">Trocar</button></noscript>
@@ -160,7 +160,7 @@
             </div>
         </header>
         <div class="page">@Body</div>
-        <footer class="page-foot">@(Session.Brand?.Name ?? "Faculdade Luciano Feijão")@(Session.ThemeKey == "rede" ? "" : " · " + Session.ThemeLabel) · EduAssess</footer>
+        <footer class="page-foot">@(Session.EffectiveBrand?.Name ?? "Faculdade Luciano Feijão")@(Session.ThemeKey == "rede" ? "" : " · " + Session.ThemeLabel) · EduAssess</footer>
     </div>
 </div>
 

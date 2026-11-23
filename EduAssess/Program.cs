@@ -340,6 +340,31 @@ if (appMode != "ApiOnly")
     })
     .RequireAuthorization();
 
+    // Logotipo próprio da unidade. A imagem é armazenada fora de wwwroot e só é entregue a
+    // pessoas vinculadas à instituição da unidade (ou ao Admin da plataforma).
+    app.MapGet("/ui/unidade-logo/{id:guid}", async (Guid id, ImageStorageService images,
+        IDbContextFactory<AppDbContext> dbFactory, HttpContext http) =>
+    {
+        if (!http.User.IsInRole(nameof(UserRole.Admin)))
+        {
+            var userId = Guid.TryParse(http.User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var parsedUser)
+                ? parsedUser : Guid.Empty;
+            await using var db = await dbFactory.CreateDbContextAsync();
+            var unitInstitutionId = await db.Unidades.AsNoTracking()
+                .Where(u => u.Id == id && u.Instituicao!.Ativa)
+                .Select(u => (Guid?)u.InstituicaoId).FirstOrDefaultAsync();
+            if (unitInstitutionId is null) return Results.NotFound();
+            var belongsToUser = await db.UsuariosInstituicoes.AnyAsync(ui =>
+                ui.UsuarioId == userId && ui.Ativa && ui.InstituicaoId == unitInstitutionId.Value && ui.Instituicao!.Ativa);
+            if (!belongsToUser) return Results.NotFound();
+        }
+
+        var path = images.UnitLogoPath(id);
+        if (!File.Exists(path)) return Results.NotFound();
+        http.Response.Headers.CacheControl = "private, max-age=31536000, immutable";
+        return Results.File(path, "image/webp");
+    }).RequireAuthorization();
+
     // ALTERADO: antes havia aqui um MapGet("/") que redirecionava para /login. Foi retirado:
     // agora a própria página de login atende "/" (veja @page "/" em Login.razor). Assim abrir o
     // site já mostra o login direto, sem depender de redirecionamento nem de cache do navegador.

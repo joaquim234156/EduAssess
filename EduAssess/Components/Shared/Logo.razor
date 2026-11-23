@@ -10,10 +10,10 @@
 @if (Brand is not null && Brand.HasLogo)
 {
     <a class="brand brand-custom @(Light ? "brand-light" : "")" href="@Href" aria-label="@Brand.Name — EduAssess">
-        <img class="brand-full brand-uploaded" src="ui/instituicao-logo/@Brand.Id?v=@Brand.LogoVersion" alt="@Brand.Name" height="46" />
+        <img class="brand-full brand-uploaded" src="@Brand.ImageUrl" alt="@Brand.Name" height="46" />
         @if (Compactable)
         {
-            <img class="brand-compact brand-uploaded" src="ui/instituicao-logo/@Brand.Id?v=@Brand.LogoVersion" alt="" aria-hidden="true" />
+            <img class="brand-compact brand-uploaded" src="@Brand.ImageUrl" alt="" aria-hidden="true" />
         }
     </a>
 }

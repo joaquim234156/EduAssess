@@ -48,13 +48,20 @@ public sealed class InstitutionWebService(IDbContextFactory<AppDbContext> dbFact
             u.Id, u.Nome, u.Slug, u.Sigla ?? "", u.Tipo, u.Ativa,
             links.Count(l => l.UnidadeId == u.Id && l.Papel == PapelInstituicao.Aluno),
             links.Count(l => l.UnidadeId == u.Id && l.Papel == PapelInstituicao.Professor),
-            links.Count(l => l.UnidadeId == u.Id && l.Papel == PapelInstituicao.Gestor))).ToList();
+            links.Count(l => l.UnidadeId == u.Id && l.Papel == PapelInstituicao.Gestor),
+            u.CorPrimaria, u.CorSecundaria,
+            !string.IsNullOrEmpty(u.LogoPath) && images.HasUnitLogo(u.Id),
+            images.UnitLogoVersion(u.Id))).ToList();
 
-        // Pessoas vinculadas a ESTA instituição sem unidade definida, e pessoas ativas ainda sem vínculo com ela.
+        // Pessoas sem unidade nesta instituição. Gestor não recebe a lista de contas que já pertencem
+        // a outro tenant; somente o Admin global pode consultar o diretório completo.
         var withoutUnit = links.Count(l => l.UnidadeId == null);
         var linkedIds = await db.UsuariosInstituicoes.AsNoTracking()
             .Where(ui => ui.InstituicaoId == institution.Id && ui.Ativa).Select(ui => ui.UsuarioId).ToListAsync();
-        var unlinked = await db.Users.AsNoTracking().CountAsync(u => u.Ativa && u.Role != UserRole.User && !linkedIds.Contains(u.Id));
+        var isAdmin = session.User?.Role == UserRole.Admin;
+        var unlinked = await db.Users.AsNoTracking().CountAsync(u => u.Ativa && u.Role != UserRole.User && u.Role != UserRole.Admin
+            && !linkedIds.Contains(u.Id) && (isAdmin || !db.UsuariosInstituicoes.Any(ui =>
+                ui.UsuarioId == u.Id && ui.Ativa && ui.InstituicaoId != institution.Id)));
 
         // NOVO: o visual de Medicina vale para quem é do CURSO de Medicina (qualquer prédio): contamos aqui.
         var medicineStudents = await db.Matriculas.AsNoTracking()
@@ -73,7 +80,6 @@ public sealed class InstitutionWebService(IDbContextFactory<AppDbContext> dbFact
                 .Select(i => new NetworkInstitution(i.Id, i.Nome, i.Sigla, i.Tipo, i.Ativa, i.Id == institution.Id)).ToListAsync();
 
         // O Admin escolhe entre todos os mantenedores; o Gestor só enxerga o da própria instituição.
-        var isAdmin = session.User?.Role == UserRole.Admin;
         var mantenedores = await db.Mantenedores.AsNoTracking()
             .Where(m => isAdmin || m.Id == institution.MantenedorId).OrderBy(m => m.Nome)
             .Select(m => new MantenedorOption(m.Id, m.Nome)).ToListAsync();
@@ -103,7 +109,8 @@ public sealed class InstitutionWebService(IDbContextFactory<AppDbContext> dbFact
             await service.AtualizarInstituicaoAsync(id, new InstituicaoRequestPut(
                 form.Name.Trim(), form.Cnpj.Trim(), form.Address.Trim(), form.Phone.Trim(), form.Email.Trim(),
                 admin ? form.Tipo.ToString() : null, form.Sigla.Trim(),
-                admin ? form.MantenedorId : null, admin && form.MantenedorId is null ? form.NewMantenedorName : null));
+                admin ? form.MantenedorId : null, admin && form.MantenedorId is null ? form.NewMantenedorName : null,
+                LimparMantenedor: admin && form.MantenedorId is null && string.IsNullOrWhiteSpace(form.NewMantenedorName)));
         }
         catch (KeyNotFoundException ex) { throw new InvalidOperationException(ex.Message); }
     }
@@ -169,7 +176,7 @@ public sealed class InstitutionWebService(IDbContextFactory<AppDbContext> dbFact
 
     // ───────────────────────── Unidades ─────────────────────────
 
-    public async Task SaveUnitAsync(Guid institutionId, Guid? unitId, UnitForm form)
+    public async Task<Guid> SaveUnitAsync(Guid institutionId, Guid? unitId, UnitForm form, Stream? logoFile = null)
     {
         await session.RequireAsync(Management);
         RequireCurrent(institutionId);
@@ -179,23 +186,65 @@ public sealed class InstitutionWebService(IDbContextFactory<AppDbContext> dbFact
             throw new ArgumentException("O nome da unidade deve ter entre 3 e 60 caracteres.");
         if (sigla.Length is < 2 or > 10)
             throw new ArgumentException("A sigla deve ter entre 2 e 10 caracteres.");
+        if (!Enum.IsDefined(form.Type))
+            throw new ArgumentException("Selecione um tipo de unidade válido.");
+        var primary = form.InheritPrimary ? null : NormalizeColor(form.Primary, "primária");
+        var secondary = form.InheritSecondary ? null : NormalizeColor(form.Secondary, "secundária");
 
         await using var db = await dbFactory.CreateDbContextAsync();
         var service = new UnidadeService(db);
+        Guid savedId;
         try
         {
             if (unitId is null)
-                await service.CriarUnidadeAsync(new UnidadeRequest(institutionId, name, form.Type, sigla));
+                savedId = (await service.CriarUnidadeAsync(new UnidadeRequest(institutionId, name, form.Type, sigla))).Id;
             else
-                await service.AtualizarUnidadeAsync(unitId.Value, new UnidadeRequestPut(name, sigla, form.Type));
+            {
+                var existing = await db.Unidades.AsNoTracking()
+                    .Where(u => u.Id == unitId.Value)
+                    .Select(u => new { u.Id, u.InstituicaoId })
+                    .FirstOrDefaultAsync();
+                if (existing is null || existing.InstituicaoId != institutionId)
+                    throw new UnauthorizedAccessException("A unidade não pertence à instituição em uso.");
+                savedId = (await service.AtualizarUnidadeAsync(unitId.Value, new UnidadeRequestPut(name, sigla, form.Type))).Id;
+            }
+
+            await service.AtualizarIdentidadeAsync(savedId, primary, secondary);
+            if (form.RemoveLogo)
+            {
+                await service.DefinirLogoAsync(savedId, false);
+                images.DeleteUnitLogo(savedId);
+            }
+            if (logoFile is not null)
+            {
+                await images.SaveUnitLogoAsync(savedId, logoFile);
+                try { await service.DefinirLogoAsync(savedId, true); }
+                catch { images.DeleteUnitLogo(savedId); throw; }
+            }
         }
         catch (KeyNotFoundException ex) { throw new InvalidOperationException(ex.Message); }
+
+        await session.RefreshUnitAsync();
+        return savedId;
+    }
+
+    private static string NormalizeColor(string value, string field)
+    {
+        var normalized = (value ?? "").Trim().ToUpperInvariant();
+        if (!InstituicaoModel.IsHexColor(normalized))
+            throw new ArgumentException($"A cor {field} deve estar no formato #RRGGBB.");
+        return normalized;
     }
 
     public async Task SetUnitActiveAsync(Guid unitId, bool active)
     {
         await session.RequireAsync(Management);
+        var institutionId = session.InstitutionId ?? throw new UnauthorizedAccessException("Selecione uma instituição.");
         await using var db = await dbFactory.CreateDbContextAsync();
+        var belongsToCurrentInstitution = await db.Unidades.AsNoTracking()
+            .AnyAsync(u => u.Id == unitId && u.InstituicaoId == institutionId);
+        if (!belongsToCurrentInstitution)
+            throw new UnauthorizedAccessException("Você só pode gerenciar unidades da instituição em uso.");
         var service = new UnidadeService(db);
         try
         {
@@ -213,14 +262,20 @@ public sealed class InstitutionWebService(IDbContextFactory<AppDbContext> dbFact
     /// </summary>
     public async Task<List<UnitPersonRow>> GetPeopleAsync(Guid? unitFilter, string? search, bool onlyUnlinked = false)
     {
-        await session.RequireAsync(Management);
+        var me = await session.RequireAsync(Management);
         var institutionId = session.InstitutionId ?? throw new UnauthorizedAccessException("Selecione uma instituição.");
         await using var db = await dbFactory.CreateDbContextAsync();
 
-        var users = await db.Users.AsNoTracking()
-            .Where(u => u.Ativa && u.Role != UserRole.User)
-            .Select(u => new { u.Id, u.Name, u.Email, u.Role })
-            .ToListAsync();
+        var usersQuery = db.Users.AsNoTracking().Where(u => u.Ativa && u.Role != UserRole.User && u.Role != UserRole.Admin);
+        if (me.Role != UserRole.Admin)
+        {
+            // A conta de outra instituição não aparece como candidata a vínculo para um Gestor.
+            // Admin continua com o diretório global para administrar a rede/plataforma.
+            usersQuery = usersQuery.Where(u =>
+                db.UsuariosInstituicoes.Any(current => current.UsuarioId == u.Id && current.Ativa && current.InstituicaoId == institutionId)
+                || !db.UsuariosInstituicoes.Any(other => other.UsuarioId == u.Id && other.Ativa && other.InstituicaoId != institutionId));
+        }
+        var users = await usersQuery.Select(u => new { u.Id, u.Name, u.Email, u.Role }).ToListAsync();
 
         // ALTERADO: só os vínculos DESTA instituição (antes eram de qualquer uma).
         var links = await db.UsuariosInstituicoes.AsNoTracking()
@@ -259,7 +314,7 @@ public sealed class InstitutionWebService(IDbContextFactory<AppDbContext> dbFact
     /// </summary>
     public async Task AssignUnitAsync(Guid userId, Guid? unitId)
     {
-        await session.RequireAsync(Management);
+        var me = await session.RequireAsync(Management);
         await using var db = await dbFactory.CreateDbContextAsync();
 
         var user = await db.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Id == userId && u.Ativa)
@@ -268,6 +323,13 @@ public sealed class InstitutionWebService(IDbContextFactory<AppDbContext> dbFact
         var institutionId = session.InstitutionId ?? Guid.Empty;
         if (institutionId == Guid.Empty)
             throw new InvalidOperationException("Cadastre a instituição antes de definir unidades.");
+
+        var hasCurrentActiveLink = await db.UsuariosInstituicoes.AnyAsync(ui =>
+            ui.UsuarioId == userId && ui.InstituicaoId == institutionId && ui.Ativa);
+        var hasOtherActiveLink = await db.UsuariosInstituicoes.AnyAsync(ui =>
+            ui.UsuarioId == userId && ui.InstituicaoId != institutionId && ui.Ativa);
+        if (me.Role != UserRole.Admin && !hasCurrentActiveLink && hasOtherActiveLink)
+            throw new UnauthorizedAccessException("Somente o Admin pode compartilhar uma conta que já pertence a outra instituição.");
 
         var service = new UsuarioInstituicaoService(db);
         var papel = PapelFor(user.Role).ToString();
@@ -296,8 +358,14 @@ public sealed class InstitutionWebService(IDbContextFactory<AppDbContext> dbFact
         {
             if (linked)
             {
-                var user = await db.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Id == userId && u.Ativa && u.Role != UserRole.User)
+                var user = await db.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Id == userId && u.Ativa && u.Role != UserRole.User && u.Role != UserRole.Admin)
                     ?? throw new InvalidOperationException("Pessoa não encontrada.");
+                var hasCurrentActiveLink = await db.UsuariosInstituicoes.AnyAsync(ui =>
+                    ui.UsuarioId == userId && ui.InstituicaoId == institutionId && ui.Ativa);
+                var hasOtherActiveLink = await db.UsuariosInstituicoes.AnyAsync(ui =>
+                    ui.UsuarioId == userId && ui.InstituicaoId != institutionId && ui.Ativa);
+                if (me.Role != UserRole.Admin && !hasCurrentActiveLink && hasOtherActiveLink)
+                    throw new UnauthorizedAccessException("Somente o Admin pode compartilhar uma conta que já pertence a outra instituição.");
                 await service.VincularUsuarioInstituicaoAsync(new UsuarioInstituicaoRequest(userId, institutionId, PapelFor(user.Role).ToString(), null));
             }
             else

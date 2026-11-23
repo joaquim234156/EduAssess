@@ -1,4 +1,4 @@
-﻿using EduAssess.Application.DTOs.Unidade;
+using EduAssess.Application.DTOs.Unidade;
 using EduAssess.Models.Global;
 
 namespace EduAssess.Application.Interfaces
@@ -16,5 +16,7 @@ namespace EduAssess.Application.Interfaces
         Task<IEnumerable<UnidadeResponseDTO>> ListarUnidadesPorInstituicaoETipoAsync(Guid instituicaoId, TipoUnidade tipo);
         Task<bool> AtivarUnidadeAsync(Guid id);
         Task<bool> DeletarUnidadeAsync(Guid id);
+        Task<UnidadeResponseDTO> AtualizarIdentidadeAsync(Guid id, string? corPrimaria, string? corSecundaria);
+        Task<UnidadeResponseDTO> DefinirLogoAsync(Guid id, bool temLogo);
     }
 }

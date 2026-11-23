@@ -41,9 +41,11 @@ namespace EduAssess.Application.Services
 
             // NOVO: categoria, sigla, mantenedor (nulo = manter) e cores.
             var tipo = req.Tipo is null ? instituicao.Tipo : ParseTipo(req.Tipo);
-            var mantenedorId = (req.MantenedorId is null && string.IsNullOrWhiteSpace(req.MantenedorNome))
-                ? instituicao.MantenedorId
-                : (await ResolverMantenedorAsync(req.MantenedorId, req.MantenedorNome))?.Id;
+            var mantenedorId = req.LimparMantenedor
+                ? null
+                : (req.MantenedorId is null && string.IsNullOrWhiteSpace(req.MantenedorNome))
+                    ? instituicao.MantenedorId
+                    : (await ResolverMantenedorAsync(req.MantenedorId, req.MantenedorNome))?.Id;
             instituicao.UpdateClassificacao(tipo, req.Sigla ?? instituicao.Sigla, mantenedorId);
             AplicarCores(instituicao, req.CorPrimaria, req.CorSecundaria);
 
@@ -161,7 +163,7 @@ namespace EduAssess.Application.Services
             var normalized = tipo.Trim().Replace("é", "e").Replace("É", "E");
             if (Enum.TryParse<TipoInstituicao>(normalized, ignoreCase: true, out var parsed) && Enum.IsDefined(parsed))
                 return parsed;
-            throw new ArgumentException("Tipo inválido. Use Faculdade ou Colegio.");
+            throw new ArgumentException("Tipo inválido. Use Faculdade, Colegio, Escola, Instituto ou CentroTecnico.");
         }
 
         private static void AplicarCores(InstituicaoModel instituicao, string? primaria, string? secundaria)

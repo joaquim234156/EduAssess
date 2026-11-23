@@ -1,926 +1,365 @@
-<div align="center">
-
-<img src="EduAssess/wwwroot/img/logo-flf.png" alt="Faculdade Luciano Feijão" width="260" />
-
 # EduAssess
 
-**Plataforma de gestão acadêmica e avaliações com IA para instituições de ensino superior.**
+Plataforma web de gestão acadêmica e avaliação. O EduAssess reúne cadastros acadêmicos, organização de turmas e matrículas, lançamento e consulta de notas, banco de questões, provas/simulados, prática dos alunos e histórico de atividades. A aplicação foi construída para atender mais de uma instituição, mantendo os dados acadêmicos separados por instituição e permitindo agrupar instituições sob um mesmo mantenedor.
 
-Cursos, turmas, matrículas, notas, banco de questões, provas e simulados — com geração de questões por IA, painel por perfil e API REST documentada.
+> **Estado da documentação:** este arquivo descreve o código presente neste repositório. Recursos planejados que ainda não possuem fluxo implementado não são apresentados como concluídos.
 
-[![.NET](https://img.shields.io/badge/.NET-8.0-512BD4?logo=dotnet&logoColor=white)](https://dotnet.microsoft.com/)
-[![C#](https://img.shields.io/badge/C%23-12-239120?logo=csharp&logoColor=white)](https://learn.microsoft.com/dotnet/csharp/)
-[![Blazor](https://img.shields.io/badge/Blazor-Server-512BD4?logo=blazor&logoColor=white)](https://learn.microsoft.com/aspnet/core/blazor/)
-[![EF Core](https://img.shields.io/badge/EF%20Core-8.0-512BD4?logo=dotnet&logoColor=white)](https://learn.microsoft.com/ef/core/)
-[![SQLite](https://img.shields.io/badge/SQLite-3-003B57?logo=sqlite&logoColor=white)](https://www.sqlite.org/)
-[![Gemini](https://img.shields.io/badge/IA-Google%20Gemini-4285F4?logo=googlegemini&logoColor=white)](https://ai.google.dev/)
-[![Swagger](https://img.shields.io/badge/API-OpenAPI%20%2F%20Swagger-85EA2D?logo=swagger&logoColor=black)](#-api-rest)
-![Status](https://img.shields.io/badge/status-em%20desenvolvimento-orange)
-<!--
-Depois de publicar no GitHub, troque OWNER/REPO e descomente:
-[![CI](https://github.com/OWNER/REPO/actions/workflows/ci.yml/badge.svg)](https://github.com/OWNER/REPO/actions/workflows/ci.yml)
-[![CodeQL](https://github.com/OWNER/REPO/actions/workflows/codeql.yml/badge.svg)](https://github.com/OWNER/REPO/actions/workflows/codeql.yml)
--->
+## 1. Tecnologias
 
-[Visão geral](#-visão-geral) •
-[Arquitetura](#-arquitetura) •
-[Começando](#-começando) •
-[API](#-api-rest) •
-[Segurança e LGPD](#-segurança-e-lgpd) •
-[Roadmap](#-roadmap)
+### Frontend
 
-</div>
+- **Blazor Web App / Razor Components**, com renderização interativa no servidor.
+- **Razor**, HTML, CSS e JavaScript para páginas, componentes e interações.
+- Componentes compartilhados para navegação, modais, formulários, ícones, questões, selos, mensagens e indicadores.
+- CSS próprio para identidade visual, responsividade, temas por perfil e temas por unidade.
 
----
+### Backend
 
-## 📑 Sumário
+- **.NET 8 / ASP.NET Core**.
+- **Minimal APIs** para os endpoints HTTP; o projeto também registra suporte a Controllers.
+- **Entity Framework Core 8** para persistência e consultas.
+- **Npgsql** como provedor de PostgreSQL.
+- **PostgreSQL** como banco de dados da aplicação atual.
+- **JWT Bearer e cookies de autenticação**: JWT para consumo da API e cookie para a sessão do painel web.
+- **BCrypt.Net** para hash e verificação de senhas.
+- **MiniValidation** para validação de DTOs nas rotas.
+- **Swashbuckle / Swagger** para documentação interativa da API.
+- **ImageSharp** para validar, redimensionar, remover metadados e converter imagens para WebP.
+- Integração opcional com **Google Gemini** para geração assistida de questões.
 
-- [Visão geral](#-visão-geral)
-- [Funcionalidades](#-funcionalidades)
-- [Instituição, prédios e lotação](#-instituição-prédios-e-lotação)
-- [Visual por perfil e por prédio](#-visual-por-perfil-e-por-prédio)
-- [Arquitetura](#-arquitetura)
-- [Stack tecnológica](#-stack-tecnológica)
-- [Estrutura do repositório](#-estrutura-do-repositório)
-- [Começando](#-começando)
-- [Configuração](#-configuração)
-- [Perfis e permissões](#-perfis-e-permissões)
-- [Telas do sistema](#-telas-do-sistema)
-- [API REST](#-api-rest)
-- [Modelo de dados](#-modelo-de-dados)
-- [Geração de questões com IA](#-geração-de-questões-com-ia)
-- [Segurança e LGPD](#-segurança-e-lgpd)
-- [Qualidade e testes](#-qualidade-e-testes)
-- [Decisões de arquitetura](#-decisões-de-arquitetura)
-- [Roadmap](#-roadmap)
-- [Equipe e créditos](#-equipe-e-créditos)
-- [Licença](#-licença)
+O projeto atual **não usa SQLite em tempo de execução**. Há uma pasta `Migrations.SQLiteArchive` excluída da compilação, mantida como arquivo histórico; a aplicação em execução usa PostgreSQL.
 
----
-
-## 🎯 Visão geral
-
-O **EduAssess** reúne em um só lugar a rotina acadêmica de uma faculdade e o ciclo de avaliações:
-
-| Quem | O que consegue fazer |
-|---|---|
-| **Gestão** (Admin e Gestor) | Cadastrar cursos, disciplinas, turmas, equipe e matrículas; acompanhar notas; montar avaliações. |
-| **Professores** | Lançar notas nas **suas** turmas, criar questões (à mão ou pedindo à IA), montar provas e simulados e aplicá-los. |
-| **Alunos** | Ver turmas, notas e médias; treinar com questões do banco; responder às avaliações aplicadas; gerenciar a foto do perfil. |
-
-A plataforma é **multi-unidade**: a instituição é a **Faculdade Luciano Feijão** e a lotação das pessoas acontece em três prédios: **Prédio Principal**, **Anexo** e **Prédio Odontologia**. O **curso de Medicina** funciona como um *perfil* próprio: alunos e professores do curso ganham o visual de Medicina em qualquer prédio. Cada combinação de perfil (aluno, professor, gestor, admin) com prédio ou curso tem uma identidade visual exclusiva.
-
-O projeto nasceu como base de gestão acadêmica e evoluiu para uma plataforma de **avaliação assistida por IA**, mantendo o professor sempre no controle: nada gerado pela IA vai para o banco sem revisão humana.
-
-> **Estado atual:** funcional e em evolução. A seção [Segurança e LGPD](#-segurança-e-lgpd) descreve com honestidade o que já existe e o que ainda falta para uso em produção em larga escala.
-
----
-
-## ✨ Funcionalidades
-
-### Gestão acadêmica
-- Cursos, disciplinas, turmas e equipe (gestores e professores) com ativação e desativação.
-- Matrículas com data de expiração e vínculo aluno × turma.
-- Notas por matrícula e disciplina, com média geral e por disciplina.
-- Cadastro público de conta; a pessoa só ganha acesso de aluno quando alguém da docência atribui o perfil.
-- Painel de gestão com indicadores e atalhos.
-
-### Instituição, prédios e lotação
-- Cadastro da instituição e das **unidades** (prédios), com sigla e tipo (campus ou polo); regras de nome, sigla e CNPJ únicos.
-- **Lotação**: cada pessoa fica em um prédio; a tela `/instituicao` mostra quantas pessoas há por papel em cada unidade.
-- Visual exclusivo por **perfil** e por **prédio/curso** (veja [Visual por perfil e por prédio](#-visual-por-perfil-e-por-prédio)), com login temático por prédio.
-- O Admin pode **"ver como"** qualquer prédio ou o perfil de Medicina para conferir o tema.
-
-### Avaliações (provas e simulados)
-- **Cartões de avaliação** com código único (ex.: `GES-26-10-9GN`), autor, quantidade de questões, status e periodicidade.
-- Filtros por autoria (*Minhas / Todas*), situação, busca e ordenação.
-- Montagem: questões **do banco**, **geradas por IA** ou **escritas à mão**, com reordenação e remoção.
-- **Aplicar / encerrar**: libera a avaliação para os alunos em `/praticar`.
-- **Compartilhar**: copia o link `/praticar?codigo=…` para os alunos.
-- Gabarito visível apenas para a equipe.
-
-### Banco de questões e IA
-- Questões de múltipla escolha (5 alternativas) com assunto, dificuldade e explicação.
-- Geração por IA com **recomendações livres** (ex.: *estilo ENADE*, *casos práticos*) e proteção contra duplicatas.
-- Prévia obrigatória: o professor revisa e escolhe o que salvar.
-
-### Experiência do aluno
-- Painel com média geral em anel animado, foco da semana e atalhos.
-- **Minhas notas**: distribuição, evolução em gráfico interativo e médias por disciplina (não é um boletim formal).
-- **Praticar**: treino livre por disciplina e avaliações aplicadas; feedback imediato, explicação, sequência de acertos e revisão dos erros.
-- **Foto de perfil** recomprimida no servidor (versão leve + ícone nítido).
-
----
-
-## 🏗 Arquitetura
-
-O EduAssess é uma aplicação **monolítica modular** em ASP.NET Core 8: o mesmo processo hospeda o **painel Blazor Server** e a **API REST** (Minimal APIs). Ambos compartilham o mesmo banco, a mesma autenticação e as mesmas regras de posse.
-
-```mermaid
-flowchart TB
-    subgraph Cliente["Cliente"]
-        BR["Navegador<br/>(Blazor via SignalR)"]
-        EXT["Clientes de API<br/>(Swagger, Postman, integrações)"]
-    end
-
-    subgraph Host["ASP.NET Core 8 — processo único"]
-        direction TB
-        MW["Pipeline: HTTPS/HSTS · Rate limiting · Autenticação (Cookie ou JWT) · Autorização por políticas"]
-
-        subgraph UI["Camada de interface"]
-            RZ["Componentes Razor<br/>Pages · Layout · Shared"]
-            WS["Serviços do painel (Web/)<br/>AcademicService · QuestaoWebService<br/>AvaliacaoWebService · InstitutionWebService<br/>ImageStorageService · UiSession · UiTheme"]
-        end
-
-        subgraph API["Camada de API"]
-            RT["Rotas Minimal API<br/>/auth · /cursos · /turmas · /disciplina<br/>/matricula · /notas · /questoes<br/>/instituicoes · /unidades · /usuario-instituicao"]
-            AS["Serviços de aplicação<br/>CursoService · TurmaService · NotaService<br/>UserService · IaQuestaoService · TokenService<br/>InstituicaoService · UnidadeService<br/>UsuarioInstituicaoService"]
-        end
-
-        DB[("EF Core 8<br/>AppDbContext")]
-    end
-
-    SQL[("SQLite<br/>eduassess.db")]
-    FS[["Armazenamento local<br/>App_Data/uploads"]]
-    GEM{{"Google Gemini API<br/>(geração de questões)"}}
-
-    BR <--> MW
-    EXT --> MW
-    MW --> RZ --> WS --> DB
-    MW --> RT --> AS --> DB
-    DB --> SQL
-    WS --> FS
-    AS --> GEM
-    WS --> AS
-```
-
-### Fluxo de uma requisição autenticada
-
-O esquema de autenticação é uma *policy scheme* que escolhe **JWT** (clientes de API, cabeçalho `Authorization: Bearer`) ou **Cookie** (painel Blazor) conforme a requisição. Depois disso, as políticas de autorização por perfil decidem o acesso, e os serviços aplicam a regra de **posse** (professor só altera o que é dele).
-
-```mermaid
-sequenceDiagram
-    autonumber
-    actor U as Usuário
-    participant H as Pipeline ASP.NET Core
-    participant A as Autenticação (Cookie ou JWT)
-    participant P as Políticas de autorização
-    participant S as Serviço / Rota
-    participant D as EF Core + SQLite
-
-    U->>H: Requisição (painel ou API)
-    H->>H: Rate limiting (login e cadastro)
-    H->>A: Identificar usuário
-    A-->>H: ClaimsPrincipal (id + perfil)
-    H->>P: Política (Admin, Gestao, Docencia, Professor, Aluno...)
-    P-->>H: Permitido / negado (403)
-    H->>S: Executar caso de uso
-    S->>D: Validar posse e persistir
-    D-->>S: Resultado
-    S-->>U: Resposta
-```
-
-### Como o visual de cada pessoa é escolhido
-
-Ao entrar, a sessão descobre **onde a pessoa está lotada** (prédio) e se ela é do **curso de Medicina**. O resultado vira duas classes CSS no elemento raiz do painel, e todo o estilo exclusivo está em `wwwroot/css/temas.css`.
-
-```mermaid
-flowchart LR
-    L["Login<br/>(cookie)"] --> S["UiSession"]
-    S --> U{"Lotação ativa?<br/>UsuariosInstituicoes.UnidadeId"}
-    S --> C{"Aluno com matrícula ou<br/>professor com turma<br/>no curso de Medicina?"}
-    U -->|"Principal · Anexo · Odontologia"| T["Chave do tema"]
-    U -->|"sem unidade"| R["rede"]
-    C -->|"sim"| M["medicina<br/>(tem prioridade)"]
-    M --> T
-    R --> T
-    S --> P["Perfil<br/>aluno · professor · gestor · admin"]
-    T --> K["Classes do painel<br/>role-… unit-…"]
-    P --> K
-    K --> CSS["temas.css<br/>paleta do tema + jeito do perfil"]
-```
-
-### Ciclo de vida de uma avaliação
-
-```mermaid
-stateDiagram-v2
-    [*] --> Rascunho: Criar avaliação
-    Rascunho --> Rascunho: Adicionar, remover ou reordenar questões
-    Rascunho --> Aplicada: Aplicar (exige ao menos 1 questão)
-    Aplicada --> Rascunho: Encerrar aplicação
-    Rascunho --> Excluida: Excluir (exclusão lógica)
-    Aplicada --> Excluida: Excluir (exclusão lógica)
-    Excluida --> [*]
-
-    note right of Aplicada
-        Visível aos alunos em /praticar
-        (lista, código ou link compartilhado)
-    end note
-```
-
----
-
-## 🧰 Stack tecnológica
-
-| Camada | Tecnologia |
-|---|---|
-| Plataforma | .NET 8 · ASP.NET Core 8 · C# 12 (nullable habilitado) |
-| Interface | Blazor Server (componentes Razor) · CSS próprio (design tokens, sem framework) |
-| API | Minimal APIs com `MapGroup` · Swashbuckle (OpenAPI/Swagger) |
-| Dados | Entity Framework Core 8 · SQLite · migrations versionadas |
-| Autenticação | Cookie `HttpOnly` (painel) + JWT Bearer (API) · BCrypt.Net-Next |
-| Validação | MiniValidation (DataAnnotations em DTOs) |
-| Imagens | SixLabors.ImageSharp (recompressão para WebP) |
-| IA | Google Gemini (REST, saída estruturada em JSON) |
-
----
-
-## 📂 Estrutura do repositório
+## 2. Estrutura do repositório
 
 ```text
 EduAssess/
-├── .github/
-│   ├── workflows/                    # CI (build, auditoria) e CodeQL
-│   └── dependabot.yml                # atualização automática de dependências
 ├── EduAssess.slnx
 ├── README.md
-├── SECURITY.md                       # política de segurança e divulgação coordenada
-├── CHANGELOG.md                      # histórico de mudanças (adicionado, alterado, corrigido)
-├── docs/img/                         # imagens da documentação
-└── EduAssess/                        # projeto web (Blazor + API)
-    ├── Program.cs                    # composição: DI, autenticação, políticas, rate limit, rotas
+├── SECURITY.md
+└── EduAssess/
     ├── Application/
-    │   ├── DTOs/                     # contratos de entrada e saída da API
-    │   ├── Interfaces/               # abstrações dos serviços
-    │   ├── Routes/                   # endpoints Minimal API por recurso
-    │   └── Services/                 # regras de negócio (inclui IaQuestaoService e TokenService)
+    │   ├── DTOs/                 # Contratos de entrada e saída
+    │   ├── Interfaces/           # Contratos dos serviços
+    │   ├── Routes/               # Minimal APIs por módulo
+    │   └── Services/             # Regras de negócio
     ├── Components/
-    │   ├── Layout/                   # layouts (app, autenticação, público)
-    │   ├── Pages/                    # telas (rotas @page)
-    │   └── Shared/                   # componentes reutilizáveis (Modal, Icon, QuestionComposer...)
-    ├── Extensions/                   # utilitários (ex.: GenerateSlug)
-    ├── Data/                         # AppDbContext e DatabaseInitializer (migrations + seed)
-    ├── Migrations/                   # histórico do esquema (EF Core)
-    ├── Models/
-    │   ├── Global/                   # base multi-instituição (Instituição, Unidade, vínculo)
-    │   └── Local/                    # domínio acadêmico (User, Curso, Turma, Nota, Questão, Avaliação...)
-    ├── Web/                          # serviços do painel (consultas, ações das telas, UiSession e UiTheme)
-    ├── Converters/                   # conversores JSON
-    ├── wwwroot/                      # CSS e imagens
-    └── Test/EduAssess.http           # exemplos de chamadas da API
+    │   ├── Layout/               # Layouts do painel e páginas públicas
+    │   ├── Pages/                # Páginas Razor
+    │   └── Shared/               # Componentes reutilizáveis
+    ├── Converters/               # Conversores JSON
+    ├── Data/
+    │   ├── Audit/                # Interceptor e contexto de auditoria
+    │   ├── AppDbContext.cs       # Modelo e mapeamento EF Core
+    │   └── DatabaseInitializer.cs# Migrações e dados iniciais
+    ├── Extensions/               # Extensões compartilhadas
+    ├── Migrations/               # Migrações PostgreSQL e snapshot EF Core
+    ├── Models/                   # Entidades e enums
+    ├── Properties/               # Configuração de execução local
+    ├── Web/                      # Serviços de tela, sessão e view models
+    ├── wwwroot/                  # CSS, JavaScript e imagens estáticas
+    ├── appsettings.json          # Configuração não secreta
+    └── EduAssess.csproj
 ```
 
----
+### Organização em camadas
 
-## 🚀 Começando
+- **Models:** entidades de domínio, estados e classificações.
+- **Data:** `AppDbContext`, mapeamentos, interceptor de auditoria e inicialização do banco.
+- **Application/DTOs:** contratos usados para receber e retornar dados.
+- **Application/Interfaces:** contratos dos serviços de aplicação.
+- **Application/Services:** validações e regras de negócio compartilhadas pela API.
+- **Application/Routes:** endpoints HTTP agrupados por módulo.
+- **Web:** serviços usados pelas telas Blazor, sessão, modelos de apresentação e identidade visual.
+- **Components:** páginas, layouts e componentes de interface.
 
-### Pré-requisitos
+## 3. Requisitos para desenvolvimento
 
-- [.NET SDK 8](https://dotnet.microsoft.com/download/dotnet/8.0)
-- (Opcional) Chave de API do Gemini, apenas para gerar questões com IA — veja [Configuração](#-configuração)
+- SDK do **.NET 8**.
+- Instância acessível do **PostgreSQL**.
+- Git e editor/IDE compatível com .NET, como Visual Studio ou Visual Studio Code.
+- Para geração de questões por IA, uma chave válida da API do Google Gemini. A aplicação pode funcionar sem essa chave; a funcionalidade de geração por IA ficará indisponível.
 
-### Executando
+## 4. Configuração e execução local
+
+Os comandos abaixo partem da pasta que contém `EduAssess.slnx`.
+
+### 4.1. Preparar o banco
+
+Crie um banco PostgreSQL, por exemplo:
+
+```sql
+CREATE DATABASE eduassess;
+```
+
+Configure a conexão por variável de ambiente, ou altere `ConnectionStrings:DefaultConnection` no arquivo local de configuração. Exemplo no PowerShell:
 
 ```powershell
-git clone <url-do-repositorio>
-cd EduAssess
-
-dotnet restore .\EduAssess\EduAssess.csproj
-dotnet run --project .\EduAssess\EduAssess.csproj --launch-profile "Front + API (HTTP)"
+$env:ConnectionStrings__DefaultConnection = "Host=localhost;Port=5432;Database=eduassess;Username=postgres;Password=SUA_SENHA"
 ```
 
-Abra <http://localhost:5062>. A raiz abre **direto na tela de login**.
+Não grave senhas reais no repositório. Use variáveis de ambiente, User Secrets ou um gerenciador de segredos.
 
-Na **primeira execução em Desenvolvimento**, o sistema cria sozinho o banco (`EduAssess/eduassess.db`), aplica as migrations, cria um administrador e carrega dados de demonstração (cursos, disciplinas, turmas, questões e avaliações de exemplo).
+### 4.2. Restaurar dependências e executar
 
-#### Contas de demonstração
-
-> ⚠️ Existem **somente em Desenvolvimento**. Nunca use estas credenciais fora do seu computador.
-
-| Perfil | E-mail | Prédio | Visual |
-|---|---|---|---|
-| Administrador | `admin@eduassess.local` (senha `Admin@12345!`) | — (rede) | Console da rede |
-| Gestor | `gestor@eduassess.demo` | Prédio Principal | Executivo · azul |
-| Gestor | `gestor.anexo@eduassess.demo` | Anexo | Executivo · âmbar |
-| Gestor | `gestor.odonto@eduassess.demo` | Prédio Odontologia | Executivo · violeta |
-| Professor | `professor@eduassess.demo` | Prédio Principal | Ateliê · azul |
-| Professor | `helena@eduassess.demo` | Prédio Odontologia | Ateliê · violeta |
-| Professor | `professor.medicina@eduassess.demo` | Anexo (curso de **Medicina**) | Ateliê · verde-água |
-| Aluno | `aluno@eduassess.demo` | Prédio Principal | Campus · azul |
-| Aluno | `rafael@eduassess.demo` · `camila@eduassess.demo` · `aluno.anexo@eduassess.demo` | Principal · Anexo · Anexo | Campus (azul ou âmbar) |
-| Aluno | `beatriz@eduassess.demo` | Prédio Odontologia | Campus · violeta |
-| Aluno | `aluno.medicina@eduassess.demo` | Anexo (curso de **Medicina**) | Campus · verde-água |
-| Conta sem perfil | `diego@eduassess.demo` | — | — |
-
-Todas as contas `*.demo` usam a senha `Demo@12345`.
-
-Para não criar os dados de demonstração: `"Seed": { "DemoData": false }` em `appsettings.Development.json`.
-
-### Perfis de execução
-
-| Perfil (`launchSettings.json`) | URL | Modo | Para quê |
-|---|---|---|---|
-| **Front + API (HTTP)** | `http://localhost:5062` | `Full` | Painel Blazor + API (abre em `/login`) |
-| **Swagger (HTTPS)** | `https://localhost:7197/swagger` | `ApiOnly` | Somente a API documentada |
-
-### Banco de dados
-
-- **Banco novo:** o esquema é criado a partir do modelo atual e as migrations são marcadas como aplicadas.
-- **Banco existente:** as migrations pendentes são aplicadas automaticamente ao iniciar.
-- **Recomeçar do zero (apenas desenvolvimento):** apague `eduassess.db` (e os arquivos `-shm` / `-wal`).
-
-```powershell
-# Comandos úteis do EF Core
-dotnet ef migrations add NomeDaMigration --project .\EduAssess
-dotnet ef database update --project .\EduAssess
+```bash
+dotnet restore EduAssess/EduAssess.csproj
+dotnet run --project EduAssess/EduAssess.csproj
 ```
 
----
+Na configuração padrão, o projeto executa o painel web e a API no mesmo host. O endereço exato é informado pelo ASP.NET Core ao iniciar. Em ambiente de desenvolvimento, a documentação Swagger fica disponível em `/swagger`.
 
-## ⚙️ Configuração
+### 4.3. Migrações
 
-| Chave | Obrigatória | Descrição |
-|---|---|---|
-| `ConnectionStrings:DefaultConnection` | Sim | Cadeia do banco (padrão: `Data Source=eduassess.db`). |
-| `JwtSettings:Secret` | **Sim, em produção** | Segredo do JWT com **mínimo de 32 bytes**. Em desenvolvimento é gerado em `App_Data/dev-jwt-secret.txt`. |
-| `BootstrapAdmin:Email` / `BootstrapAdmin:Password` | Primeiro acesso em produção | Cria o primeiro administrador (senha com no mínimo 12 caracteres). |
-| `Gemini:ApiKey` | Para usar a IA | Chave do Google AI Studio. **Nunca** coloque em `appsettings.json`. |
-| `Gemini:Model` | Não | Modelo usado (padrão: `gemini-flash-lite-latest`). |
-| `Seed:DemoData` | Não | `false` desativa os dados de demonstração (apenas Desenvolvimento). |
-| `Seed:BaseInstitution` | Não | `false` impede a criação automática da instituição e dos três prédios (padrão: ligado, em qualquer ambiente). |
-| `APP_MODE` | Não | `Full` (painel + API) ou `ApiOnly`. |
+Na inicialização, `DatabaseInitializer.InitializeAsync` chama `Database.MigrateAsync()`. As migrações pendentes são aplicadas automaticamente antes de a aplicação começar a atender requisições.
 
-Segredos em desenvolvimento, com o gerenciador de segredos do .NET:
+Para administrar migrações manualmente, instale a ferramenta EF Core compatível com a versão 8 e execute, a partir da raiz do repositório:
 
-```powershell
-cd EduAssess
-dotnet user-secrets set "Gemini:ApiKey" "SUA_CHAVE_AQUI"
+```bash
+dotnet tool install --global dotnet-ef --version 8.0.31
+dotnet ef migrations list --project EduAssess/EduAssess.csproj
+# Opcional: aplicar manualmente, com o banco e as credenciais já configurados
+dotnet ef database update --project EduAssess/EduAssess.csproj
 ```
 
-Em produção, use **variáveis de ambiente** (`JwtSettings__Secret`, `Gemini__ApiKey`) ou um cofre de segredos. Chaves de API gratuitas podem ser criadas em <https://aistudio.google.com/apikey>.
+Antes de aplicar alterações em produção, faça backup do banco e valide a restauração em um ambiente separado.
 
----
+## 5. Configurações de ambiente
 
-## 👥 Perfis e permissões
+As chaves abaixo podem ser definidas em `appsettings.*.json`, User Secrets ou variáveis de ambiente. Para variáveis de ambiente do .NET, use `__` para representar `:`.
 
-| Perfil | Descrição |
+| Chave de configuração | Uso |
 |---|---|
-| `Admin` | Acesso total; cria gestores e administra a gestão. |
-| `Gestor` | Cursos, disciplinas, turmas, matrículas, notas e avaliações; cria professores. |
-| `Professor` | Lança notas só nas **suas turmas e disciplinas**; cria questões e avaliações; atribui perfil de aluno. |
-| `Aluno` | Vê as próprias turmas, notas e médias; pratica questões e responde às avaliações aplicadas. |
-| `User` | Cadastro público, sem privilégios até a atribuição do perfil de aluno. |
+| `ConnectionStrings__DefaultConnection` | String de conexão PostgreSQL. |
+| `JwtSettings__Secret` | Segredo JWT com pelo menos 32 bytes. Obrigatório fora de Development. |
+| `BootstrapAdmin__Name` | Nome do primeiro administrador, quando o banco ainda não possui usuários. |
+| `BootstrapAdmin__Email` | E-mail do primeiro administrador. |
+| `BootstrapAdmin__Password` | Senha do primeiro administrador; mínimo de 12 caracteres e limite de 72 bytes. |
+| `Gemini__ApiKey` | Chave para geração de questões com Gemini. |
+| `Gemini__Model` | Modelo Gemini; o padrão no serviço é `gemini-flash-lite-latest`. |
+| `Seed__DemoData` | Controla dados demonstrativos. Só são criados em Development; padrão `true` nesse ambiente. |
+| `Seed__BaseInstitution` | Controla a criação da instituição base FLF; padrão `true`. |
+| `APP_MODE` | `Full` (padrão), `App` (painel sem Swagger) ou `ApiOnly` (API/Swagger sem o painel Blazor). |
 
-| Capacidade | Admin | Gestor | Professor | Aluno |
-|---|:-:|:-:|:-:|:-:|
-| Gerir cursos, turmas, disciplinas e matrículas | ✅ | ✅ | — | — |
-| Criar gestores | ✅ | — | — | — |
-| Criar professores | — | ✅ | — | — |
-| Lançar notas | ✅ | ✅ | ✅ (as suas turmas) | — |
-| Ver as próprias notas e médias | — | — | — | ✅ |
-| Banco de questões e geração com IA | ✅ (todas) | ✅ (todas) | ✅ (as suas) | — |
-| Criar, aplicar e excluir avaliações | ✅ (todas) | ✅ (todas) | ✅ (as suas) | — |
-| Gerir instituição, unidades (prédios) e lotação | ✅ | ✅ | — | — |
-| Ver o painel "como" outro prédio ou o perfil de Medicina | ✅ | — | — | — |
-| Praticar e responder avaliações aplicadas | ✅ | ✅ | ✅ | ✅ |
-| Atribuir perfil de aluno | ✅ | ✅ | ✅ | — |
+### Administrador inicial e dados demonstrativos
 
-As políticas de autorização definidas em `Program.cs` são: `Admin`, `Gestor`, `Gestao` (Admin ou Gestor), `Professor`, `Aluno`, `Docencia` (Admin, Gestor ou Professor) e `AtribuirAluno`.
+- Se não houver nenhum usuário e o ambiente for **Development**, o inicializador cria um administrador local de desenvolvimento caso `BootstrapAdmin` não tenha sido configurado: `admin@eduassess.local` / `Admin@12345!`.
+- Essas credenciais são **exclusivas para desenvolvimento local**. Configure um administrador seguro antes de qualquer implantação real.
+- Contas e dados demonstrativos são criados somente em Development, quando `Seed:DemoData` está habilitado. As contas demonstrativas usam a senha `Demo@12345` e não devem ser utilizadas em produção.
+- A instituição base Faculdade Luciano Feijão e o mantenedor `Luciano Feijão` são criados pelo inicializador quando habilitado e quando ainda não há outra instituição cadastrada. Não há criação automática do CLF: seus dados cadastrais reais devem ser informados por um Admin ao cadastrá-lo.
+- Em Development, se nenhum segredo JWT válido for configurado, o serviço gera uma chave local em `App_Data/dev-jwt-secret.txt`. Fora de Development, `JwtSettings__Secret` é obrigatório.
 
----
+## 6. Banco de dados e persistência
 
-## 🏫 Instituição, prédios e lotação
+`AppDbContext` é o ponto central do modelo relacional. O provedor atual é PostgreSQL via Npgsql e os mapeamentos são mantidos junto às migrações em `Migrations/`.
 
-A camada **Global** do modelo guarda a instituição e a organização física dela:
+Entre os principais conjuntos de dados estão:
 
-| Conceito | Descrição |
-|---|---|
-| **Instituição** | Faculdade Luciano Feijão (nome, CNPJ, contatos). CNPJ e nome (slug) são únicos. |
-| **Unidade** | Um prédio da instituição: **Prédio Principal**, **Anexo** e **Prédio Odontologia**. Tem sigla, tipo (campus ou polo) e ativação. Nome e sigla são únicos dentro da instituição. |
-| **Lotação** | Vínculo de uma pessoa com a instituição e com **uma** unidade (`UsuariosInstituicoes.UnidadeId`, opcional). O papel institucional (Aluno, Professor, Gestor) acompanha o perfil do sistema. |
-| **Curso de Medicina** | **Não é prédio.** É um perfil por curso: vale para o aluno com matrícula ativa e para o professor com turma ativa no curso de Medicina, em qualquer prédio. *Medicina Veterinária* não conta. |
+- Usuários e vínculos usuário–instituição.
+- Instituições, mantenedores e unidades.
+- Cursos, disciplinas, turmas, matrículas e notas.
+- Questões, tipos de selos e selos aplicados às questões.
+- Avaliações, composição de avaliações e resultados de prática.
+- Contatos e registros de auditoria.
 
-Regras que o sistema aplica:
+Os dados acadêmicos que pertencem a uma instituição possuem relacionamento/identificador institucional. Os serviços do painel consultam os registros no contexto da instituição selecionada; o vínculo com um mantenedor não reúne cursos, pessoas, matrículas, avaliações ou notas de instituições diferentes.
 
-- Não dá para **desativar uma unidade** que ainda tem pessoas lotadas: mova-as antes.
-- Pessoa sem unidade usa o visual da **rede** (instituição inteira).
-- A instituição e os três prédios são criados automaticamente na primeira execução (`Seed:BaseInstitution`, ligado por padrão). **Confira o CNPJ e o endereço** em `/instituicao`: eles vieram do documento de autoria da faculdade.
-- A tela `/instituicao` e as rotas `/instituicoes`, `/unidades` e `/usuario-instituicao` usam **as mesmas regras de negócio**.
+### Arquivos de imagem
 
----
+Os bytes das imagens não são armazenados no PostgreSQL. `ImageStorageService` grava arquivos WebP fora de `wwwroot`, sob `Environment.SpecialFolder.LocalApplicationData`:
 
-## 🎨 Visual por perfil e por prédio
-
-Cada pessoa vê um painel com identidade própria, resultado de **dois eixos**:
-
-![Matriz de temas: 4 perfis por 4 temas](docs/img/temas-perfis-predios.png)
-
-<sub>Pré-visualização gerada a partir do `temas.css` real (linhas: aluno, professor, gestor, admin; colunas: Prédio Principal, Anexo, Prédio Odontologia, Curso de Medicina).</sub>
-
-**Eixo 1: tema (cores e emblema)**
-
-| Tema | Quem recebe | Paleta | Emblema |
-|---|---|---|---|
-| **Principal** | Lotados no Prédio Principal (e a *rede* inteira) | Azul FLF (`#304296` · `#64a2d9`) | Prédio |
-| **Anexo** | Lotados no Anexo | Âmbar e ferrugem (`#b45309` · `#fb923c`) | Pino de mapa |
-| **Odontologia** | Lotados no Prédio Odontologia | Violeta (`#5b43c9` · `#a78bfa`) | Sorriso |
-| **Medicina** | Alunos e professores do **curso** de Medicina | Verde-água (`#0f766e` · `#2dd4bf`) | Estetoscópio |
-| *Nova unidade* | Qualquer unidade cadastrada depois | Cor automática derivada do nome | Camadas |
-
-O tema de **Medicina tem prioridade** sobre o do prédio: um aluno de Medicina lotado no Anexo vê o visual de Medicina.
-
-**Eixo 2: perfil (o "jeito" da interface)**
-
-| Perfil | Identidade | Características |
-|---|---|---|
-| **Aluno** · *Campus* | Vivo e arredondado | Barra lateral em gradiente com brilho, cantos grandes, botão de perfil em gradiente. |
-| **Professor** · *Ateliê* | Claro e funcional | Barra lateral clara com marcador lateral, fundo pontilhado, cartões com borda de destaque. |
-| **Gestor** · *Executivo* | Sóbrio | Azul profundo, detalhes **dourados**, faixa dourada no topo, cantos discretos. |
-| **Admin** · *Console* | Técnico | Grafite com grade, destaque neon na cor do tema, rótulos em fonte monoespaçada. |
-
-Como usar e testar:
-
-- **Login por prédio:** `/login?unidade=principal`, `anexo`, `odontologia` ou `medicina` abre o login com as cores daquele acesso. Depois de entrar, vale a lotação real da pessoa.
-- **"Ver como" (Admin):** o seletor no topo troca o painel para qualquer prédio ou para o perfil de Medicina. A tela `/instituicao` também tem o botão *Ver tema*.
-- **Onde mexer:** `wwwroot/css/temas.css` (paletas e perfis), `Web/UiTheme.cs` (catálogo e regras) e `Web/UiSession.cs` (descoberta de prédio e de curso).
-
----
-
-## 🖥 Telas do sistema
-
-| Rota | Quem acessa | Descrição |
-|---|---|---|
-| `/` · `/login` | Público | Login (a raiz abre direto aqui). |
-| `/cadastro` | Público | Criação de conta. |
-| `/painel` | Admin · Gestor | Visão geral da gestão com indicadores (os demais perfis são redirecionados ao próprio painel). |
-| `/instituicao` | Admin · Gestor | **Instituição e unidades**: dados da faculdade, cartões dos prédios (com contagem por papel), perfil de Medicina e lotação das pessoas. |
-| `/cursos` · `/disciplinas` · `/turmas` · `/matriculas` | Gestão | Cadastros acadêmicos. |
-| `/equipe` · `/alunos` | Gestão · docência | Equipe e atribuição de perfil de aluno. |
-| `/contatos` | Gestão | Solicitações de contato (legado do antigo site institucional). |
-| `/notas` | Docência | Lançamento e consulta de notas. |
-| `/avaliacoes` | Docência | Cartões de provas e simulados; janela de montagem de questões. |
-| `/banco-questoes` | Docência | Criação de questões (IA ou manual), filtros e exclusão. |
-| `/professor` | Professor | Painel do professor. |
-| `/aluno` | Aluno | Painel do aluno. |
-| `/aluno/notas` | Aluno | Médias e evolução das notas. |
-| `/praticar` | Autenticado | Treino livre e avaliações aplicadas (lista, código ou link). |
-| `/conta` | Autenticado | Dados pessoais, senha e foto de perfil. |
-
-<!--
-Capturas de tela (adicione os arquivos em docs/img/ e descomente):
-
-![Login](docs/img/login.png)
-![Painel do aluno](docs/img/aluno.png)
-![Avaliações](docs/img/avaliacoes.png)
-![Prática de questões](docs/img/praticar.png)
--->
-
----
-
-## 🔌 API REST
-
-A API fica documentada no **Swagger** (perfil `Swagger (HTTPS)`) e tem exemplos prontos em [`EduAssess/Test/EduAssess.http`](EduAssess/Test/EduAssess.http). A autenticação usa **JWT Bearer**: obtenha o token em `POST /auth/login` e envie `Authorization: Bearer <token>`.
-
-<details>
-<summary><b>Autenticação e usuários</b> — <code>/auth</code></summary>
-
-| Método | Rota | Acesso |
-|---|---|---|
-| `POST` | `/auth/register` | Público (limitado por *rate limit*) |
-| `POST` | `/auth/login` | Público (limitado por *rate limit*) |
-| `POST` | `/auth/users/managers` | Admin |
-| `POST` | `/auth/users/professors` | Gestor |
-| `GET` | `/auth/users/pending-students` | Admin · Gestor · Professor |
-| `POST` | `/auth/users/{id}/assign-student` | Admin · Gestor · Professor |
-| `GET` | `/auth/users` | Admin · Gestor |
-| `GET` | `/auth/users/{id}` | Autenticado |
-| `PUT` | `/auth/users/{id}/update` | Autenticado |
-| `PUT` | `/auth/users/{id}/updateAdmin` | Admin |
-| `PUT` | `/auth/users/{id}/UpdatePassword` | Autenticado |
-| `DELETE` | `/auth/users/{id}` | Admin |
-
-</details>
-
-<details>
-<summary><b>Cursos</b> — <code>/cursos</code></summary>
-
-| Método | Rota | Acesso |
-|---|---|---|
-| `POST` | `/cursos/create` | Admin · Gestor |
-| `GET` | `/cursos/list` | Admin · Gestor |
-| `GET` | `/cursos/get/{nome}` | Admin · Gestor |
-| `PUT` | `/cursos/update/{id}` | Admin · Gestor |
-| `GET` | `/cursos/list/ativos` · `/cursos/list/inativos` · `/cursos/get/{id}` | Admin |
-| `PUT` | `/cursos/ativar/{id}` | Admin |
-| `DELETE` | `/cursos/delete/{id}` | Admin |
-
-</details>
-
-<details>
-<summary><b>Turmas</b> — <code>/turmas</code></summary>
-
-| Método | Rota | Acesso |
-|---|---|---|
-| `POST` | `/turmas/create` | Admin · Gestor |
-| `GET` | `/turmas/list` | Admin · Gestor |
-| `GET` | `/turmas/get/{id}` · `/turmas/list/professor/{professorId}` | Admin |
-| `PUT` | `/turmas/update/{id}` · `/turmas/activate/{id}` | Admin |
-| `DELETE` | `/turmas/delete/{id}` | Admin |
-
-</details>
-
-<details>
-<summary><b>Disciplinas</b> — <code>/disciplina</code></summary>
-
-| Método | Rota | Acesso |
-|---|---|---|
-| `POST` | `/disciplina/register` | Admin · Gestor |
-| `GET` | `/disciplina/list` · `/list/ativas` · `/list/inativas` · `/list/professor/{professorId}` | Admin |
-| `PUT` | `/disciplina/update/{id}` · `/disciplina/ativar/{id}` | Admin |
-| `DELETE` | `/disciplina/delete/{id}` | Admin |
-
-</details>
-
-<details>
-<summary><b>Matrículas</b> — <code>/matricula</code></summary>
-
-| Método | Rota | Acesso |
-|---|---|---|
-| `POST` | `/matricula/register` | Admin |
-| `GET` | `/matricula/matriculas` | Admin · Gestor |
-| `DELETE` | `/matricula/end/{id}` | Admin · Gestor |
-| `GET` `PUT` `DELETE` | `/matricula/matricula/{id}` | Admin |
-
-</details>
-
-<details>
-<summary><b>Notas</b> — <code>/notas</code></summary>
-
-| Método | Rota | Acesso |
-|---|---|---|
-| `POST` | `/notas/registrar` | Admin · Gestor · Professor |
-| `GET` | `/notas/listar` | Admin · Gestor |
-| `GET` | `/notas/minhas` | Autenticado (as próprias) |
-| `GET` | `/notas/aluno/{idMatricula}` | Autenticado |
-| `PUT` | `/notas/atualizar/{id}` | Professor |
-| `DELETE` | `/notas/deletar/{id}` | Professor |
-
-</details>
-
-<details>
-<summary><b>Instituição</b> — <code>/instituicoes</code></summary>
-
-| Método | Rota | Acesso |
-|---|---|---|
-| `POST` | `/instituicoes/register` | Admin · Gestor |
-| `GET` | `/instituicoes/list` · `/list/inativos` · `/{id}/usuarios` | Admin · Gestor |
-| `GET` | `/instituicoes/list/ativos` · `/{id}` · `/{id}/unidades` | Autenticado |
-| `PUT` | `/instituicoes/{id}` | Admin · Gestor |
-| `PUT` | `/instituicoes/{id}/ativar` | Admin |
-| `DELETE` | `/instituicoes/{id}` | Admin |
-
-</details>
-
-<details>
-<summary><b>Unidades (prédios)</b> — <code>/unidades</code></summary>
-
-| Método | Rota | Acesso |
-|---|---|---|
-| `POST` | `/unidades/register` | Admin · Gestor |
-| `GET` | `/unidades/list` · `/list/inativos` | Admin · Gestor |
-| `GET` | `/unidades/list/ativos` · `/{id}` · `/list/instituicao/{instituicaoId}` · `/list/tipo/{tipo}` | Autenticado |
-| `PUT` | `/unidades/atualizar/{id}` · `/unidades/{id}/ativar` | Admin · Gestor |
-| `DELETE` | `/unidades/{id}` (desativa; recusa se houver pessoas lotadas) | Admin · Gestor |
-
-</details>
-
-<details>
-<summary><b>Lotação (vínculo pessoa × instituição × unidade)</b> — <code>/usuario-instituicao</code></summary>
-
-| Método | Rota | Acesso | Descrição |
-|---|---|---|---|
-| `POST` | `/usuario-instituicao/vincular` | Admin · Gestor | Vincula (ou reativa) a pessoa, com `papel` e `unidadeId` opcional. |
-| `PUT` | `/usuario-instituicao/atualizar` | Admin · Gestor | Muda papel e/ou unidade (prédio). |
-| `DELETE` | `/usuario-instituicao/desvincular` | Admin · Gestor | Encerra o vínculo. |
-| `GET` | `/usuario-instituicao/verificar-vinculo` · `/listar-instituicoes-por-usuario` · `/listar-usuarios-por-instituicao` | Admin · Gestor | Consultas. |
-
-</details>
-
-<details open>
-<summary><b>Questões</b> — <code>/questoes</code></summary>
-
-| Método | Rota | Acesso | Descrição |
-|---|---|---|---|
-| `POST` | `/questoes/create` | Docência | Cria uma questão manual. |
-| `POST` | `/questoes/gerar-ia` | Docência | Gera questões com IA. Por padrão devolve só a **prévia**; com `?salvar=true` grava direto. |
-| `GET` | `/questoes/get` | Docência | Lista com filtros `disciplinaId`, `assunto` e `dificuldade`. |
-| `GET` | `/questoes/get{id}` | Docência | Busca uma questão (inclui a resposta correta). |
-| `PUT` | `/questoes/update{id}` | Docência | Atualiza (professor: só as suas). |
-| `DELETE` | `/questoes/delete{id}` | Docência | Exclusão lógica (professor: só as suas). |
-
-Exemplo de pedido à IA:
-
-```http
-POST /questoes/gerar-ia?salvar=false
-Authorization: Bearer <token>
-Content-Type: application/json
-
-{
-  "disciplinaId": "00000000-0000-0000-0000-000000000000",
-  "assunto": "Liderança situacional",
-  "dificuldade": 1,
-  "quantidade": 5,
-  "recomendacoes": "Use casos práticos e evite pegadinhas."
-}
+```text
+EduAssess/uploads/
+├── avatars/       # Fotos de perfil (versão completa e miniatura)
+├── logos/         # Logotipos das instituições
+└── unit-logos/    # Logotipos específicos das unidades
 ```
 
-`dificuldade`: `0` Fácil · `1` Média · `2` Difícil. A quantidade vai de 1 a 10 por chamada. Erros da IA retornam `429` (cota), `503` (IA não configurada) ou `502` (falha do provedor).
+A entidade guarda a referência ao arquivo. O processamento limita o upload a 8 MB, confere o formato real, limita dimensões/pixels, remove metadados e converte a imagem. Em produção, o diretório precisa ter permissão de escrita, persistência entre reinicializações e rotina de backup/restauração, assim como o banco.
 
-</details>
+## 7. Módulos e funcionalidades disponíveis
 
-> As telas de **avaliações** usam serviços internos do painel (`AvaliacaoWebService`) e ainda não têm rotas REST públicas. Veja o [Roadmap](#-roadmap).
+### 7.1. Autenticação e contas
 
----
+- Cadastro de conta e autenticação.
+- Sessão web baseada em cookie e autenticação JWT para API.
+- Recuperação do perfil atual e validação da conta ativa.
+- Perfil, foto de usuário e alteração de senha na área Minha conta.
+- Contas sem perfil acadêmico definido ficam na área de aguardando perfil.
+- A API de autenticação também contempla operações de gestão de contas e perfis.
 
-## 🗄 Modelo de dados
+### 7.2. Gestão acadêmica
 
-```mermaid
-erDiagram
-    USERS ||--o{ MATRICULAS : "cursa"
-    TURMAS ||--o{ MATRICULAS : "reúne"
-    CURSOS ||--o{ TURMAS : "oferece"
-    USERS ||--o{ TURMAS : "leciona"
-    MATRICULAS ||--o{ NOTAS : "recebe"
-    USERS ||--o{ DISCIPLINAS : "responsável"
-    DISCIPLINAS ||--o{ NOTAS : "avaliada em"
-    DISCIPLINAS ||--o{ QUESTOES : "contém"
-    DISCIPLINAS ||--o{ AVALIACOES : "base de"
-    AVALIACOES ||--o{ AVALIACOES_QUESTOES : "compõe"
-    QUESTOES ||--o{ AVALIACOES_QUESTOES : "entra em"
-    INSTITUICOES ||--o{ UNIDADES : "possui"
-    UNIDADES ||--o{ USUARIOS_INSTITUICOES : "lota"
-    INSTITUICOES ||--o{ USUARIOS_INSTITUICOES : "vincula"
-    USERS ||--o{ USUARIOS_INSTITUICOES : "pertence"
+- **Cursos:** cadastro, edição, ativação/desativação e listagem de cursos por instituição.
+- **Disciplinas:** cadastro, edição e status; vinculação a professor ativo da instituição.
+- **Turmas:** criação e manutenção de turmas associadas a curso e professor.
+- **Alunos e equipe:** listagem de alunos, gestores e professores, contas pendentes e vinculação à instituição.
+- **Matrículas:** criação, edição, encerramento e reativação de vínculos entre aluno e turma.
+- **Notas:** lançamento e consulta de notas oficiais; escala de 0 a 10.
+- **Painéis:** visão de gestão com indicadores da instituição, visão de professor com suas turmas e notas, e visão do aluno com disciplinas, turmas e desempenho.
 
-    USERS {
-        guid Id PK
-        string Name
-        string Email
-        string PasswordHash
-        int Role
-        bool Ativa
-    }
-    CURSOS {
-        guid Id PK
-        string Nome
-        int DuracaoEmAnos
-        bool Ativo
-    }
-    TURMAS {
-        guid Id PK
-        string Nome
-        guid CursoId FK
-        guid ProfessorId FK
-        bool Ativa
-    }
-    MATRICULAS {
-        guid Id PK
-        guid UsuarioId FK
-        guid TurmaId FK
-        datetime DataExpiracao
-        bool Ativa
-    }
-    DISCIPLINAS {
-        guid Id PK
-        string Nome
-        guid ProfessorId
-        bool Ativa
-    }
-    NOTAS {
-        guid Id PK
-        guid MatriculaId FK
-        guid DisciplinaId
-        decimal Valor
-        string Descricao
-    }
-    QUESTOES {
-        guid Id PK
-        guid DisciplinaId
-        guid ProfessorId "autor"
-        string Enunciado
-        string Assunto
-        int Dificuldade
-        bool Ativa
-    }
-    AVALIACOES {
-        guid Id PK
-        string Codigo UK
-        string Titulo
-        int Tipo
-        int Status
-        guid AutorId
-        guid DisciplinaId
-        bool Ativa
-    }
-    AVALIACOES_QUESTOES {
-        guid AvaliacaoId PK
-        guid QuestaoId PK
-        int Ordem
-    }
-    INSTITUICOES {
-        guid Id PK
-        string Slug UK
-        string Cnpj UK
-    }
-    UNIDADES {
-        guid Id PK
-        guid InstituicaoId FK
-        string Codigo
-    }
-    USUARIOS_INSTITUICOES {
-        guid UsuarioId PK
-        guid InstituicaoId PK
-        guid UnidadeId FK "prédio (opcional)"
-        string Papel
-    }
-```
+### 7.3. Banco de questões
 
-**Observações do modelo**
+- Cadastro manual e edição de questões.
+- Organização por disciplina e assunto, com dificuldade.
+- Questões de múltipla escolha com alternativas, gabarito e explicação.
+- Filtros por disciplina, assunto, dificuldade e selo.
+- Classificação por selos, incluindo o catálogo inicial IA, ENADE, ENAMED, ENEM e Vestibular; selos podem carregar ano/detalhe e opção de exibição.
+- Questões de professores são vinculadas ao autor e à instituição. Professor gerencia as próprias questões; gestão possui visão administrativa mais ampla dentro da instituição.
 
-- Chaves primárias do tipo `Guid`; exclusão **lógica** (`Ativa`/`Ativo`) nas entidades acadêmicas.
-- Relacionamentos com restrição de chave estrangeira no banco: matrícula → turma e usuário, turma → curso e professor, nota → matrícula, avaliação-questão → avaliação, unidade → instituição e vínculos de instituição. Os demais vínculos (por exemplo, questão → disciplina) são **lógicos**, validados pela aplicação.
-- `Instituicoes`, `Unidades` e `UsuariosInstituicoes` formam a base para um futuro **modelo multi-instituição** (ainda não aplicado às demais tabelas).
-- `Contatos` armazena solicitações de contato (legado do site institucional).
+### 7.4. Geração de questões com IA
 
----
+- Integração com Google Gemini, quando `Gemini:ApiKey` está configurada.
+- Geração de questões por disciplina, assunto, dificuldade e quantidade, com orientações adicionais.
+- As questões geradas retornam como rascunhos para revisão do professor; a geração não grava automaticamente no banco.
+- O usuário revisa e escolhe quais rascunhos salvar. Erros de configuração, cota ou comunicação com o provedor são retornados como falha da integração.
 
-## 🤖 Geração de questões com IA
+### 7.5. Avaliações, provas e simulados
 
-A IA **sugere**; a pessoa **decide**. O fluxo abaixo vale para a tela de banco de questões e para a janela de montagem de avaliações.
+- Cadastro de prova ou simulado, disciplina, título, detalhes e periodicidade.
+- Inclusão, remoção e reordenação de questões do banco.
+- Estados de rascunho e aplicada.
+- Código para localizar/compartilhar uma avaliação aplicada com alunos.
+- Acesso do aluno às avaliações que foram aplicadas na instituição.
 
-```mermaid
-sequenceDiagram
-    autonumber
-    actor P as Professor ou Gestor
-    participant UI as QuestionComposer (Blazor)
-    participant WS as QuestaoWebService
-    participant IA as IaQuestaoService
-    participant G as Google Gemini
-    participant DB as Banco de dados
+### 7.6. Prática e desempenho do aluno
 
-    P->>UI: Disciplina, assunto, dificuldade, quantidade e recomendações
-    UI->>WS: GenerateAsync(...)
-    WS->>DB: Valida posse da disciplina e busca enunciados já existentes
-    WS->>IA: GerarQuestoesAsync(...)
-    IA->>G: Prompt + esquema JSON (saída estruturada)
-    G-->>IA: Questões em JSON
-    IA->>IA: Valida: 5 alternativas distintas, resposta válida, limites de tamanho
-    IA-->>WS: Questões válidas (as malformadas são descartadas)
-    WS-->>UI: Rascunhos para revisão
-    P->>UI: Revisa e marca as que quer guardar
-    UI->>WS: SaveDraftsAsync(selecionadas)
-    WS->>DB: Grava as questões
-    WS-->>UI: IDs criados (entram na avaliação, se for o caso)
-```
+- Treino livre por disciplina, com questões sorteadas do banco.
+- Resposta e correção durante a prática, com exibição de explicação.
+- Resposta a provas/simulados aplicados, inclusive por código.
+- Histórico individual de tentativas e resultados de prática.
+- O aluno escolhe se cada resultado de treino deve ser contabilizado no seu resumo de prática.
+- Resultados de prática são armazenados separadamente das notas oficiais; não alteram a tabela de notas acadêmicas.
+- Painel do aluno apresenta notas, evolução e resumos de desempenho por disciplina.
 
-**Garantias do fluxo**
+### 7.7. Instituições, mantenedores e unidades
 
-- **Sem dados pessoais na IA:** o prompt leva disciplina, assunto, dificuldade, quantidade, recomendações e enunciados já existentes (para evitar repetição). Nenhum dado de aluno é enviado.
-- **Recomendações tratadas como dado:** o texto livre é limitado a 500 caracteres e a IA é instruída a ignorar pedidos que mudem o formato da resposta.
-- **Resiliência:** uma nova tentativa automática em falhas temporárias (`500/502/503/504`) e erros mapeados para o cliente (`429`, `503`, `502`).
-- **Validação defensiva:** alternativas vazias, repetidas ou longas demais e respostas fora das alternativas fazem a questão ser descartada.
-- **Revisão humana obrigatória** antes de qualquer gravação no banco.
+A estrutura tem três níveis distintos:
 
----
+1. **Mantenedor/rede:** organização administrativa responsável por uma ou mais instituições.
+2. **Instituição:** entidade educacional independente, com sua própria categoria, usuários, dados acadêmicos e identidade visual.
+3. **Unidade:** estrutura vinculada a uma única instituição, classificada como Campus, Polo ou Prédio.
 
-## 🔐 Segurança e LGPD
+#### Categorias institucionais
 
-### Controles já implementados
+O cadastro/edição de instituição oferece as categorias Faculdade / Ensino Superior, Colégio / Ensino Básico, Escola / Ensino Básico, Instituto e Centro técnico. A categoria institucional não é o tipo de unidade física. A lista está centralizada no enum `TipoInstituicao` e pode ser estendida com novas opções.
 
-| Área | Controle |
+A categoria é definida no formulário da instituição. A alteração da categoria e do mantenedor é restrita ao Admin da plataforma; o Gestor da instituição pode editar os outros dados permitidos, sem mudar esses campos administrativos.
+
+#### Rede Faculdade Luciano Feijão / Colégio Luciano Feijão
+
+O modelo `MantenedorModel` e a chave `InstituicaoModel.MantenedorId` já representam a rede. A FLF base é criada pelo inicializador e vinculada ao mantenedor `Luciano Feijão`. Um Admin pode cadastrar o CLF como outra instituição, escolher Colégio / Ensino Básico e selecionar o mesmo mantenedor. O formulário sugere o nome “Colégio Luciano Feijão” e a sigla “CLF” ao selecionar a categoria Colégio, mas os dados cadastrais obrigatórios (como CNPJ, contato e endereço) devem ser confirmados e preenchidos pelo responsável.
+
+As instituições vinculadas aparecem agrupadas na área **Instituição e unidades**. O vínculo permite visualizar informações cadastrais da rede e alternar para outra instituição somente quando o usuário também possui vínculo nela. Ser do mesmo mantenedor, por si só, não dá acesso aos dados acadêmicos da instituição irmã.
+
+#### Unidades e identidade visual
+
+Cada instituição pode cadastrar unidades dos tipos:
+
+- Campus (`TipoUnidade.Campus`, valor legado 1).
+- Polo (`TipoUnidade.Polo`, valor legado 2).
+- Prédio (`TipoUnidade.Predio`, valor 3).
+
+Cada unidade pode ter logotipo, cor primária e cor secundária próprios. Cada cor é independente: quando a propriedade não possui valor próprio, herda a cor da instituição. O logotipo da instituição também é usado quando não existe logotipo próprio da unidade. Ao personalizar uma unidade, somente aquela unidade é afetada; os dados de identidade da instituição e das demais unidades permanecem separados.
+
+A personalização pode ser gerenciada no formulário de criação/edição de unidade em **Instituição e unidades**. Os campos de cores reutilizam os seletores da interface existente, com opção “Herdar da instituição”.
+
+### 7.8. Histórico de atividades
+
+- Registro de alterações de entidades e eventos de acesso/atividade.
+- Interceptor de persistência para registrar operações de banco, complementado por eventos explícitos de login, falha de login e prática do aluno.
+- A página `/historico` e a API de auditoria são somente leitura; não há operações de edição ou exclusão de registros de auditoria.
+- O Admin tem visão global; Gestor e Professor têm escopo institucional e de responsabilidade conforme suas permissões. O endereço IP é exibido somente ao Admin.
+
+### 7.9. Contatos e páginas públicas
+
+- Página pública de apresentação, método e conteúdos editoriais.
+- Formulário de contato e caixa de solicitações para a equipe.
+- Essas páginas editoriais não constituem, por si só, um módulo de distribuição de materiais acadêmicos para turmas.
+
+## 8. Perfis e autorização
+
+A autorização é aplicada no backend; ocultar um botão na interface não substitui as verificações de acesso.
+
+| Perfil | Escopo geral |
 |---|---|
-| **Senhas** | Hash com **BCrypt** (nunca em texto claro). |
-| **Sessão** | Cookie `HttpOnly`, `SameSite=Lax`, expiração de 8 h com renovação deslizante; JWT com validação de tempo de vida. |
-| **Autorização** | Políticas por perfil + regra de **posse** nos serviços (professor só altera o que é dele). Rotas de instituição e unidades exigem login; alterações exigem Gestão (e excluir/reativar instituição, só Admin). |
-| **Abuso** | *Rate limiting* de 30 requisições por minuto em login e cadastro. |
-| **Entrada de dados** | Validação por DataAnnotations (MiniValidation) nos DTOs da API e validações explícitas (tamanho, formato, posse) nos serviços do painel. |
-| **Segredos** | Segredo JWT obrigatório em produção (mín. 32 bytes), chave da IA fora do repositório, `App_Data/` e `*.db` ignorados pelo Git. |
-| **Uploads de imagem** | Limite de 8 MB, formato conferido pelo **conteúdo** (JPG, PNG, WebP, GIF), limite de pixels contra imagens "bomba", recompressão para WebP, remoção de metadados (EXIF/GPS) e **original descartado**. |
-| **Arquivos** | Fotos servidas por rota autenticada, fora de pastas públicas. |
-| **Transporte** | Redirecionamento HTTPS e HSTS. |
-| **IA** | Nenhum dado de aluno enviado ao provedor; revisão humana antes de gravar. |
+| **Admin** | Administração global da plataforma; cadastro de instituições e mantenedores; acesso administrativo a instituições e unidades; supervisão global conforme as rotas. |
+| **Gestor** | Gestão acadêmica e administrativa somente nas instituições em que possui vínculo ativo de Gestor. Categoria institucional e mantenedor permanecem sob responsabilidade do Admin. |
+| **Professor** | Disciplinas/turmas e conteúdos de sua responsabilidade, lançamento de notas conforme a atribuição e recursos de avaliação/prática disponíveis ao perfil. |
+| **Aluno** | Próprias turmas, disciplinas, notas, avaliações aplicadas e resultados de prática. |
+| **User** | Conta sem perfil acadêmico atribuído; acesso restrito ao fluxo de aguardando perfil. |
 
-### Dados pessoais tratados
+A escolha da instituição ativa é validada contra vínculos no banco. O mantenedor agrupa instituições, mas não substitui os vínculos de usuário nem amplia automaticamente as permissões. Nas rotas de instituições, unidades e vínculos usuário–instituição, o Admin tem escopo global e o Gestor fica limitado às instituições em que possui vínculo ativo de Gestão. O Gestor também não pode criar um novo vínculo para uma conta que já pertença a outra instituição; o compartilhamento entre instituições exige ação do Admin.
 
-Nome, e-mail, CPF, telefone, data de nascimento, foto de perfil, matrículas e notas. A faculdade é a **controladora**; quem opera a plataforma atua como **operadora** (art. 39 da LGPD).
+## 9. Principais páginas do painel
 
-### Pendências conhecidas (antes de produção em larga escala)
-
-| Prioridade | Item |
-|---|---|
-| 🔴 Alta | Trocar SQLite por banco gerenciado (PostgreSQL/SQL Server) com criptografia em repouso e backups testados. |
-| 🔴 Alta | Criptografar **CPF e telefone** em nível de aplicação (hoje ficam em texto no banco) e mascará-los na tela. |
-| 🔴 Alta | MFA para equipe e gestão; SSO institucional (OIDC/SAML). |
-| 🔴 Alta | Trilha de **auditoria** (quem viu, alterou ou exportou dado pessoal) e logs sem dados pessoais. |
-| 🟠 Média | Funcionalidades de direitos do titular: acesso, correção, exportação e exclusão/anonimização. |
-| 🟠 Média | Política de retenção e descarte, RIPD (para IA, fotos e menores) e plano de resposta a incidentes. |
-| 🟠 Média | Isolamento multi-instituição em todas as tabelas (filtros por instituição) e testes de vazamento. |
-| 🟠 Média | Atualizar `SixLabors.ImageSharp` (avisos de vulnerabilidade no build) e automatizar a varredura de dependências (Dependabot). |
-| 🟡 Normal | Pentest independente e cofre de segredos em produção. |
-
-Para reportar uma vulnerabilidade, veja a [**Política de Segurança**](SECURITY.md).
-
-> Este documento descreve o estado técnico do projeto e **não substitui** parecer jurídico. A adequação à LGPD é um programa que envolve contrato (DPA), encarregado, processos e treinamento, além do software.
-
----
-
-## ✅ Qualidade e testes
-
-| Item | Situação |
-|---|---|
-| Compilação | `dotnet build` (hoje com avisos NU1902/NU1903 do `SixLabors.ImageSharp`; atualizar o pacote). |
-| Testes automatizados | **Ainda não existem.** Há apenas exemplos de chamadas em `EduAssess/Test/EduAssess.http`. |
-| Integração contínua | **GitHub Actions** (`.github/workflows/ci.yml`): build em Release, testes (quando existirem), auditoria de dependências (falha em vulnerabilidade **alta ou crítica**) e higiene do repositório (bloqueia `*.db`, `App_Data/` e segredos em `appsettings`). |
-| Análise de segurança | **CodeQL** (`codeql.yml`) a cada push, pull request e toda segunda-feira. |
-| Dependências | **Dependabot** (`dependabot.yml`): PRs semanais para NuGet e GitHub Actions. |
-| Análise estática | Analisadores padrão do SDK (`nullable` habilitado). |
-
-Prioridades: testes de integração das rotas e das regras de posse, testes de componente (bUnit) para as telas críticas, pipeline de CI com build, testes e varredura de vulnerabilidades.
-
----
-
-## 🧭 Decisões de arquitetura
-
-| Decisão | Motivo | Consequência |
+| Página | Rota | Finalidade |
 |---|---|---|
-| **Monólito modular** (painel + API no mesmo processo) | Entrega rápida, uma única implantação, regras de negócio compartilhadas. | Escalar exige balanceamento com sessão fixa (Blazor Server). |
-| **Blazor Server** | Tudo em C#, sem camada JavaScript própria, autenticação por cookie simples. | Uma conexão SignalR por usuário; avaliar Azure SignalR/Redis em escala. |
-| **SQLite** | Zero configuração para desenvolvimento e demonstração. | Não é o destino de produção; trocar o provedor do EF Core. |
-| **Exclusão lógica** | Preserva histórico acadêmico e referências. | Será necessária anonimização/descarte para atender a LGPD. |
-| **IA com prévia obrigatória** | Qualidade e responsabilidade pedagógica ficam com o professor. | Mais um clique, porém sem questões sem revisão no banco. |
-| **Fotos sem banco** | Arquivos nomeados pelo ID do usuário em `App_Data/uploads`, sem coluna nova. | Para vários servidores, migrar para armazenamento de objetos. |
-| **Respostas de prática não gravadas** | Evita nova tabela e dados de desempenho antes da definição de retenção. | Não há histórico de tentativas nem relatórios de desempenho em provas. |
+| Login | `/` e `/login` | Entrar no painel. |
+| Painel de gestão | `/painel` | Indicadores e visão geral da instituição selecionada. |
+| Cursos | `/cursos` | Catálogo de cursos. |
+| Disciplinas | `/disciplinas` | Disciplinas e professores responsáveis. |
+| Turmas | `/turmas` | Turmas e seus vínculos. |
+| Matrículas | `/matriculas` | Matrículas de alunos. |
+| Notas | `/notas` | Lançamento e consulta de notas oficiais. |
+| Alunos | `/alunos` | Alunos e contas pendentes. |
+| Equipe | `/equipe` | Gestores e professores. |
+| Banco de questões | `/banco-questoes` | Questões, filtros, selos e geração assistida. |
+| Avaliações | `/avaliacoes` | Provas, simulados e composição de questões. |
+| Praticar | `/praticar` | Treinos e avaliações aplicadas ao aluno. |
+| Meu painel | `/aluno` | Visão do aluno. |
+| Minhas notas | `/aluno/notas` | Desempenho em notas oficiais. |
+| Meu painel de professor | `/professor` | Turmas e notas de responsabilidade. |
+| Instituição e unidades | `/instituicao` | Instituição, mantenedor/rede, unidades, identidade visual e lotação de pessoas. |
+| Histórico | `/historico` | Consulta de registros e atividade. |
+| Minha conta | `/conta` | Dados pessoais, foto e senha. |
+| Solicitações | `/contatos` | Caixa de mensagens/contatos. |
 
----
+## 10. API e documentação HTTP
 
-## 🗺 Roadmap
+As Minimal APIs são registradas em `Program.cs` e organizadas por módulo em `Application/Routes/`. Entre os grupos atuais estão:
 
-**Segurança e conformidade**
-- [ ] PostgreSQL / SQL Server + criptografia em repouso
-- [ ] Criptografia de CPF e telefone; mascaramento na interface
-- [ ] MFA e SSO (OIDC/SAML)
-- [ ] Trilha de auditoria imutável
-- [ ] Direitos do titular (exportar, corrigir, excluir/anonimizar) e política de retenção
-- [ ] Cofre de segredos (Key Vault / Secrets Manager)
+- `/auth`
+- `/instituicoes`
+- `/unidades`
+- `/usuario-instituicao`
+- `/cursos`
+- `/disciplina`
+- `/turmas`
+- `/matricula`
+- `/notas`
+- `/questoes`
+- `/auditoria`
 
-**Produto**
-- [x] Instituição, unidades (prédios), lotação e visual por perfil/prédio/curso
-- [ ] Vincular **cursos** a unidades (hoje o perfil de Medicina é por nome do curso)
-- [ ] Filtrar painéis e relatórios pela unidade da pessoa
-- [ ] Gravar tentativas e resultados das provas; relatórios por turma e por questão
-- [ ] Rotas REST para avaliações
-- [ ] Importação de alunos (CSV) e integração com sistema acadêmico / LTI 1.3 (Moodle)
-- [ ] Papéis granulares (coordenação por curso e unidade)
-- [ ] Notificações por e-mail
+A documentação interativa fica em `/swagger` quando `APP_MODE` não está definido como `App`. Os endpoints de upload recebem `multipart/form-data`; os demais usam os DTOs declarados em `Application/DTOs/`.
 
-**Engenharia**
-- [x] CI com build, auditoria de dependências, CodeQL e Dependabot
-- [ ] Testes automatizados (integração e componentes) e entrega contínua (CD)
-- [ ] Multi-instituição completo (filtro global por instituição)
-- [ ] Logs estruturados, métricas e *health checks*
-- [ ] Paginação nas listagens e fila para geração de IA com limite por instituição
-- [ ] Acessibilidade WCAG 2.1 AA
+## 11. Migrações e compatibilidade desta atualização
 
----
+A ampliação da classificação institucional usa enum armazenado como texto. Os valores anteriores `Faculdade` e `Colegio` são preservados; novas opções foram acrescentadas ao enum sem renumerar os valores existentes.
 
-## 🤝 Equipe e créditos
+Os tipos de unidade são armazenados como enum numérico. `Campus = 1` e `Polo = 2` foram mantidos; `Predio = 3` foi adicionado, portanto os registros existentes não precisam ser convertidos.
 
-Desenvolvido na **Faculdade Luciano Feijão** (período de desenvolvimento inicial: 03/10/2026 a 22/10/2026).
+A migration `20261216090000_AddUnitBranding` adiciona à tabela `Unidades` três colunas opcionais:
 
-| Integrante |
-|---|
-| Ezequiel Barboza Madeira |
-| Derik Andrey de Sousa Santos |
-| Victor Wallace Liberato de Sousa |
-| Joaquim Bismarck de Oliveira Bento |
+- `LogoPath` (`text`, nulo permitido).
+- `CorPrimaria` (`varchar(7)`, nulo permitido).
+- `CorSecundaria` (`varchar(7)`, nulo permitido).
 
-### Convenções de contribuição
+Como são colunas novas e opcionais, unidades anteriores continuam válidas e herdam a identidade visual da instituição até que recebam personalização própria. A aplicação executa a migração pendente na inicialização.
 
-- Commits no padrão **Conventional Commits** (`feat:`, `fix:`, `docs:`, `refactor:`, `test:`).
-- Alterações de esquema sempre acompanhadas de **migration** versionada.
-- Mudanças de API acompanhadas de comentário explicando o que mudou e de exemplo em `EduAssess.http`.
-- Nunca versionar segredos, `*.db` nem `App_Data/`.
+## 12. Testes e validação
 
----
+O repositório contém arquivos `.http` para chamadas manuais à API e a pasta `Test/`, mas não contém atualmente um projeto automatizado xUnit/NUnit/MSTest configurado no `.slnx`.
 
-## 📄 Licença
+Ao alterar o sistema, valide em ambiente local, pelo menos:
 
-Licença **a definir**. A titularidade dos direitos patrimoniais do programa de computador será determinada conforme a legislação aplicável e os instrumentos jurídicos pertinentes. Enquanto isso, todos os direitos são reservados.
+1. Login com Admin e Gestor vinculados a instituições diferentes.
+2. Tentativa de acessar ou alterar uma instituição/unidade sem vínculo apropriado.
+3. Cadastro e alteração de categoria institucional por Admin; confirmação de que Gestor não altera categoria nem mantenedor.
+4. Cadastro e edição de Campus, Polo e Prédio, preservando os valores antigos.
+5. Upload, substituição e remoção do logotipo de unidade.
+6. Personalização separada de cor primária e secundária; herança quando cada campo está vazio.
+7. Edição de uma unidade sem alterar a marca da instituição ou de outra unidade.
+8. Cadastro de FLF e CLF como instituições diferentes com o mesmo mantenedor; confirmação de que cursos, pessoas, turmas, matrículas, avaliações e notas continuam separados.
+9. Consulta do histórico por perfil.
 
-Este repositório não substitui o registro oficial do software perante o INPI.
-
-<div align="center">
-
-<sub>Feito com ☕ e .NET na Faculdade Luciano Feijão.</sub>
-
-</div>
+Não existe uma bateria automatizada de integração para substituir esses testes manuais no estado atual do repositório.

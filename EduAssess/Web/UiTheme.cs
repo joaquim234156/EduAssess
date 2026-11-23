@@ -6,7 +6,10 @@ namespace EduAssess.Web;
 /// <summary>
 /// NOVO: unidade (prédio) da pessoa logada, usada para escolher o visual exclusivo de cada prédio.
 /// </summary>
-public sealed record UnitInfo(Guid Id, string Name, string Slug, string Sigla, TipoUnidade Type, Guid InstitutionId, string InstitutionName);
+public sealed record UnitInfo(
+    Guid Id, string Name, string Slug, string Sigla, TipoUnidade Type,
+    Guid InstitutionId, string InstitutionName,
+    string? LogoPath = null, string? Primary = null, string? Secondary = null);
 
 /// <summary>
 /// NOVO: catálogo de temas. O visual do painel é a combinação de DOIS eixos:
