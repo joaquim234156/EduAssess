@@ -3,24 +3,6 @@
 Todas as mudanças relevantes do projeto. Formato inspirado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 Os mesmos comentários estão no código, junto de cada alteração (procure por `NOVO`, `ALTERADO` e `CORREÇÃO`).
 
-## [Não publicado] — Classificação institucional, identidade visual por unidade e isolamento da rede
-
-### Adicionado
-- **Categorias institucionais:** o formulário de cadastro/edição permite ao Admin classificar a instituição como Faculdade/Ensino Superior, Colégio/Ensino Básico, Escola/Ensino Básico, Instituto ou Centro técnico. A categoria aparece na ficha, na rede do mantenedor e no seletor de instituição.
-- **Identidade visual por unidade:** upload de logotipo e cores primária/secundária independentes; cada campo pode herdar a configuração da instituição. Os arquivos de unidade ficam em `EduAssess/uploads/unit-logos`, separados dos logos institucionais.
-- **Tipo de unidade Prédio:** acrescentado como `TipoUnidade.Predio = 3`, mantendo `Campus = 1` e `Polo = 2`.
-- **Migration `AddUnitBranding`:** adiciona `LogoPath`, `CorPrimaria` e `CorSecundaria` opcionais à tabela `Unidades`.
-
-### Alterado
-- A marca efetiva do painel passa a combinar as cores e o logotipo específicos da unidade com os valores institucionais herdados. A alteração de uma unidade não modifica a instituição nem as outras unidades.
-- As rotas de instituição, unidade e vínculo usuário–instituição verificam o vínculo com a instituição-alvo; compartilhar um mantenedor não concede acesso aos dados acadêmicos das instituições irmãs.
-- Gestores deixam de ver, na tela de lotação, contas que já pertencem exclusivamente a outro tenant. A regra de que somente Admin pode compartilhar contas entre instituições também é validada diretamente na rota de API de vinculação.
-- README atualizado para refletir PostgreSQL/Npgsql, os módulos existentes, a estrutura institucional, a persistência de arquivos e as limitações reais de validação.
-
-### Compatibilidade
-- Os valores `Campus` e `Polo` não foram renumerados. As colunas de marca da unidade são opcionais, então unidades antigas continuam válidas e herdam a marca da instituição.
-- O relacionamento `Instituição → Mantenedor` já existente foi preservado; não foi criada uma segunda tabela de grupos.
-
 ## [Não publicado] — Identidade das instituições, CLF, selos de questões, simulados do aluno e auditoria
 
 ### Adicionado
