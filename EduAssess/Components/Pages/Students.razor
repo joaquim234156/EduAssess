@@ -99,7 +99,11 @@
         try
         {
             var actor = await Session.RequireAsync(UserRole.Admin, UserRole.Gestor, UserRole.Professor);
-            await Accounts.AssignAsStudentAsync(actor.Role, person.Id);
+            // CORREÇÃO: o aluno é vinculado à instituição EM USO (e ao prédio de quem atribui, se tiver um).
+            // Antes só mudava o perfil e o aluno não entrava em instituição nenhuma.
+            var institutionId = Session.InstitutionId
+                ?? throw new InvalidOperationException("Selecione uma instituição antes de atribuir alunos.");
+            await Accounts.AssignAsStudentAsync(actor.Role, person.Id, institutionId, Session.Unit?.Id);
             message = $"{person.Name} agora é aluno."; isError = false;
             await LoadAsync();
         }

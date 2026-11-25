@@ -56,6 +56,8 @@
                     <label for="password">Senha</label>
                     <input id="password" name="password" type="password" class="input" placeholder="Digite sua senha" autocomplete="current-password" required maxlength="72" />
                 </div>
+                @* NOVO: recuperação de senha (por enquanto confirmada pelo telefone cadastrado). *@
+                <div style="text-align:right;margin:-4px 0 14px"><a href="/esqueci-senha" style="color:var(--forest-700);font-weight:700;font-size:.92rem">Esqueceu a senha?</a></div>
                 <label class="check" style="margin-bottom:22px"><input type="checkbox" name="remember" /> Manter conectado neste dispositivo</label>
                 <button class="btn btn-primary btn-lg btn-block" type="submit">Entrar na plataforma <Icon Name="arrow-right" Size="18" /></button>
             </form>

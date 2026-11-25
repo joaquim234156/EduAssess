@@ -99,16 +99,25 @@
         try
         {
             var actor = await Session.RequireAsync(UserRole.Admin, UserRole.Gestor);
+
+            // CORREÇÃO: a conta nova é vinculada à instituição EM USO. Antes ela nascia sem vínculo; no login o
+            // UiSession tratava quem não tem vínculo como "User" (sem tela) e a lista de Equipe (que lê os vínculos)
+            // também não mostrava a pessoa. A unidade (prédio) fica em branco: escolha-a depois em /instituicao.
+            var institutionId = Session.InstitutionId
+                ?? throw new InvalidOperationException("Selecione uma instituição antes de cadastrar a equipe.");
+
             if (actor.Role == UserRole.Admin)
-                await Accounts.CreateManagerAsync(actor.Role, form.Name, form.Email, form.Cpf, form.Phone, form.BirthDate, form.Password, form.ConfirmPassword);
+                await Accounts.CreateManagerAsync(actor.Role, form.Name, form.Email, form.Cpf, form.Phone, form.BirthDate, form.Password, form.ConfirmPassword,
+                    institutionId: institutionId);
             else
-                await Accounts.CreateProfessorAsync(actor.Role, form.Name, form.Email, form.Cpf, form.Phone, form.BirthDate, form.Password, form.ConfirmPassword);
+                await Accounts.CreateProfessorAsync(actor.Role, form.Name, form.Email, form.Cpf, form.Phone, form.BirthDate, form.Password, form.ConfirmPassword,
+                    institutionId: institutionId);
 
             message = (actor.Role == UserRole.Admin ? "Gestor" : "Professor") + " criado com sucesso."; isError = false;
             form = new AccountRegistrationForm();
             await LoadAsync();
         }
-        catch (Exception ex) when (ex is ArgumentException or AccountConflictException or UnauthorizedAccessException)
+        catch (Exception ex) when (ex is ArgumentException or AccountConflictException or UnauthorizedAccessException or InvalidOperationException)
         {
             message = ex.Message; isError = true;
         }
