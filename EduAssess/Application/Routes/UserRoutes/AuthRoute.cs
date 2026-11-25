@@ -129,9 +129,12 @@ namespace EduAssess.Application.Routes
                     var actorRole = principal.IsInRole("Admin") ? UserRole.Admin
                         : principal.IsInRole("Gestor") ? UserRole.Gestor
                         : UserRole.Professor;
+                    // ALTERADO: o aluno é vinculado à instituição do token (claim). Sem ela não há onde vincular.
+                    if (!Guid.TryParse(principal.FindFirst(AuditActorAccessor.InstitutionClaim)?.Value, out var institutionId))
+                        return Results.BadRequest(new { message = "Selecione uma instituição antes de atribuir alunos." });
                     try
                     {
-                        await accounts.AssignAsStudentAsync(actorRole, id, cancellationToken);
+                        await accounts.AssignAsStudentAsync(actorRole, id, institutionId, null, cancellationToken);
                         return Results.NoContent();
                     }
                     catch (KeyNotFoundException ex)

@@ -91,13 +91,16 @@
 
 /* ───────── questões dentro da avaliação ───────── */
 .key-toggle { display: flex; justify-content: flex-end; margin-bottom: 10px; }
-.switch { display: inline-flex; align-items: center; gap: 10px; font-weight: 700; color: var(--muted); cursor: pointer; }
-.switch input { position: absolute; opacity: 0; }
-.switch span { width: 42px; height: 24px; border-radius: 999px; background: var(--mint-200); position: relative; transition: background .2s; }
-.switch span::after { content: ""; position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 50%; background: #fff; box-shadow: 0 1px 4px rgba(0,0,0,.25); transition: transform .2s; }
-.switch input:checked + span { background: var(--forest-700); }
-.switch input:checked + span::after { transform: translateX(18px); }
-.switch input:focus-visible + span { outline: 3px solid var(--forest-400); outline-offset: 2px; }
+/* CORREÇÃO: estas regras valem só para o interruptor simples de "Mostrar gabarito" (.switch-simple).
+   Antes eram ".switch span" e pegavam também o toggle do aluno (.switch-ui / .switch-text), que
+   ganhava uma segunda pílula com bolinha desenhada em cima do texto "Não contabilizado". */
+.switch.switch-simple { display: inline-flex; align-items: center; gap: 10px; font-weight: 700; color: var(--muted); cursor: pointer; }
+.switch.switch-simple input { position: absolute; opacity: 0; }
+.switch.switch-simple > span { width: 42px; height: 24px; border-radius: 999px; background: var(--mint-200); position: relative; transition: background .2s; }
+.switch.switch-simple > span::after { content: ""; position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 50%; background: #fff; box-shadow: 0 1px 4px rgba(0,0,0,.25); transition: transform .2s; }
+.switch.switch-simple input:checked + span { background: var(--forest-700); }
+.switch.switch-simple input:checked + span::after { transform: translateX(18px); }
+.switch.switch-simple input:focus-visible + span { outline: 3px solid var(--forest-400); outline-offset: 2px; }
 .exam-q-list { display: grid; gap: 14px; }
 .exam-q { padding: 18px 20px; border-radius: 20px; border: 1px solid var(--line); background: #fff; }
 .exam-q header { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
